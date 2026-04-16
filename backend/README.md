@@ -1,6 +1,8 @@
 # Wytham Beta Backend
 
 > This file documents the current local backend flow. The approved deployment target is Railway + Supabase, and that migration is still pending.
+>
+> For the hosted deployment shape, deploy branches, and env mapping, use [../DEPLOYMENT.md](../DEPLOYMENT.md). Do not use the ngrok workflow below as the hosted deployment guide.
 
 This backend is designed to run on your laptop and be exposed through `ngrok`, not by opening router ports directly.
 

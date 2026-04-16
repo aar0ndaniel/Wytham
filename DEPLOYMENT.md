@@ -25,8 +25,9 @@ These three branches intentionally start from the same initial commit. Promotion
 ## Frontend env mapping
 
 - `PUBLIC_BASE_URL`: frontend canonical URL
-- `API_BASE_URL`: Railway backend base URL
 - `padi`, `tsotso`, `amenya`: optional client-safe Supabase values only if direct browser reads are introduced later
+
+The dedicated Railway API base wiring is introduced in the later frontend deployment task when `site-config.js` is added. Until then, do not assume the current frontend bundle can read a hosted backend URL.
 
 ## Release pattern
 
