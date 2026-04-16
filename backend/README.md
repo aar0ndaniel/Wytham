@@ -7,7 +7,7 @@ This backend now supports the hosted single-port shape used by Railway-style dep
 - beta emails are sent manually from the admin dashboard
 - the hosted path uses the store abstraction instead of direct route-level SQLite queries
 
-For deployment branches, env mapping, and infrastructure notes, use [../DEPLOYMENT.md](../DEPLOYMENT.md).
+This branch is backend-only, so Railway can point directly at the `backend/` folder without carrying the public landing-page files.
 
 ## What it does
 
@@ -78,7 +78,7 @@ Use a dedicated mailbox for this, not your personal daily email. Good options:
 - a dedicated Gmail account with an App Password
 - a dedicated Outlook account with app credentials
 
-The sender fills `../signup-beta-email-template.html` and attaches `../app-logo.png` inline in the email.
+The sender fills `./assets/signup-beta-email-template.html` and attaches `./assets/wytham-logo-dark-nav.png` inline in the email.
 
 ## Downloads
 

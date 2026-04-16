@@ -16,7 +16,7 @@ const {
 const { createAdminSupabaseClient } = require('./lib/supabase');
 
 const BACKEND_DIR = __dirname;
-const ROOT_DIR = path.resolve(__dirname, '..');
+const ASSETS_DIR = path.join(BACKEND_DIR, 'assets');
 const DATA_DIR = path.join(BACKEND_DIR, 'data');
 const PRIMARY_DB_PATH = path.join(DATA_DIR, 'wytham-beta.db');
 const LEGACY_DB_PATH = path.join(DATA_DIR, 'semora-beta.db');
@@ -24,44 +24,12 @@ if (!fs.existsSync(PRIMARY_DB_PATH) && fs.existsSync(LEGACY_DB_PATH)) {
   fs.copyFileSync(LEGACY_DB_PATH, PRIMARY_DB_PATH);
 }
 const DB_PATH = PRIMARY_DB_PATH;
-const EMAIL_TEMPLATE_PATH = path.join(ROOT_DIR, 'signup-beta-email-template.html');
-const LOGO_PATH = path.join(ROOT_DIR, 'wytham-logo-dark-nav.png');
+const EMAIL_TEMPLATE_PATH = path.join(ASSETS_DIR, 'signup-beta-email-template.html');
+const LOGO_PATH = path.join(ASSETS_DIR, 'wytham-logo-dark-nav.png');
 const ADMIN_SCRIPT_PATH = path.join(BACKEND_DIR, 'admin.js');
-const MATTER_FONT_PATH = path.join(ROOT_DIR, 'matter.woff2');
-const PUBLIC_ROOT_FILES = new Set([
-  '/index.html',
-  '/contact.html',
-  '/docs.html',
-  '/team.html',
-  '/updates.html',
-  '/navbar.html',
-  '/signup-beta-email-template.html',
-  '/style.css',
-  '/docs.css',
-  '/team_styles.css',
-  '/script.js',
-  '/update_links.js',
-  '/favicon.ico',
-  '/favicon.svg',
-  '/folder-close.svg',
-  '/folder-open.svg',
-  '/logo-black.svg',
-  '/logo-white.svg',
-  '/matter.woff2',
-  '/paper-mono.woff2',
-  '/Aaron Daniel Akuteye.png',
-  '/Akosua.jpeg',
-  '/app-logo.png',
-  '/wytham-logo-dark-nav.png',
-  '/wytham-logo-light-nav.png',
-  '/wytham-logo-dark.png',
-  '/wytham-logo-light.png',
-  '/bismark.jpeg',
-  '/Emmanuel.jpeg',
-  '/Mavis.jpeg',
-  '/Prof Harry.PNG',
-]);
-const PUBLIC_PATH_PREFIXES = ['/vendor/'];
+const MATTER_FONT_PATH = path.join(ASSETS_DIR, 'matter.woff2');
+const PUBLIC_ROOT_FILES = new Set();
+const PUBLIC_PATH_PREFIXES = [];
 
 loadEnv(path.join(BACKEND_DIR, '.env'));
 
@@ -624,7 +592,7 @@ app.use((req, res, next) => {
 });
 
 app.get('/', (_req, res) => {
-  res.sendFile(path.join(ROOT_DIR, 'index.html'));
+  res.type('html').send(simplePage('Wytham Backend', 'This service powers the Wytham API and admin dashboard.'));
 });
 
 registerErrorHandler(app);
@@ -3437,8 +3405,8 @@ function isAllowedPublicPath(requestedPath) {
 }
 
 function resolvePublicPath(requestedPath) {
-  const targetPath = path.resolve(ROOT_DIR, `.${requestedPath}`);
-  if (!targetPath.startsWith(ROOT_DIR + path.sep) && targetPath !== ROOT_DIR) {
+  const targetPath = path.resolve(BACKEND_DIR, `.${requestedPath}`);
+  if (!targetPath.startsWith(BACKEND_DIR + path.sep) && targetPath !== BACKEND_DIR) {
     throw new Error('Resolved public path escaped the root directory.');
   }
   return targetPath;
@@ -4317,7 +4285,7 @@ function createApp(options = {}) {
   });
 
   hostedApp.get('/', (_req, res) => {
-    res.sendFile(path.join(ROOT_DIR, 'index.html'));
+    res.type('html').send(simplePage('Wytham Backend', 'This service powers the Wytham API and admin dashboard.'));
   });
 
   registerErrorHandler(hostedApp);
