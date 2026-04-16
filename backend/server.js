@@ -5,6 +5,15 @@ const express = require('express');
 const nodemailer = require('nodemailer');
 const { DatabaseSync } = require('node:sqlite');
 const { z } = require('zod');
+const { createConfig } = require('./lib/config');
+const {
+  createStore,
+  summarizeDailySignupRows,
+  summarizeDonations,
+  summarizeInstitutionRows,
+  summarizeSignups,
+} = require('./lib/store');
+const { createAdminSupabaseClient } = require('./lib/supabase');
 
 const BACKEND_DIR = __dirname;
 const ROOT_DIR = path.resolve(__dirname, '..');
@@ -56,33 +65,7 @@ const PUBLIC_PATH_PREFIXES = ['/vendor/'];
 
 loadEnv(path.join(BACKEND_DIR, '.env'));
 
-const defaultPublicPort = number(process.env.PORT, 8787);
-
-const config = {
-  host: process.env.HOST || '127.0.0.1',
-  port: defaultPublicPort,
-  adminHost: process.env.ADMIN_HOST || '127.0.0.1',
-  adminPort: number(process.env.ADMIN_PORT, defaultPublicPort + 1),
-  publicBaseUrl: stripSlash(process.env.PUBLIC_BASE_URL || 'http://127.0.0.1:8787'),
-  allowedOrigins: csv(process.env.ALLOWED_ORIGINS || 'http://127.0.0.1:8787,http://localhost:8787'),
-  adminUsername: process.env.ADMIN_USERNAME || 'admin',
-  healthToken: trim(process.env.HEALTH_TOKEN),
-  adminPassword: process.env.ADMIN_PASSWORD || 'change-this-password',
-  smtpHost: trim(process.env.SMTP_HOST),
-  smtpPort: number(process.env.SMTP_PORT, 465),
-  smtpSecure: process.env.SMTP_SECURE == null ? true : boolean(process.env.SMTP_SECURE),
-  smtpUser: trim(process.env.SMTP_USER),
-  smtpPass: trim(process.env.SMTP_PASS),
-  smtpFromName: trim(process.env.SMTP_FROM_NAME || 'Wytham Team'),
-  smtpFromEmail: trim(process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER),
-  supportEmail: trim(process.env.SUPPORT_EMAIL || process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER),
-  liteShareUrl:
-    trim(process.env.LITE_SHARE_URL) ||
-    'https://knustedugh-my.sharepoint.com/:f:/g/personal/adakuteye_st_knust_edu_gh/IgBYClZK6W-YRLviMlqzM1avASTrfMZsrbxSZWAnbUzC79w?e=ynf32b',
-  bundleShareUrl:
-    trim(process.env.BUNDLE_SHARE_URL) ||
-    'https://knustedugh-my.sharepoint.com/:f:/g/personal/adakuteye_st_knust_edu_gh/IgBNGRrdnVqPQKEy7KHXz-JLAQUaVdSM9Ev1hSNltF1uqVU?e=zD2KS3',
-};
+const config = createConfig(process.env);
 
 const RATE_POLICIES = Object.freeze({
   signup: { limit: 5, windowMs: 10 * 60 * 1000 },
@@ -294,17 +277,7 @@ const statements = {
   `),
 };
 
-const mailer = smtpReady()
-  ? nodemailer.createTransport({
-      host: config.smtpHost,
-      port: config.smtpPort,
-      secure: config.smtpSecure,
-      auth: {
-        user: config.smtpUser,
-        pass: config.smtpPass,
-      },
-    })
-  : null;
+const mailer = createMailer(config);
 
 const app = express();
 const adminApp = express();
@@ -678,7 +651,7 @@ function startServers() {
 }
 
 if (require.main === module) {
-  startServers();
+  startServer();
 }
 
 function requireLocalAdmin(req, res, next) {
@@ -708,10 +681,10 @@ function sampleSignup(edition) {
   };
 }
 
-function renderEmailTemplate(signup, logoSrc) {
+function renderEmailTemplate(signup, logoSrc, currentConfig = config) {
   const template = fs.readFileSync(EMAIL_TEMPLATE_PATH, 'utf8');
   const editionLabel = signup.edition === 'lite' ? 'Lite' : 'Bundle';
-  const shareUrl = shareUrlForEdition(signup.edition);
+  const shareUrl = shareUrlForEdition(signup.edition, currentConfig);
   const packageNote =
     signup.edition === 'lite'
       ? 'Lite is the smaller option and works best if R is already installed on your computer.'
@@ -728,24 +701,27 @@ function renderEmailTemplate(signup, logoSrc) {
     package_label: `${editionLabel} beta`,
     package_note: packageNote,
     download_portal_url: shareUrl,
-    support_email: config.supportEmail || config.smtpFromEmail || '',
+    support_email: currentConfig.supportEmail || currentConfig.smtpFromEmail || '',
   };
 
   return template.replace(/\{\{([a-z_]+)\}\}/gi, (_match, key) => escapeHtml(values[key] || ''));
 }
 
-async function sendSignupEmail(signup) {
-  if (!mailer || !config.smtpFromEmail) {
-    return { status: 'pending', error: 'SMTP not configured.', sentAt: '' };
+async function sendSignupEmail(signup, options = {}) {
+  const currentConfig = options.config || config;
+  const currentMailer = options.mailer !== undefined ? options.mailer : mailer;
+
+  if (!currentMailer || !currentConfig.smtpFromEmail) {
+    return { status: 'failed', error: 'SMTP not configured.', sentAt: '' };
   }
 
-  const html = renderEmailTemplate(signup, 'cid:wytham-app-icon');
+  const html = renderEmailTemplate(signup, 'cid:wytham-app-icon', currentConfig);
   const subject = `Your Wytham ${signup.edition === 'lite' ? 'Lite' : 'Bundle'} beta access`;
   try {
-    await mailer.sendMail({
-      from: `"${config.smtpFromName}" <${config.smtpFromEmail}>`,
+    await currentMailer.sendMail({
+      from: `"${currentConfig.smtpFromName}" <${currentConfig.smtpFromEmail}>`,
       to: signup.email,
-      replyTo: config.supportEmail || config.smtpFromEmail,
+      replyTo: currentConfig.supportEmail || currentConfig.smtpFromEmail,
       subject,
       html,
       attachments: fs.existsSync(LOGO_PATH)
@@ -758,7 +734,7 @@ async function sendSignupEmail(signup) {
   }
 }
 
-function renderBetaPage(signup) {
+function renderBetaPage(signup, currentConfig = config) {
   const editionLabel = signup.edition === 'lite' ? 'Lite' : 'Bundle';
   const note =
     signup.edition === 'lite'
@@ -790,11 +766,11 @@ function renderBetaPage(signup) {
       <h1>${escapeHtml(firstName(signup.name))}, your ${escapeHtml(editionLabel)} beta access is ready.</h1>
       <p>${escapeHtml(note)}</p>
       <p>Thank you for joining the Wytham public beta. Use the button below to open your ${escapeHtml(editionLabel.toLowerCase())} access page and download the build you selected.</p>
-      <a class="btn" href="${escapeHtml(downloadUrl(signup.token))}" target="_blank" rel="noopener noreferrer">Open ${escapeHtml(editionLabel)} access page</a>
+      <a class="btn" href="${escapeHtml(downloadUrl(signup.token, currentConfig))}" target="_blank" rel="noopener noreferrer">Open ${escapeHtml(editionLabel)} access page</a>
       <div class="meta">
         <strong>Email:</strong> ${escapeHtml(signup.email)}<br />
         <strong>Edition:</strong> ${escapeHtml(editionLabel)} beta<br />
-        <strong>Support:</strong> <a href="mailto:${escapeHtml(config.supportEmail || config.smtpFromEmail || '')}?subject=Wytham%20support">${escapeHtml(config.supportEmail || config.smtpFromEmail || 'Not configured')}</a>
+        <strong>Support:</strong> <a href="mailto:${escapeHtml(currentConfig.supportEmail || currentConfig.smtpFromEmail || '')}?subject=Wytham%20support">${escapeHtml(currentConfig.supportEmail || currentConfig.smtpFromEmail || 'Not configured')}</a>
       </div>
     </div>
   </div>
@@ -1830,8 +1806,9 @@ function buildDailySignupSeries(rows, days) {
   return result;
 }
 
-function renderAdminPage(counts, donationCounts, recent, recentDonations, institutions, dailySignups, notice) {
-  const batchDeleteToken = adminFormToken('batch-delete');
+function renderAdminPage(counts, donationCounts, recent, recentDonations, institutions, dailySignups, notice, options = {}) {
+  const formToken = typeof options.formToken === 'function' ? options.formToken : adminFormToken;
+  const batchSendToken = formToken('batch-send');
   const totalSignups = Number(counts.total) || 0;
   const liteCount = Number(counts.lite_count) || 0;
   const bundleCount = Number(counts.bundle_count) || 0;
@@ -1842,7 +1819,16 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
   const donationSummary = `${donationCounts.total || 0} messages from ${donationCounts.unique_donors || 0} donors across ${donationCounts.countries || 0} countries.`;
   const recentRows = recent.length
     ? recent
-        .map((item) => `<tr>
+        .map((item) => {
+          const status = trim(item.email_status).toLowerCase();
+          const sendAction = status === 'sent'
+            ? `<span class="pill pill-success">Already sent</span>`
+            : `<form method="post" action="/admin/signups/${encodeURIComponent(item.token)}/send" data-confirm="Send the Wytham beta email to ${escapeHtml(jsString(item.email))}?">
+                <input type="hidden" name="csrfToken" value="${escapeHtml(formToken(`${item.token}:send`))}" />
+                <button type="submit" class="ghost-btn">Send</button>
+              </form>`;
+
+          return `<tr>
           <td class="select-cell"><input class="row-select" type="checkbox" value="${escapeHtml(item.token)}" data-row-select aria-label="Select ${escapeHtml(item.email)}" /></td>
           <td><div class="identity-cell"><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.email)}</span></div></td>
           <td>${escapeHtml(item.institution || '—')}</td>
@@ -1852,12 +1838,16 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
           <td>${item.last_beta_visit_at ? escapeHtml(formatDate(item.last_beta_visit_at)) : 'Not yet'}</td>
           <td>${escapeHtml(formatDate(item.created_at))}</td>
           <td class="actions-cell">
-            <form method="post" action="/admin/signups/${encodeURIComponent(item.token)}/delete" data-confirm="Delete ${escapeHtml(jsString(item.email))} from the beta database?">
-              <input type="hidden" name="csrfToken" value="${escapeHtml(adminFormToken(item.token))}" />
-              <button type="submit" class="ghost-btn danger-ghost">Delete</button>
-            </form>
+            <div class="row-actions">
+              ${sendAction}
+              <form method="post" action="/admin/signups/${encodeURIComponent(item.token)}/delete" data-confirm="Delete ${escapeHtml(jsString(item.email))} from the beta database?">
+                <input type="hidden" name="csrfToken" value="${escapeHtml(formToken(item.token))}" />
+                <button type="submit" class="ghost-btn danger-ghost">Delete</button>
+              </form>
+            </div>
           </td>
-        </tr>`)
+        </tr>`;
+        })
         .join('')
     : '<tr><td colspan="9">No signups yet.</td></tr>';
   const donationRows = recentDonations.length
@@ -2274,6 +2264,8 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
     .select-cell,
     .num,
     .actions-cell { width: 1%; white-space: nowrap; }
+    .row-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .row-actions form { margin: 0; }
     .pill {
       display: inline-flex;
       align-items: center;
@@ -2425,10 +2417,10 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
           <div class="selection-tools">
             <label><input class="select-all" type="checkbox" data-select-all aria-label="Select all visible signups" /> <span>Select all</span></label>
             <span class="selection-count" data-selection-count>0 selected</span>
-            <form method="post" action="/admin/signups/delete" data-batch-form data-confirm-selected="Delete the selected signups from the beta database?">
-              <input type="hidden" name="csrfToken" value="${escapeHtml(batchDeleteToken)}" />
+            <form method="post" action="/admin/signups/send" data-batch-form data-confirm-selected="Send the Wytham beta email to the selected signups?">
+              <input type="hidden" name="csrfToken" value="${escapeHtml(batchSendToken)}" />
               <input type="hidden" name="tokens" value="" data-selected-tokens />
-              <button type="submit" class="ghost-btn danger-solid" data-batch-delete disabled>Delete selected</button>
+              <button type="submit" class="ghost-btn" data-batch-delete disabled>Send selected</button>
             </form>
           </div>
         </div>
@@ -2480,7 +2472,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
     </section>
 
     <section id="account-panel" class="panel" data-panel>
-      ${renderAdminAccountPanel()}
+      ${renderAdminAccountPanel({ adminUsername: options.adminUsername })}
     </section>
   </div>
 </body>
@@ -2842,7 +2834,8 @@ function adminIcon(name) {
   return icons[name] || '';
 }
 
-function renderAdminAccountPanel() {
+function renderAdminAccountPanel(options = {}) {
+  const adminUsername = trim(options.adminUsername) || config.adminUsername;
   return `<div class="account-layout">
     <section class="card account-card">
       <div class="account-top">
@@ -2850,7 +2843,7 @@ function renderAdminAccountPanel() {
           <div class="account-avatar">${adminIcon('account')}</div>
           <div>
             <div class="label">Signed in as</div>
-            <div style="font-size:28px;line-height:1.05;letter-spacing:-.04em;margin-top:8px;">${escapeHtml(config.adminUsername)}</div>
+            <div style="font-size:28px;line-height:1.05;letter-spacing:-.04em;margin-top:8px;">${escapeHtml(adminUsername)}</div>
           </div>
         </div>
         <span class="pill pill-blue">Admin session</span>
@@ -2882,20 +2875,36 @@ function simplePage(title, copy) {
   return `<!DOCTYPE html><html><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>${escapeHtml(title)}</title><style>body{margin:0;background:#0a0a0a;color:#f0f0ec;font-family:Arial,sans-serif;display:grid;place-items:center;min-height:100vh;padding:24px}.card{max-width:560px;background:#111111;border:1px solid rgba(255,255,255,.08);padding:28px}h1{margin:0 0 12px;font-size:32px;line-height:1}p{margin:0;color:rgba(240,240,236,.72);line-height:1.7}</style></head><body><div class="card"><h1>${escapeHtml(title)}</h1><p>${escapeHtml(copy)}</p></div></body></html>`;
 }
 
-function betaUrl(token) {
-  return `${config.publicBaseUrl}/beta/${token}`;
+function betaUrl(token, currentConfig = config) {
+  return `${currentConfig.publicBaseUrl}/beta/${token}`;
 }
 
-function downloadUrl(token) {
-  return `${config.publicBaseUrl}/download/${token}`;
+function downloadUrl(token, currentConfig = config) {
+  return `${currentConfig.publicBaseUrl}/download/${token}`;
 }
 
-function shareUrlForEdition(edition) {
-  return edition === 'lite' ? config.liteShareUrl : config.bundleShareUrl;
+function shareUrlForEdition(edition, currentConfig = config) {
+  return edition === 'lite' ? currentConfig.liteShareUrl : currentConfig.bundleShareUrl;
 }
 
-function smtpReady() {
-  return Boolean(config.smtpHost && config.smtpPort && config.smtpUser && config.smtpPass && config.smtpFromEmail);
+function smtpReady(currentConfig = config) {
+  return Boolean(currentConfig.smtpHost && currentConfig.smtpPort && currentConfig.smtpUser && currentConfig.smtpPass && currentConfig.smtpFromEmail);
+}
+
+function createMailer(currentConfig = config) {
+  if (!smtpReady(currentConfig)) {
+    return null;
+  }
+
+  return nodemailer.createTransport({
+    host: currentConfig.smtpHost,
+    port: currentConfig.smtpPort,
+    secure: currentConfig.smtpSecure,
+    auth: {
+      user: currentConfig.smtpUser,
+      pass: currentConfig.smtpPass,
+    },
+  });
 }
 
 function clientIp(req) {
@@ -2912,22 +2921,22 @@ function clientIp(req) {
   return remoteAddr;
 }
 
-function applyAppMiddleware(target, options) {
+function applyAppMiddleware(target, options, currentConfig = config) {
   target.disable('x-powered-by');
   target.use((req, res, next) => {
     const origin = trim(req.headers.origin);
     const isApiRequest = req.path === '/api' || req.path.startsWith('/api/');
     if (options?.allowCors) {
-      if (origin && config.allowedOrigins.includes(origin)) {
+      if (origin && currentConfig.allowedOrigins.includes(origin)) {
         res.setHeader('Access-Control-Allow-Origin', origin);
         res.setHeader('Vary', 'Origin');
       }
       res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
       if (req.method === 'OPTIONS') {
-        return origin && !config.allowedOrigins.includes(origin) ? res.sendStatus(403) : res.sendStatus(204);
+        return origin && !currentConfig.allowedOrigins.includes(origin) ? res.sendStatus(403) : res.sendStatus(204);
       }
-      if (isApiRequest && req.method !== 'GET' && req.method !== 'HEAD' && origin && !config.allowedOrigins.includes(origin)) {
+      if (isApiRequest && req.method !== 'GET' && req.method !== 'HEAD' && origin && !currentConfig.allowedOrigins.includes(origin)) {
         return res.status(403).json({ success: false, error: 'Origin not allowed.' });
       }
     }
@@ -3428,9 +3437,827 @@ function isSafeExternalUrl(value) {
   }
 }
 
+function createLegacySqliteStore() {
+  const insertSignupStatement = db.prepare(`
+    INSERT INTO signups (
+      token, name, email, institution, country, role, edition,
+      source_page, source_title, ip_address, user_agent,
+      created_at, updated_at, beta_visits, last_beta_visit_at,
+      email_status, email_error, email_sent_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const updateSignupStatement = db.prepare(`
+    UPDATE signups
+    SET name = ?, institution = ?, country = ?, role = ?, edition = ?,
+        source_page = ?, source_title = ?, ip_address = ?, user_agent = ?,
+        updated_at = ?, beta_visits = ?, last_beta_visit_at = ?,
+        email_status = ?, email_error = ?, email_sent_at = ?
+    WHERE email = ?
+  `);
+  const updateVisitStatement = db.prepare(`
+    UPDATE signups
+    SET beta_visits = ?, last_beta_visit_at = ?
+    WHERE token = ?
+  `);
+  const recentSignupsStatement = db.prepare(`
+    SELECT token, name, email, institution, country, role, edition, created_at, email_status, beta_visits, last_beta_visit_at
+    FROM signups
+    ORDER BY created_at DESC
+    LIMIT ?
+  `);
+  const recentDonationsStatement = db.prepare(`
+    SELECT name, email, country, amount, message, created_at
+    FROM donations
+    ORDER BY created_at DESC
+    LIMIT ?
+  `);
+  const donationSummaryStatement = db.prepare(`
+    SELECT email, country, amount
+    FROM donations
+    ORDER BY created_at DESC
+    LIMIT ?
+  `);
+  const institutionRowsStatement = db.prepare(`
+    SELECT institution
+    FROM signups
+    ORDER BY created_at DESC
+    LIMIT ?
+  `);
+  const signupSummaryStatement = db.prepare(`
+    SELECT edition, beta_visits
+    FROM signups
+    ORDER BY created_at DESC
+    LIMIT ?
+  `);
+  const signupSeriesStatement = db.prepare(`
+    SELECT created_at, edition
+    FROM signups
+    ORDER BY created_at DESC
+    LIMIT ?
+  `);
+  const exportStatement = db.prepare(`
+    SELECT name, email, institution, country, role, edition, created_at, email_status, beta_visits
+    FROM signups
+    ORDER BY created_at DESC
+    LIMIT ?
+  `);
+
+  return {
+    async deleteSignupByToken(token) {
+      statements.deleteSignup.run(token);
+      return { data: { token }, error: null };
+    },
+
+    async findSignupByEmail(email) {
+      return { data: statements.byEmail.get(email) || null, error: null };
+    },
+
+    async findSignupByToken(token) {
+      return { data: statements.byToken.get(token) || null, error: null };
+    },
+
+    async insertDonation(donation) {
+      statements.insertDonation.run(
+        donation.name,
+        donation.email,
+        donation.country || '',
+        donation.message || '',
+        donation.amount || '',
+        donation.ip_address || '',
+        donation.user_agent || '',
+        donation.created_at
+      );
+      return { data: donation, error: null };
+    },
+
+    async insertSignup(signup) {
+      insertSignupStatement.run(
+        signup.token,
+        signup.name,
+        signup.email,
+        signup.institution || '',
+        signup.country || '',
+        signup.role || '',
+        signup.edition,
+        signup.source_page || '',
+        signup.source_title || '',
+        signup.ip_address || '',
+        signup.user_agent || '',
+        signup.created_at,
+        signup.updated_at,
+        Number(signup.beta_visits) || 0,
+        signup.last_beta_visit_at || '',
+        signup.email_status || 'pending',
+        signup.email_error || '',
+        signup.email_sent_at || ''
+      );
+      return { data: statements.byToken.get(signup.token) || null, error: null };
+    },
+
+    async listDonationSummaryRows(limit = 5000) {
+      return { data: donationSummaryStatement.all(limit), error: null };
+    },
+
+    async listInstitutionRows(limit = 1000) {
+      return { data: institutionRowsStatement.all(limit), error: null };
+    },
+
+    async listRecentDonations(limit = 50) {
+      return { data: recentDonationsStatement.all(limit), error: null };
+    },
+
+    async listRecentSignups(limit = 50) {
+      return { data: recentSignupsStatement.all(limit), error: null };
+    },
+
+    async listSignupSeriesRows(limit = 5000) {
+      return { data: signupSeriesStatement.all(limit), error: null };
+    },
+
+    async listSignupSummaryRows(limit = 5000) {
+      return { data: signupSummaryStatement.all(limit), error: null };
+    },
+
+    async listSignupsForExport(limit = 1000) {
+      return { data: exportStatement.all(limit), error: null };
+    },
+
+    async markSignupEmailStatus(token, { error = '', sentAt = '', status } = {}) {
+      statements.markEmail.run(status || 'pending', error || '', sentAt || '', token);
+      const signup = statements.byToken.get(token);
+      return {
+        data: signup
+          ? {
+              token: signup.token,
+              email_status: signup.email_status,
+              email_error: signup.email_error,
+              email_sent_at: signup.email_sent_at,
+            }
+          : null,
+        error: null,
+      };
+    },
+
+    async markSignupVisit(token, { betaVisits, visitedAt } = {}) {
+      updateVisitStatement.run(Number(betaVisits) || 0, visitedAt || '', token);
+      const signup = statements.byToken.get(token);
+      return {
+        data: signup
+          ? {
+              token: signup.token,
+              beta_visits: signup.beta_visits,
+              last_beta_visit_at: signup.last_beta_visit_at,
+            }
+          : null,
+        error: null,
+      };
+    },
+
+    summarizeDailySignupRows,
+    summarizeDonations,
+    summarizeInstitutionRows,
+    summarizeSignups,
+
+    async updateSignupByEmail(email, updates) {
+      const existing = statements.byEmail.get(email);
+      if (!existing) {
+        return { data: null, error: null };
+      }
+
+      const nextSignup = { ...existing, ...updates, email };
+      updateSignupStatement.run(
+        nextSignup.name,
+        nextSignup.institution || '',
+        nextSignup.country || '',
+        nextSignup.role || '',
+        nextSignup.edition,
+        nextSignup.source_page || '',
+        nextSignup.source_title || '',
+        nextSignup.ip_address || '',
+        nextSignup.user_agent || '',
+        nextSignup.updated_at,
+        Number(nextSignup.beta_visits) || 0,
+        nextSignup.last_beta_visit_at || '',
+        nextSignup.email_status || 'pending',
+        nextSignup.email_error || '',
+        nextSignup.email_sent_at || '',
+        email
+      );
+
+      return { data: statements.byEmail.get(email) || null, error: null };
+    },
+  };
+}
+
+function createRuntimeStore(currentConfig = config) {
+  if (currentConfig.supabase && currentConfig.supabase.isConfigured) {
+    return createStore(createAdminSupabaseClient(currentConfig));
+  }
+
+  return createLegacySqliteStore();
+}
+
+async function readStoreResult(resultLike) {
+  const result = await resultLike;
+  if (result && typeof result === 'object' && Object.prototype.hasOwnProperty.call(result, 'error')) {
+    if (result.error) {
+      throw result.error;
+    }
+    return result.data == null ? null : result.data;
+  }
+  return result == null ? null : result;
+}
+
+function normalizeEmailResult(result) {
+  const normalized = result && typeof result === 'object' ? result : {};
+  return {
+    status: normalized.status === 'sent' ? 'sent' : 'failed',
+    error: normalized.status === 'sent' ? '' : trim(normalized.error || 'SMTP not configured.'),
+    sentAt: normalized.status === 'sent' ? trim(normalized.sentAt || new Date().toISOString()) : '',
+  };
+}
+
+async function listSignupSummaryRowsFromStore(store) {
+  if (typeof store.listSignupSummaryRows === 'function') {
+    return (await readStoreResult(store.listSignupSummaryRows(5000))) || [];
+  }
+  if (typeof store.listRecentSignups === 'function') {
+    return (await readStoreResult(store.listRecentSignups(5000))) || [];
+  }
+  return [];
+}
+
+async function listSignupSeriesRowsFromStore(store) {
+  if (typeof store.listSignupSeriesRows === 'function') {
+    return (await readStoreResult(store.listSignupSeriesRows(5000))) || [];
+  }
+  if (typeof store.listRecentSignups === 'function') {
+    return (await readStoreResult(store.listRecentSignups(5000))) || [];
+  }
+  return [];
+}
+
+async function listDonationSummaryRowsFromStore(store) {
+  if (typeof store.listDonationSummaryRows === 'function') {
+    return (await readStoreResult(store.listDonationSummaryRows(5000))) || [];
+  }
+  if (typeof store.listRecentDonations === 'function') {
+    return (await readStoreResult(store.listRecentDonations(5000))) || [];
+  }
+  return [];
+}
+
+function createApp(options = {}) {
+  const currentConfig = options.config || config;
+  const store = options.store || createRuntimeStore(currentConfig);
+  const currentMailer = options.mailer !== undefined ? options.mailer : createMailer(currentConfig);
+  const sendEmail = typeof options.sendSignupEmail === 'function'
+    ? options.sendSignupEmail
+    : (signup) => sendSignupEmail(signup, { config: currentConfig, mailer: currentMailer });
+  const hostedApp = express();
+  const actionSecret = crypto.randomBytes(32).toString('hex');
+  const sessionSecret = crypto.randomBytes(32).toString('hex');
+
+  applyAppMiddleware(hostedApp, { allowCors: true }, currentConfig);
+
+  function formToken(value) {
+    return crypto
+      .createHmac('sha256', actionSecret)
+      .update(String(value || ''), 'utf8')
+      .digest('hex');
+  }
+
+  function createSession(username) {
+    const expiresAt = Date.now() + (8 * 60 * 60 * 1000);
+    const payload = `${username}|${expiresAt}`;
+    const signature = crypto.createHmac('sha256', sessionSecret).update(payload, 'utf8').digest('hex');
+    return `${payload}|${signature}`;
+  }
+
+  function hasHostedAdminSession(req) {
+    const session = parseCookies(req).wytham_admin;
+    if (!session) return false;
+    const [username, expiresAt, signature] = session.split('|');
+    if (!username || !expiresAt || !signature) return false;
+    const payload = `${username}|${expiresAt}`;
+    const expected = crypto.createHmac('sha256', sessionSecret).update(payload, 'utf8').digest('hex');
+    if (!safeEqualStrings(signature, expected)) return false;
+    if (!safeEqualStrings(username, currentConfig.adminUsername)) return false;
+    if (!Number.isFinite(Number(expiresAt)) || Number(expiresAt) < Date.now()) return false;
+    return true;
+  }
+
+  function setHostedAdminSession(res, username) {
+    res.setHeader('Set-Cookie', serializeCookie('wytham_admin', createSession(username), {
+      httpOnly: true,
+      sameSite: 'Strict',
+      path: '/admin',
+      maxAge: 8 * 60 * 60,
+    }));
+  }
+
+  function clearHostedAdminSession(res) {
+    res.setHeader('Set-Cookie', serializeCookie('wytham_admin', '', {
+      httpOnly: true,
+      sameSite: 'Strict',
+      path: '/admin',
+      maxAge: 0,
+    }));
+  }
+
+  function requireHostedAdmin(req, res, next) {
+    if (!hasHostedAdminSession(req)) {
+      return res.redirect('/admin/login');
+    }
+    next();
+  }
+
+  async function loadAdminDashboardData() {
+    const [
+      signupSummaryRows,
+      recentSignups,
+      donationSummaryRows,
+      recentDonations,
+      institutionRows,
+      signupSeriesRows,
+    ] = await Promise.all([
+      listSignupSummaryRowsFromStore(store),
+      readStoreResult(store.listRecentSignups ? store.listRecentSignups(50) : []),
+      listDonationSummaryRowsFromStore(store),
+      readStoreResult(store.listRecentDonations ? store.listRecentDonations(50) : []),
+      readStoreResult(store.listInstitutionRows ? store.listInstitutionRows(1000) : []),
+      listSignupSeriesRowsFromStore(store),
+    ]);
+
+    return {
+      counts: summarizeSignups(signupSummaryRows || []),
+      dailySignups: buildDailySignupSeries(summarizeDailySignupRows(signupSeriesRows || [], 14), 14),
+      donationCounts: summarizeDonations(donationSummaryRows || []),
+      institutions: summarizeInstitutionRows(institutionRows || [], 10),
+      recentDonations: recentDonations || [],
+      recentSignups: recentSignups || [],
+    };
+  }
+
+  hostedApp.get('/health', async (req, res, next) => {
+    try {
+      const requestedToken = trim(req.query.token || '');
+      res.setHeader('Cache-Control', 'no-store');
+
+      if (currentConfig.healthToken && requestedToken && !safeEqualStrings(requestedToken, currentConfig.healthToken)) {
+        return res.status(401).json({ success: false, error: 'Unauthorized.' });
+      }
+
+      if (currentConfig.healthToken && safeEqualStrings(requestedToken, currentConfig.healthToken)) {
+        const counts = summarizeSignups(await listSignupSummaryRowsFromStore(store));
+        return res.json({
+          ok: true,
+          emailConfigured: smtpReady(currentConfig),
+          totalSignups: counts.total || 0,
+        });
+      }
+
+      return res.json({ ok: true });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  hostedApp.post('/api/signup', async (req, res, next) => {
+    try {
+      if (!originAllowed(req, currentConfig.allowedOrigins)) {
+        return res.status(403).json({ success: false, error: 'Origin not allowed.' });
+      }
+
+      res.setHeader('Cache-Control', 'no-store');
+      const ip = clientIp(req);
+      if (!allowRate(ip, 'signup')) {
+        return res.status(429).json({ success: false, error: 'Too many signup attempts. Please try again later.' });
+      }
+
+      const parsed = signupSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          success: false,
+          error: firstValidationMessage(parsed.error, 'Please check your signup details and try again.'),
+        });
+      }
+
+      const body = parsed.data;
+      if (body.hp_field) {
+        tripRateLimit(ip, 'signup');
+        return res.json({ success: true, message: "You're on the list." });
+      }
+
+      const now = new Date().toISOString();
+      const userAgent = cut(req.headers['user-agent'], 300);
+      const existing = await readStoreResult(store.findSignupByEmail(body.email));
+      const token = existing?.token || crypto.randomBytes(24).toString('hex');
+      const nextSignup = {
+        token,
+        name: body.name,
+        email: body.email,
+        institution: body.institution,
+        country: body.country,
+        role: body.role,
+        edition: body.edition,
+        source_page: body.source_page,
+        source_title: body.source_title,
+        ip_address: ip,
+        user_agent: userAgent,
+        created_at: existing?.created_at || now,
+        updated_at: now,
+        beta_visits: Number(existing?.beta_visits) || 0,
+        last_beta_visit_at: existing?.last_beta_visit_at || '',
+        email_status: 'pending',
+        email_error: '',
+        email_sent_at: '',
+      };
+
+      if (existing) {
+        await readStoreResult(store.updateSignupByEmail(body.email, nextSignup));
+      } else {
+        await readStoreResult(store.insertSignup(nextSignup));
+      }
+
+      await readStoreResult(store.markSignupEmailStatus(token, { status: 'pending', error: '', sentAt: '' }));
+      const savedSignup = await readStoreResult(store.findSignupByToken(token));
+      return res.json({
+        success: true,
+        message: `Thank you, ${firstName(savedSignup?.name || body.name)}. We saved your request and will send your Wytham beta email shortly.`,
+      });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  hostedApp.post('/api/donate', async (req, res, next) => {
+    try {
+      if (!originAllowed(req, currentConfig.allowedOrigins)) {
+        return res.status(403).json({ success: false, error: 'Origin not allowed.' });
+      }
+
+      res.setHeader('Cache-Control', 'no-store');
+      const ip = clientIp(req);
+      if (!allowRate(ip, 'donate')) {
+        return res.status(429).json({ success: false, error: 'Too many donation attempts. Please try again later.' });
+      }
+
+      const parsed = donateSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          success: false,
+          error: firstValidationMessage(parsed.error, 'Please check your donation details and try again.'),
+        });
+      }
+
+      const body = parsed.data;
+      if (body.hp_field) {
+        tripRateLimit(ip, 'donate');
+        return res.json({ success: true, message: 'Thank you for your support!' });
+      }
+
+      await readStoreResult(
+        store.insertDonation({
+          name: body.name,
+          email: body.email,
+          country: body.country,
+          message: body.message,
+          amount: body.amount,
+          ip_address: ip,
+          user_agent: cut(req.headers['user-agent'], 300),
+          created_at: new Date().toISOString(),
+        })
+      );
+
+      return res.json({ success: true, message: 'Thank you for your support! We will be in touch.' });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  hostedApp.get('/beta/:token', async (req, res, next) => {
+    try {
+      if (!validToken(req.params.token)) {
+        return res.status(404).type('html').send(simplePage('Beta Link Not Found', 'This beta access link does not exist or has expired.'));
+      }
+
+      const ip = clientIp(req);
+      if (!allowRate(ip, 'beta')) {
+        return res.status(429).type('html').send(simplePage('Too Many Requests', 'Please wait a moment and try your beta link again.'));
+      }
+
+      const signup = await readStoreResult(store.findSignupByToken(req.params.token));
+      if (!signup) {
+        return res.status(404).type('html').send(simplePage('Beta Link Not Found', 'This beta access link does not exist or has expired.'));
+      }
+
+      await readStoreResult(
+        store.markSignupVisit(signup.token, {
+          betaVisits: (Number(signup.beta_visits) || 0) + 1,
+          visitedAt: new Date().toISOString(),
+        })
+      );
+
+      res.setHeader('Cache-Control', 'no-store');
+      return res.type('html').send(renderBetaPage(signup, currentConfig));
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  hostedApp.get('/download/:token', async (req, res, next) => {
+    try {
+      if (!validToken(req.params.token)) {
+        return res.status(404).type('html').send(simplePage('Download Not Available', 'This download link does not exist or has expired.'));
+      }
+
+      const signup = await readStoreResult(store.findSignupByToken(req.params.token));
+      if (!signup) {
+        return res.status(404).type('html').send(simplePage('Download Not Available', 'This download link does not exist or has expired.'));
+      }
+
+      const shareUrl = shareUrlForEdition(signup.edition, currentConfig);
+      if (!isSafeExternalUrl(shareUrl)) {
+        return res.status(503).type('html').send(simplePage('Download Unavailable', 'The download location is not configured yet. Please contact the Wytham team.'));
+      }
+
+      res.setHeader('Cache-Control', 'no-store');
+      return res.redirect(302, shareUrl);
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  hostedApp.get('/admin', requireHostedAdmin, async (req, res, next) => {
+    try {
+      const dashboard = await loadAdminDashboardData();
+      const notice = trim(req.query.notice);
+      res.setHeader('Cache-Control', 'no-store');
+      return res.type('html').send(
+        renderAdminPage(
+          dashboard.counts,
+          dashboard.donationCounts,
+          dashboard.recentSignups,
+          dashboard.recentDonations,
+          dashboard.institutions,
+          dashboard.dailySignups,
+          notice,
+          { adminUsername: currentConfig.adminUsername, formToken }
+        )
+      );
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  hostedApp.get('/admin/login', (req, res) => {
+    if (hasHostedAdminSession(req)) {
+      return res.redirect('/admin');
+    }
+    res.setHeader('Cache-Control', 'no-store');
+    return res.type('html').send(renderAdminLoginPage());
+  });
+
+  hostedApp.post('/admin/login', (req, res) => {
+    const parsed = adminLoginSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).type('html').send(renderAdminLoginPage(firstValidationMessage(parsed.error, 'Please check your login details and try again.')));
+    }
+
+    const { username, password } = parsed.data;
+    if (!safeEqualStrings(username, currentConfig.adminUsername) || !safeEqualStrings(password, currentConfig.adminPassword)) {
+      return res.status(401).type('html').send(renderAdminLoginPage('That username or password was not correct.'));
+    }
+
+    setHostedAdminSession(res, username);
+    return res.redirect('/admin');
+  });
+
+  hostedApp.post('/admin/logout', requireHostedAdmin, (_req, res) => {
+    clearHostedAdminSession(res);
+    res.redirect('/admin/login');
+  });
+
+  hostedApp.get('/admin/export.csv', requireHostedAdmin, async (_req, res, next) => {
+    try {
+      const rows = (await readStoreResult(store.listSignupsForExport ? store.listSignupsForExport(1000) : [])) || [];
+      const headers = ['name', 'email', 'institution', 'country', 'role', 'edition', 'created_at', 'email_status', 'beta_visits'];
+      const csvBody = [
+        headers.join(','),
+        ...rows.map((row) => headers.map((key) => csvCell(row[key])).join(',')),
+      ].join('\n');
+
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="wytham-signups.csv"');
+      res.setHeader('Cache-Control', 'no-store');
+      return res.send(csvBody);
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  hostedApp.get('/admin/logo', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.sendFile(LOGO_PATH);
+  });
+
+  hostedApp.get('/admin/assets/admin.js', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.type('application/javascript').sendFile(ADMIN_SCRIPT_PATH);
+  });
+
+  hostedApp.get('/admin/assets/matter.woff2', (_req, res) => {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.type('font/woff2').sendFile(MATTER_FONT_PATH);
+  });
+
+  hostedApp.get('/admin/preview/email', requireHostedAdmin, (_req, res) => {
+    const sample = sampleSignup('lite');
+    res.setHeader('Cache-Control', 'no-store');
+    res.type('html').send(renderAdminEmailPreviewPage(renderEmailTemplate(sample, '/admin/logo', currentConfig)));
+  });
+
+  hostedApp.post('/admin/signups/:token/send', requireHostedAdmin, async (req, res, next) => {
+    try {
+      const signupToken = trim(req.params.token);
+      const csrfToken = trim(req.body?.csrfToken);
+      if (!validToken(signupToken) || !safeEqualStrings(csrfToken, formToken(`${signupToken}:send`))) {
+        return res.status(403).type('html').send(simplePage('Action Blocked', 'This send request could not be verified.'));
+      }
+
+      const signup = await readStoreResult(store.findSignupByToken(signupToken));
+      if (!signup) {
+        return res.redirect('/admin?notice=Signup%20not%20found');
+      }
+      if (trim(signup.email_status).toLowerCase() === 'sent') {
+        return res.redirect('/admin?notice=Signup%20already%20sent');
+      }
+
+      const emailResult = normalizeEmailResult(await sendEmail(signup));
+      await readStoreResult(store.markSignupEmailStatus(signup.token, emailResult));
+      const notice = emailResult.status === 'sent'
+        ? 'Email sent'
+        : `Email failed: ${emailResult.error || 'Unknown error.'}`;
+      return res.redirect(`/admin?notice=${encodeURIComponent(notice)}`);
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  hostedApp.post('/admin/signups/send', requireHostedAdmin, async (req, res, next) => {
+    try {
+      const csrfToken = trim(req.body?.csrfToken);
+      if (!safeEqualStrings(csrfToken, formToken('batch-send'))) {
+        return res.status(403).type('html').send(simplePage('Action Blocked', 'This batch send request could not be verified.'));
+      }
+
+      const tokens = parseBatchTokens(req.body?.tokens);
+      if (!tokens.length) {
+        return res.redirect('/admin?notice=No%20signups%20selected');
+      }
+
+      let sentCount = 0;
+      let failedCount = 0;
+      let skippedCount = 0;
+
+      for (const token of tokens) {
+        const signup = await readStoreResult(store.findSignupByToken(token));
+        if (!signup) {
+          continue;
+        }
+        if (trim(signup.email_status).toLowerCase() === 'sent') {
+          skippedCount += 1;
+          continue;
+        }
+
+        const emailResult = normalizeEmailResult(await sendEmail(signup));
+        await readStoreResult(store.markSignupEmailStatus(signup.token, emailResult));
+
+        if (emailResult.status === 'sent') {
+          sentCount += 1;
+        } else {
+          failedCount += 1;
+        }
+      }
+
+      let notice = `${sentCount} sent`;
+      if (failedCount) {
+        notice += `, ${failedCount} failed`;
+      }
+      if (skippedCount) {
+        notice += `, ${skippedCount} skipped`;
+      }
+
+      return res.redirect(`/admin?notice=${encodeURIComponent(notice)}`);
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  hostedApp.post('/admin/signups/:token/delete', requireHostedAdmin, async (req, res, next) => {
+    try {
+      const signupToken = trim(req.params.token);
+      const csrfToken = trim(req.body?.csrfToken);
+      if (!validToken(signupToken) || !safeEqualStrings(csrfToken, formToken(signupToken))) {
+        return res.status(403).type('html').send(simplePage('Action Blocked', 'This delete request could not be verified.'));
+      }
+
+      await readStoreResult(store.deleteSignupByToken(signupToken));
+      return res.redirect('/admin?notice=Signup%20deleted');
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  hostedApp.post('/admin/signups/delete', requireHostedAdmin, async (req, res, next) => {
+    try {
+      const csrfToken = trim(req.body?.csrfToken);
+      if (!safeEqualStrings(csrfToken, formToken('batch-delete'))) {
+        return res.status(403).type('html').send(simplePage('Action Blocked', 'This batch delete request could not be verified.'));
+      }
+
+      const tokens = parseBatchTokens(req.body?.tokens);
+      if (!tokens.length) {
+        return res.redirect('/admin?notice=No%20signups%20selected');
+      }
+
+      for (const token of tokens) {
+        await readStoreResult(store.deleteSignupByToken(token));
+      }
+
+      const deletedLabel = tokens.length === 1 ? '1%20signup%20deleted' : `${tokens.length}%20signups%20deleted`;
+      return res.redirect(`/admin?notice=${deletedLabel}`);
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  hostedApp.use((req, res, next) => {
+    const requestedPath = canonicalRequestPath(req);
+    if (
+      requestedPath === '/api' ||
+      requestedPath.startsWith('/api/') ||
+      isSensitivePublicPath(requestedPath)
+    ) {
+      return res.sendStatus(404);
+    }
+    next();
+  });
+
+  hostedApp.use((req, res, next) => {
+    if (!['GET', 'HEAD'].includes(req.method)) {
+      return next();
+    }
+
+    const requestedPath = canonicalRequestPath(req);
+    if (requestedPath === '/') {
+      return next();
+    }
+    if (!isAllowedPublicPath(requestedPath)) {
+      return res.sendStatus(404);
+    }
+
+    return res.sendFile(resolvePublicPath(requestedPath));
+  });
+
+  hostedApp.get('/', (_req, res) => {
+    res.sendFile(path.join(ROOT_DIR, 'index.html'));
+  });
+
+  registerErrorHandler(hostedApp);
+  return hostedApp;
+}
+
+function startServer(options = {}) {
+  if (options.legacy === true || boolean(process.env.LEGACY_MULTI_PORT)) {
+    return startServers();
+  }
+
+  const currentConfig = options.config || config;
+  const appToStart = options.app || createApp(options);
+  const server = appToStart.listen(currentConfig.port, currentConfig.host, () => {
+    console.log(`Wytham beta backend listening on http://${currentConfig.host}:${currentConfig.port}`);
+    console.log(`Public base URL: ${currentConfig.publicBaseUrl}`);
+    if (currentConfig.publicBaseUrl.includes('127.0.0.1') || currentConfig.publicBaseUrl.includes('localhost')) {
+      console.warn('[warn] PUBLIC_BASE_URL is localhost — portal links in emails will not reach external users. Set it to your public deployment URL.');
+    }
+    if (!smtpReady(currentConfig)) {
+      console.warn('[warn] SMTP not configured — admin sends will fail until SMTP_* vars are set.');
+    }
+    if (currentConfig.adminPassword === 'change-this-password') {
+      console.warn('[warn] ADMIN_PASSWORD is still the default — change it before exposing the admin login.');
+    }
+  });
+
+  return server;
+}
+
 module.exports = {
+  createApp,
   renderAdminLoginPage,
   renderAdminPage,
   renderAdminAccountPanel,
+  startServer,
   startServers,
 };
