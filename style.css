@@ -2367,6 +2367,9 @@ body.light .feature-tag {
   padding: 24px;
   opacity: 0;
   pointer-events: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   transition: opacity 0.25s ease;
 }
 .modal-overlay.is-open {
@@ -2378,11 +2381,14 @@ body.light .feature-tag {
   position: relative;
   width: 100%;
   max-width: 520px;
+  max-height: min(calc(100dvh - 48px), 760px);
   background: var(--bg-2);
   border: 1px solid rgba(198,162,75,0.26);
   border-radius: var(--radius-lg);
   padding: 32px;
   box-shadow: var(--shadow-lg);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   transform: translateY(16px);
   transition: transform 0.25s ease;
 }
@@ -2739,6 +2745,7 @@ body.light .feature-tag {
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     border-bottom: 1px solid rgba(255,255,255,0.1);
+    box-shadow: 0 18px 36px rgba(0,0,0,0.22);
     flex-direction: column;
     gap: 0;
     padding: 8px 0 10px;
@@ -2761,6 +2768,14 @@ body.light .feature-tag {
     color: rgba(240,240,236,0.82);
   }
   .nav-links a:last-child { border-bottom: none; }
+
+  body.light .nav-links {
+    background: rgba(245, 243, 238, 0.98);
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+    box-shadow: 0 18px 36px rgba(0,0,0,0.12);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+  }
 
   .nav-donate-mobile {
     display: flex;
@@ -4329,9 +4344,20 @@ html.has-pointer-web select {
   pointer-events: auto;
 }
 
+.cursor-path-clear.is-disabled {
+  border-color: rgba(135,151,107,0.24);
+  background: rgba(10, 12, 14, 0.78);
+  color: rgba(214, 223, 197, 0.92);
+}
+
 .cursor-path-clear:hover {
   border-color: rgba(198,162,75,0.36);
   background: rgba(16, 16, 18, 0.92);
+}
+
+.cursor-path-clear.is-disabled:hover {
+  border-color: rgba(135,151,107,0.38);
+  background: rgba(14, 16, 18, 0.92);
 }
 
 .cursor-path-clear:focus-visible {
@@ -4485,6 +4511,19 @@ body.light .cursor-path-clear:hover {
   .footer-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 14px 12px;
+  }
+
+  .modal-overlay {
+    align-items: flex-start;
+    padding: max(12px, env(safe-area-inset-top)) 10px max(14px, env(safe-area-inset-bottom));
+  }
+
+  .modal {
+    max-width: none;
+    max-height: calc(100dvh - 28px);
+    margin: 0;
+    padding: 18px 14px 16px;
+    border-radius: 14px;
   }
 }
 

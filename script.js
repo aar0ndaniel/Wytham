@@ -568,6 +568,24 @@ function ensureTurnstileReady(form, msgId, btnId, data) {
   return true;
 }
 
+const POINTER_WEB_STORAGE_KEY = 'wytham-pointer-web';
+
+function readPointerWebPreference() {
+  try {
+    return localStorage.getItem(POINTER_WEB_STORAGE_KEY) !== 'off';
+  } catch (_error) {
+    return true;
+  }
+}
+
+function writePointerWebPreference(enabled) {
+  try {
+    localStorage.setItem(POINTER_WEB_STORAGE_KEY, enabled ? 'on' : 'off');
+  } catch (_error) {
+    // Ignore storage failures in privacy-restricted environments.
+  }
+}
+
 function initPointerPathTrail() {
   const anyFinePointer = window.matchMedia('(any-pointer: fine)');
   const anyHover = window.matchMedia('(any-hover: hover)');
@@ -592,8 +610,8 @@ function initPointerPathTrail() {
   const clearButton = document.createElement('button');
   clearButton.type = 'button';
   clearButton.className = 'cursor-path-clear';
-  clearButton.textContent = 'clear web';
-  clearButton.setAttribute('aria-label', 'Clear cursor path web');
+  clearButton.textContent = 'web on';
+  clearButton.setAttribute('aria-label', 'Turn pointer web off');
   clearButton.setAttribute('data-pointer-native', 'true');
   document.body.appendChild(clearButton);
 
@@ -616,6 +634,7 @@ function initPointerPathTrail() {
     segments: [],
     activeAnchorIndex: -1,
     sawPointerEvent: false,
+    webEnabled: readPointerWebPreference(),
   };
 
   const cursorRadius = 11;
@@ -649,6 +668,11 @@ function initPointerPathTrail() {
       window.clearTimeout(state.idleTimer);
       state.idleTimer = 0;
     }
+  };
+  const clearGraph = () => {
+    state.anchors = [];
+    state.segments = [];
+    state.activeAnchorIndex = -1;
   };
 
   const isNativeCursorTarget = (target) =>
@@ -687,10 +711,17 @@ function initPointerPathTrail() {
   };
 
   const updateCanvasVisibility = () => {
-    const hasGraph = state.anchors.length > 0 || state.segments.length > 0;
+    const hasGraph = state.webEnabled && (state.anchors.length > 0 || state.segments.length > 0);
     const showCursor = state.pointerVisible && !state.hoverInteractive;
     canvas.classList.toggle('is-active', hasGraph || showCursor);
-    clearButton.classList.toggle('is-visible', hasGraph);
+    clearButton.classList.add('is-visible');
+    clearButton.classList.toggle('is-disabled', !state.webEnabled);
+  };
+
+  const syncWebToggle = () => {
+    clearButton.textContent = state.webEnabled ? 'web on' : 'web off';
+    clearButton.setAttribute('aria-label', state.webEnabled ? 'Turn pointer web off' : 'Turn pointer web on');
+    clearButton.setAttribute('aria-pressed', state.webEnabled ? 'true' : 'false');
   };
 
   const drawAnchor = (anchor, palette) => {
@@ -813,26 +844,27 @@ function initPointerPathTrail() {
     ctx.clearRect(0, 0, state.viewportWidth, state.viewportHeight);
 
     const palette = getPalette();
-    state.segments.forEach((segment) => {
-      const from = state.anchors[segment.fromIndex];
-      const to = state.anchors[segment.toIndex];
-      if (from && to) {
-        drawArrow(toViewportPoint(from), toViewportPoint(to), palette);
-      }
-    });
+    if (state.webEnabled) {
+      state.segments.forEach((segment) => {
+        const from = state.anchors[segment.fromIndex];
+        const to = state.anchors[segment.toIndex];
+        if (from && to) {
+          drawArrow(toViewportPoint(from), toViewportPoint(to), palette);
+        }
+      });
 
-    if (state.activeAnchorIndex >= 0 && state.pointerVisible && !state.hoverInteractive) {
-      const activeAnchor = state.anchors[state.activeAnchorIndex];
-      const pointerDoc = {
-        x: state.pointerClient.x + getScroll().x,
-        y: state.pointerClient.y + getScroll().y,
-      };
-      if (activeAnchor && distanceBetween(activeAnchor, pointerDoc) >= minLineDistance) {
-        drawArrow(toViewportPoint(activeAnchor), state.pointerClient, palette, { live: true });
+      if (state.activeAnchorIndex >= 0 && state.pointerVisible && !state.hoverInteractive) {
+        const activeAnchor = state.anchors[state.activeAnchorIndex];
+        const pointerDoc = {
+          x: state.pointerClient.x + getScroll().x,
+          y: state.pointerClient.y + getScroll().y,
+        };
+        if (activeAnchor && distanceBetween(activeAnchor, pointerDoc) >= minLineDistance) {
+          drawArrow(toViewportPoint(activeAnchor), state.pointerClient, palette, { live: true });
+        }
       }
+      state.anchors.forEach((anchor) => drawAnchor(toViewportPoint(anchor), palette));
     }
-
-    state.anchors.forEach((anchor) => drawAnchor(toViewportPoint(anchor), palette));
 
     if (state.pointerVisible && !state.hoverInteractive) {
       drawLeader(palette);
@@ -842,6 +874,7 @@ function initPointerPathTrail() {
   };
 
   const commitAnchor = () => {
+    if (!state.webEnabled) return;
     if (!state.pointerVisible || state.hoverInteractive) return;
 
     const scroll = getScroll();
@@ -873,7 +906,7 @@ function initPointerPathTrail() {
 
   const scheduleIdleCommit = () => {
     clearIdleTimer();
-    if (!state.pointerVisible || state.hoverInteractive) {
+    if (!state.webEnabled || !state.pointerVisible || state.hoverInteractive) {
       redraw();
       return;
     }
@@ -917,14 +950,18 @@ function initPointerPathTrail() {
   };
 
   clearButton.addEventListener('click', () => {
-    state.anchors = [];
-    state.segments = [];
-    state.activeAnchorIndex = -1;
+    state.webEnabled = !state.webEnabled;
+    if (!state.webEnabled) {
+      clearGraph();
+    }
+    writePointerWebPreference(state.webEnabled);
+    syncWebToggle();
     clearIdleTimer();
     redraw();
   });
 
   resizeCanvas();
+  syncWebToggle();
   redraw();
 
   window.addEventListener('resize', resizeCanvas, { passive: true });
@@ -1002,9 +1039,12 @@ async function submitForm(e, action) {
       cache: 'no-store',
       body:    JSON.stringify(data)
     });
-    const json = await res.json();
+    const contentType = String(res.headers.get('content-type') || '');
+    const json = contentType.includes('application/json')
+      ? await res.json()
+      : { success: false, error: 'The Wytham service returned an unexpected response. Please try again in a moment.' };
 
-    if (json.success) {
+    if (res.ok && json.success) {
       showMsg(msgId, json.message || 'Done!', false);
       setSubmitState(btnId, 'sent');
       form.reset();
@@ -1016,7 +1056,13 @@ async function submitForm(e, action) {
       resetTurnstileWidget(form.id);
     }
   } catch {
-    showMsg(msgId, 'Network error. Please check your connection and try again.', true);
+    showMsg(
+      msgId,
+      API_BASE
+        ? 'We could not reach the Wytham service right now. Please try again in a moment.'
+        : 'The Wytham service is not configured right now. Please refresh and try again.',
+      true
+    );
     setSubmitState(btnId, 'failed');
     resetTurnstileWidget(form.id);
   }
