@@ -1,0 +1,26 @@
+# Local tooling
+.agents/
+.claude/
+.kiro/
+.superpowers/
+
+# Environment files
+.env
+.env.*
+!.env.vercel.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+
+# Runtime data
+backend/node_modules/
+backend/data/
+backend/server-output.log
+data/
+
+# Design/editor artifacts
+*.pen
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
