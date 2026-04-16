@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="wytham-logo-dark-nav.png" />
+  <title>Wytham Docs</title>
+  <meta name="description" content="Wytham user documentation and installation guide. v0.1.7." />
+  <link rel="stylesheet" href="style.css?v=20260408i" />
+  <link rel="stylesheet" href="docs.css?v=20260408i" />
+  <link rel="stylesheet" href="vendor/phosphor/regular/style.css" />
+  <link rel="stylesheet" href="vendor/phosphor/fill/style.css" />
+  <script src="site-config.js?v=20260416a"></script>
+  <script src="script.js?v=20260416a" defer></script>
+</head>
+<body>
+
+
+  <!-- NAV -->
+  <nav class="nav"></nav>
+
+
+  <!-- DOCS LAYOUT -->
+  <div class="docs-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="docs-sidebar" id="docsSidebar">
+      <div class="docs-sidebar-inner">
+        <div class="docs-sidebar-header">
+          <span class="docs-version-chip">v0.1.7</span>
+          <span class="docs-sidebar-title">Documentation</span>
+        </div>
+        <nav class="docs-toc" aria-label="Table of contents">
+          <a class="docs-toc-link docs-toc-top" href="#overview">Overview</a>
+
+          <div class="docs-toc-group">
+            <span class="docs-toc-label">Installation</span>
+            <a class="docs-toc-link" href="#system-requirements">System Requirements</a>
+            <a class="docs-toc-link" href="#choosing-installer">Choosing Your Installer</a>
+            <a class="docs-toc-link docs-toc-indent" href="#bundle-installer">Bundle (~264 MB)</a>
+            <a class="docs-toc-link docs-toc-indent" href="#lite-installer">Lite (~72 MB)</a>
+            <a class="docs-toc-link docs-toc-indent" href="#comparison">Comparison</a>
+          </div>
+
+          <div class="docs-toc-group">
+            <span class="docs-toc-label">Getting Started</span>
+            <a class="docs-toc-link" href="#first-launch">First Launch &amp; Setup</a>
+            <a class="docs-toc-link" href="#app-overview">Application Overview</a>
+            <a class="docs-toc-link" href="#importing-data">Importing Data</a>
+            <a class="docs-toc-link" href="#building-model">Building Your Model</a>
+            <a class="docs-toc-link" href="#running-analysis">Running the Analysis</a>
+          </div>
+
+          <div class="docs-toc-group">
+            <span class="docs-toc-label">Analysis</span>
+            <a class="docs-toc-link" href="#results">Interpreting Results</a>
+            <a class="docs-toc-link" href="#bootstrap">Bootstrap Analysis</a>
+            <a class="docs-toc-link" href="#plspredict">PLS Predict</a>
+            <a class="docs-toc-link" href="#exporting">Exporting Results</a>
+          </div>
+
+          <div class="docs-toc-group">
+            <span class="docs-toc-label">Reference</span>
+            <a class="docs-toc-link" href="#privacy">Data Privacy</a>
+            <a class="docs-toc-link" href="#limitations">Known Limitations</a>
+            <a class="docs-toc-link" href="#licence">Licence &amp; Support</a>
+          </div>
+        </nav>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="docs-main">
+
+      <!-- Hero -->
+      <div class="docs-hero">
+        <div class="docs-hero-badge">
+          <span class="feature-tag">documentation</span>
+          <span class="docs-version-chip">v0.1.7</span>
+        </div>
+        <h1 class="docs-hero-title">Wytham User Guide</h1>
+        <p class="docs-hero-sub">Free, open-source PLS-SEM desktop application for Windows, now available as a public beta with signup-gated access. Built on the <strong>seminr</strong> R package.</p>
+        <div class="docs-hero-meta">
+          <span><i class="ph ph-windows-logo" aria-hidden="true"></i> Windows 10 / 11 (64-bit)</span>
+          <span><i class="ph ph-calendar-blank" aria-hidden="true"></i> April 2026</span>
+          <span><i class="ph ph-scales" aria-hidden="true"></i> GPL-3 Licence</span>
+          <span><i class="ph ph-currency-circle-dollar" aria-hidden="true"></i> Free forever</span>
+        </div>
+      </div>
+
+      <!-- ───────────────────────────────── OVERVIEW ── -->
+      <section class="docs-section" id="overview">
+        <h2 class="docs-h2">1. What is Wytham?</h2>
+        <p>Wytham is a free, open-source desktop application for <strong>Partial Least Squares Structural Equation Modelling (PLS-SEM)</strong>. It is designed to give researchers, academics, and students access to a fully featured PLS-SEM toolkit at no cost — a practical alternative to commercial tools such as SmartPLS for those who cannot afford a subscription.</p>
+        <p>The application is built on the same statistical engine that powers SmartPLS: the peer-reviewed <strong>seminr</strong> package for R. The interface is GUI-first — no knowledge of R or programming is required. R runs silently in the background; users interact only with the graphical interface.</p>
+
+        <div class="docs-info-grid">
+          <div class="docs-info-row"><span class="docs-info-key">Version</span><span class="docs-info-val"><span class="docs-code">0.1.7</span></span></div>
+          <div class="docs-info-row"><span class="docs-info-key">Licence</span><span class="docs-info-val">GNU General Public Licence v3 (GPL-3)</span></div>
+          <div class="docs-info-row"><span class="docs-info-key">Platform</span><span class="docs-info-val">Windows 10 / 11 (64-bit) — Phase 1</span></div>
+          <div class="docs-info-row"><span class="docs-info-key">Linux / macOS</span><span class="docs-info-val">Phase 2 — subject to community interest</span></div>
+          <div class="docs-info-row"><span class="docs-info-key">Statistics</span><span class="docs-info-val">PLS-SEM, Bootstrapping, PLS Predict</span></div>
+          <div class="docs-info-row"><span class="docs-info-key">Data privacy</span><span class="docs-info-val"><i class="ph ph-shield-check docs-inline-icon" aria-hidden="true"></i> All calculations run locally. No data leaves your machine.</span></div>
+          <div class="docs-info-row"><span class="docs-info-key">Cost</span><span class="docs-info-val docs-info-val--green"><i class="ph ph-check-circle docs-inline-icon" aria-hidden="true"></i> Free forever</span></div>
+        </div>
+      </section>
+
+      <!-- ──────────────────────────── SYSTEM REQUIREMENTS ── -->
+      <section class="docs-section" id="system-requirements">
+        <h2 class="docs-h2">2. System Requirements</h2>
+        <p>Wytham is currently available for <strong>Windows only</strong>. The following minimum specifications are recommended:</p>
+        <table class="docs-table">
+          <thead><tr><th>Requirement</th><th>Minimum Specification</th></tr></thead>
+          <tbody>
+            <tr><td>Operating system</td><td>Windows 10 or Windows 11 (64-bit)</td></tr>
+            <tr><td>Processor</td><td>1.6 GHz dual-core (2 GHz+ recommended)</td></tr>
+            <tr><td>RAM</td><td>4 GB (8 GB recommended for large datasets)</td></tr>
+            <tr><td>Disk space</td><td>Bundle installer: ~264 MB · Lite installer: ~72 MB</td></tr>
+            <tr><td>Internet</td><td>Not required for the current public beta workflow; only needed to submit the signup form or contact support</td></tr>
+            <tr><td>R (Lite only)</td><td>R 4.0 or later, already installed system-wide</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ──────────────────────────── CHOOSING INSTALLER ── -->
+      <section class="docs-section" id="choosing-installer">
+        <h2 class="docs-h2">3. Choosing Your Installer</h2>
+        <p>Wytham is distributed as two separate executable files. Both installers provide the full application — the difference is how R is supplied.</p>
+
+        <!-- Edition cards -->
+        <div class="docs-edition-cards" id="bundle-installer">
+          <!-- Bundle -->
+          <div class="docs-edition-card docs-edition-bundle">
+            <div class="docs-edition-card-head">
+              <div>
+                <span class="docs-edition-badge docs-badge-bundle">Bundle</span>
+                <span class="docs-edition-size">~264 MB</span>
+              </div>
+              <i class="ph ph-package docs-edition-icon" aria-hidden="true"></i>
+            </div>
+            <h3 class="docs-edition-name">Wytham Bundle</h3>
+            <p class="docs-edition-tagline">Recommended for most users</p>
+            <ul class="docs-edition-list">
+              <li class="docs-feat-yes"><i class="ph-fill ph-check-circle" aria-hidden="true"></i>Includes R Portable — no R installation needed</li>
+              <li class="docs-feat-yes"><i class="ph-fill ph-check-circle" aria-hidden="true"></i>Fully self-contained, works offline</li>
+              <li class="docs-feat-yes"><i class="ph-fill ph-check-circle" aria-hidden="true"></i>seminr pre-installed and configured</li>
+              <li class="docs-feat-yes"><i class="ph-fill ph-check-circle" aria-hidden="true"></i>Isolated from any existing R environment</li>
+              <li class="docs-feat-yes"><i class="ph-fill ph-check-circle" aria-hidden="true"></i>Ideal for students, first-time users, shared computers</li>
+              <li class="docs-feat-neutral"><i class="ph ph-info" aria-hidden="true"></i>Larger download due to bundled R runtime</li>
+            </ul>
+            <div class="docs-edition-steps">
+              <h4 class="docs-steps-title">Installation Steps</h4>
+              <ol class="docs-steps-list">
+                <li>Download the bundle installer <span class="docs-code">.exe</span> from the release page.</li>
+                <li>Double-click the installer. If Windows Defender SmartScreen shows a warning, click <em>"More info"</em> then <em>"Run anyway"</em> — Wytham is signed; this warning appears because the certificate is new.</li>
+                <li>Follow the on-screen prompts. Wytham installs to your chosen directory and creates a desktop shortcut.</li>
+                <li>On first launch, click <strong>Install</strong> to extract the R packages. When setup is complete, click <strong>Launch</strong> to open Wytham.</li>
+              </ol>
+            </div>
+          </div>
+
+          <!-- Lite -->
+          <div class="docs-edition-card docs-edition-lite" id="lite-installer">
+            <div class="docs-edition-card-head">
+              <div>
+                <span class="docs-edition-badge docs-badge-lite">Lite</span>
+                <span class="docs-edition-size">~72 MB</span>
+              </div>
+              <i class="ph ph-lightning docs-edition-icon" aria-hidden="true"></i>
+            </div>
+            <h3 class="docs-edition-name">Wytham Lite</h3>
+            <p class="docs-edition-tagline">For users with R already installed</p>
+            <ul class="docs-edition-list">
+              <li class="docs-feat-yes"><i class="ph-fill ph-check-circle" aria-hidden="true"></i>Smaller download — faster to install</li>
+              <li class="docs-feat-yes"><i class="ph-fill ph-check-circle" aria-hidden="true"></i>Uses your existing system R environment</li>
+              <li class="docs-feat-yes"><i class="ph-fill ph-check-circle" aria-hidden="true"></i>seminr installed on first launch automatically</li>
+              <li class="docs-feat-yes"><i class="ph-fill ph-check-circle" aria-hidden="true"></i>Ideal for researchers and data analysts already using R</li>
+              <li class="docs-feat-no"><i class="ph-fill ph-x-circle" aria-hidden="true"></i>Does <strong>not</strong> include R — requires R 4.0+ installed separately</li>
+              <li class="docs-feat-neutral"><i class="ph ph-info" aria-hidden="true"></i>Download R from <span class="docs-code">cran.r-project.org</span> if needed</li>
+            </ul>
+            <div class="docs-edition-steps">
+              <h4 class="docs-steps-title">Installation Steps</h4>
+              <ol class="docs-steps-list">
+                <li>Ensure <strong>R 4.0 or later</strong> is installed on your machine. Download from <span class="docs-code">cran.r-project.org</span> if needed.</li>
+                <li>Download the lite installer <span class="docs-code">.exe</span> from the release page.</li>
+                <li>Double-click the installer and follow the on-screen prompts.</li>
+                <li>On first launch, Wytham detects your system R and prompts you to install the required packages. Click <strong>Install</strong> and allow the process to complete. When done, click <strong>Launch</strong> to open Wytham.</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+
+        <!-- Comparison table -->
+        <div class="docs-subsection" id="comparison">
+          <h3 class="docs-h3">3.3 Comparison at a Glance</h3>
+          <table class="docs-table docs-table-compare">
+            <thead>
+              <tr>
+                <th>Feature</th>
+                <th class="docs-th-bundle"><i class="ph ph-package" aria-hidden="true"></i> Bundle (~264 MB)</th>
+                <th class="docs-th-lite"><i class="ph ph-lightning" aria-hidden="true"></i> Lite (~72 MB)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Includes R runtime</td><td class="docs-td-yes">Yes — R Portable</td><td class="docs-td-no">No — uses system R</td></tr>
+              <tr><td>Requires prior R install</td><td class="docs-td-yes">No</td><td class="docs-td-no">Yes (R 4.0+)</td></tr>
+              <tr><td>R package setup required</td><td class="docs-td-neutral">One-time extraction</td><td class="docs-td-neutral">One-time install</td></tr>
+              <tr><td>Isolated from system R</td><td class="docs-td-yes">Yes</td><td class="docs-td-no">No — shared</td></tr>
+              <tr><td>Suitable for non-R users</td><td class="docs-td-yes">Yes</td><td class="docs-td-no">No</td></tr>
+              <tr><td>Download size</td><td>~264 MB</td><td>~72 MB</td></tr>
+              <tr><td>Recommended for</td><td><strong>Most users</strong></td><td>Existing R users</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ──────────────────────────── FIRST LAUNCH ── -->
+      <section class="docs-section" id="first-launch">
+        <h2 class="docs-h2">4. First Launch &amp; Package Setup</h2>
+        <p>Regardless of which installer you used, Wytham requires a set of R packages to perform statistical calculations. These are installed once on first launch and do not need to be reinstalled unless you reinstall Wytham or reset your environment.</p>
+
+        <div class="docs-callout docs-callout-info">
+          <i class="ph ph-info docs-callout-icon" aria-hidden="true"></i>
+          <div>
+            <strong>What these packages do</strong>
+            <ul class="docs-callout-list">
+              <li><span class="docs-code">seminr</span> — core PLS-SEM engine: estimates models, runs bootstrapping, and computes PLS Predict metrics</li>
+              <li><span class="docs-code">plumber</span> — runs a local REST API on your machine so the Wytham interface can communicate with R</li>
+              <li><span class="docs-code">semPower</span> — post-hoc power analysis for SEM models</li>
+              <li><span class="docs-code">readxl</span> / <span class="docs-code">jsonlite</span> — data import and result serialisation</li>
+            </ul>
+            <p class="docs-callout-note">No data is sent to any external server during setup or during analysis.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ──────────────────────────── GETTING STARTED ── -->
+      <section class="docs-section" id="app-overview">
+        <h2 class="docs-h2">5. Getting Started</h2>
+
+        <h3 class="docs-h3" id="app-overview">5.1 Application Overview</h3>
+        <p>When Wytham opens, you are taken to the <strong>Workspace Home</strong> screen. Workspaces are the top-level organising unit in Wytham — similar to a project folder. Each workspace contains one dataset and one or more models. You can have multiple workspaces for different studies.</p>
+
+        <h3 class="docs-h3" id="importing-data">5.2 Importing Your Data</h3>
+        <ol class="docs-ol">
+          <li>From the Workspace Home, click the <strong>"Import File"</strong> tab or drag and drop a CSV or Excel (<span class="docs-code">.xlsx</span>) file onto the import area.</li>
+          <li>Wytham will display a delimiter and encoding configuration screen. Confirm your settings (comma-separated is the default for CSV files).</li>
+          <li>You will then see a descriptive statistics table showing means, standard deviations, skewness, kurtosis, and scale information for all variables. Review this before proceeding.</li>
+          <li>Click <strong>"Continue to Model Builder"</strong> to proceed to the canvas.</li>
+        </ol>
+
+        <div class="docs-callout docs-callout-tip">
+          <i class="ph ph-lightbulb docs-callout-icon" aria-hidden="true"></i>
+          <div><strong>File size limit:</strong> Up to 50 MB per file is supported. CSV and <span class="docs-code">.xlsx</span> formats are accepted.</div>
+        </div>
+
+        <h3 class="docs-h3" id="building-model">5.3 Building Your Model</h3>
+        <ul class="docs-ul">
+          <li>The <strong>Model Canvas</strong> is the central workspace. Use the toolbar to add Latent Variables (constructs) and draw paths between them.</li>
+          <li>Drag variables from the left-hand panel onto constructs to assign indicators.</li>
+          <li>Set each construct as <strong>Reflective</strong> or <strong>Formative</strong> using the Properties panel on the right.</li>
+          <li>Path arrows represent structural relationships. Draw them from predictor to outcome constructs.</li>
+          <li>Your model is saved automatically every 5 minutes. You can also save manually using the Save button.</li>
+        </ul>
+
+        <h3 class="docs-h3" id="running-analysis">5.4 Running the Analysis</h3>
+        <ol class="docs-ol">
+          <li>Click the <strong>"Calculate"</strong> button in the toolbar to run the PLS-SEM algorithm.</li>
+          <li>A settings dialogue will appear. Configure the algorithm (Standard PLS or Consistent PLS), weighting mode, and stopping criterion.</li>
+          <li>Once confirmed, Wytham runs the estimation in the background using the seminr R engine. Results appear in the Results View automatically.</li>
+        </ol>
+      </section>
+
+      <!-- ──────────────────────────── RESULTS ── -->
+      <section class="docs-section" id="results">
+        <h2 class="docs-h2">5.5 Interpreting Results</h2>
+        <p>The <strong>Results View</strong> displays a full SmartPLS-style results tree on the left and the path diagram on the right. The following result sections are available:</p>
+
+        <table class="docs-table">
+          <thead><tr><th>Section</th><th>Contents</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Final Results</strong></td><td>Total indirect effects, specific indirect effects, total effects, outer loadings, outer weights, latent variables, residuals</td></tr>
+            <tr><td><strong>Quality Criteria</strong></td><td>R², f², construct reliability and validity, discriminant validity (HTMT &amp; Fornell-Larcker), collinearity (VIF), model fit, model selection criteria (AIC/BIC)</td></tr>
+            <tr><td><strong>Algorithm</strong></td><td>Settings used, stop criterion changes, post-hoc power analysis (via semPower)</td></tr>
+            <tr><td><strong>Model and Data</strong></td><td>Inner model, outer model, indicator data (original / standardised / correlations), measurement model</td></tr>
+            <tr><td><strong>Bootstrap Results</strong></td><td>Path coefficients with confidence intervals, t-values, and p-values</td></tr>
+            <tr><td><strong>PLS Predict</strong></td><td>Out-of-sample Q² predict, RMSE comparisons (PLS-SEM vs. LM benchmark)</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ──────────────────────────── BOOTSTRAP ── -->
+      <section class="docs-section" id="bootstrap">
+        <h2 class="docs-h2">5.6 Bootstrap Analysis</h2>
+        <p>Bootstrapping is the recommended method for testing the significance of path coefficients in PLS-SEM.</p>
+        <ol class="docs-ol">
+          <li>From the Model Canvas, select <strong>Analysis › Bootstrap</strong>, or click the Bootstrap button in the toolbar.</li>
+          <li>Set the number of subsamples (default <strong>5,000</strong>), confidence interval type, and confidence level.</li>
+          <li>Click <strong>Run</strong>. A progress indicator will appear; bootstrapping cannot be interrupted once started.</li>
+          <li>Bootstrap results are saved as a separate entry in your workspace and can be reopened at any time without re-running.</li>
+        </ol>
+
+        <div class="docs-callout docs-callout-warning">
+          <i class="ph ph-warning docs-callout-icon" aria-hidden="true"></i>
+          <div><strong>Note:</strong> Very large datasets (over 10,000 rows) may cause slower bootstrap calculation times depending on hardware.</div>
+        </div>
+      </section>
+
+      <!-- ──────────────────────────── PLS PREDICT ── -->
+      <section class="docs-section" id="plspredict">
+        <h2 class="docs-h2">5.7 PLS Predict</h2>
+        <p>PLS Predict evaluates the out-of-sample predictive power of your model using <strong>k-fold cross-validation</strong>. Results include Q² predict values and RMSE metrics compared to a linear model (LM) benchmark, following the SmartPLS 4 reporting convention.</p>
+        <ol class="docs-ol">
+          <li>Select <strong>Analysis › PLS Predict</strong> from the menu bar, or click the PLS Predict button.</li>
+          <li>Configure the number of folds and repetitions in the settings dialogue.</li>
+          <li>Results show <strong>Q²predict</strong>, PLS-SEM RMSE, and LM RMSE for each endogenous indicator.</li>
+        </ol>
+      </section>
+
+      <!-- ──────────────────────────── EXPORTING ── -->
+      <section class="docs-section" id="exporting">
+        <h2 class="docs-h2">5.8 Exporting Results</h2>
+        <div class="docs-export-grid">
+          <div class="docs-export-card">
+            <i class="ph ph-file-html docs-export-icon" aria-hidden="true"></i>
+            <div class="docs-export-label">Export HTML</div>
+            <p>Generates a shareable single-file HTML report with a fixed sidebar for navigation and scrollspy highlighting. Opens automatically in your default browser.</p>
+          </div>
+          <div class="docs-export-card">
+            <i class="ph ph-code docs-export-icon" aria-hidden="true"></i>
+            <div class="docs-export-label">Copy R Script</div>
+            <p>Copies the equivalent seminr R code to your clipboard so you can reproduce the analysis in a standalone R session.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ──────────────────────────── PRIVACY ── -->
+      <section class="docs-section" id="privacy">
+        <h2 class="docs-h2">6. Data Privacy &amp; Security</h2>
+        <p>Wytham is designed with privacy as a foundational principle, not an afterthought. This is particularly important for researchers working with human subjects data.</p>
+
+        <div class="docs-privacy-list">
+          <div class="docs-privacy-item">
+            <i class="ph ph-desktop docs-privacy-icon" aria-hidden="true"></i>
+            <div><strong>100% local processing.</strong> All statistical calculations run entirely on your local machine. Your dataset is never uploaded or transmitted anywhere.</div>
+          </div>
+          <div class="docs-privacy-item">
+            <i class="ph ph-eye-slash docs-privacy-icon" aria-hidden="true"></i>
+            <div><strong>No telemetry.</strong> Wytham does not collect any telemetry, usage analytics, or crash reports by default.</div>
+          </div>
+          <div class="docs-privacy-item">
+            <i class="ph ph-folder docs-privacy-icon" aria-hidden="true"></i>
+            <div><strong>Local storage only.</strong> Workspace files are stored in your Downloads folder under a Wytham subfolder.</div>
+          </div>
+          <div class="docs-privacy-item">
+            <i class="ph ph-shield-check docs-privacy-icon" aria-hidden="true"></i>
+            <div><strong>Current public beta scope.</strong> The current public beta keeps model design, calculation, and result interpretation on your machine. AI-assisted reporting is not included in the current public beta, and current workflows remain local.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ──────────────────────────── LIMITATIONS ── -->
+      <section class="docs-section" id="limitations">
+        <h2 class="docs-h2">7. Known Limitations — v0.1.7</h2>
+        <div class="docs-callout docs-callout-warning">
+          <i class="ph ph-warning-circle docs-callout-icon" aria-hidden="true"></i>
+          <div>The following limitations apply to the current release and are planned for resolution in subsequent versions.</div>
+        </div>
+        <ul class="docs-ul">
+          <li><strong>Windows only.</strong> Linux and macOS support is planned for Phase 2, subject to sufficient user interest.</li>
+          <li><strong>Public beta scope.</strong> AI-assisted reporting is not included in the current public beta release.</li>
+          <li><strong>Stop criterion history.</strong> Detailed stop-criterion change history across PLS algorithm iterations is not available as a direct output from the seminr backend. A metadata summary is provided instead.</li>
+          <li><strong>Large datasets.</strong> Very large datasets (over 10,000 rows) may cause slower bootstrap calculation times depending on hardware.</li>
+          <li><strong>Execution logs.</strong> Execution logs are not currently exportable as a standalone file.</li>
+        </ul>
+      </section>
+
+      <!-- Roadmap section removed as requested -->
+
+      <!-- ──────────────────────────── LICENCE ── -->
+      <section class="docs-section" id="licence">
+        <h2 class="docs-h2">Licence &amp; Support</h2>
+        <p>Wytham is released under the <strong>GNU General Public Licence v3 (GPL-3)</strong>. You are free to use, study, modify, and distribute the application in accordance with the terms of that licence.</p>
+        <p>For questions, bug reports, or feature requests, please open an issue on the Wytham GitHub repository. Community contributions are welcome.</p>
+
+        <div class="docs-callout docs-callout-info">
+          <i class="ph ph-buildings docs-callout-icon" aria-hidden="true"></i>
+          <div>
+            <strong>Created by:</strong> Aaron Daniel Akuteye<br/>
+            Kwame Nkrumah University of Science and Technology (KNUST), Ghana.<br/>
+            Department of Educational Innovation in Science and Technology.<br/>
+            <a href="team.html" class="btn-ghost" style="margin: 12px 0 8px 0; display: inline-flex; align-items: center; gap: 6px; font-size: 15px;">
+              <i class="ph ph-users" aria-hidden="true"></i> View all team members
+            </a><br/>
+            <strong>Supervised by:</strong> Prof Harry Barton Essel and Dr Akosua Techie-Menson.
+          </div>
+        </div>
+      </section>
+
+    </main><!-- /docs-main -->
+  </div><!-- /docs-layout -->
+
+
+  <!-- MODALS -->
+  <div id="downloadModal" class="modal-overlay" data-close-on-overlay="true">
+    <div class="modal">
+      <button class="modal-close" type="button" data-action="close-modal" data-modal="downloadModal" aria-label="Close">×</button>
+      <h2 class="modal-title">Join the Beta</h2>
+      <p class="modal-sub">Be among the first to try Wytham. We’ll email you when your beta build is ready.</p>
+      <form class="secure-form" id="signupForm">
+        <div class="hp-field" aria-hidden="true">
+          <label for="hp_signup">Leave this blank</label>
+          <input type="text" id="hp_signup" name="hp_field" tabindex="-1" autocomplete="off"/>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="su_name">Full name <span class="req">*</span></label>
+          <input class="form-input" type="text" id="su_name" name="name" required maxlength="100" placeholder="Dr. Jane Doe" autocomplete="name"/>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="su_email">Email <span class="req">*</span></label>
+          <input class="form-input" type="email" id="su_email" name="email" required maxlength="254" placeholder="you@university.edu" autocomplete="email"/>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="su_inst">Institution</label>
+          <input class="form-input" type="text" id="su_inst" name="institution" maxlength="200" placeholder="KNUST, MIT, etc." autocomplete="organization"/>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="su_country">Country <span class="req">*</span></label>
+          <div class="searchable-select" data-field="country">
+            <input type="text" class="form-input searchable-input" id="su_country" name="country" placeholder="Search or select country…" required/>
+            <div class="searchable-dropdown" style="display:none;">
+              <div class="searchable-options"></div>
+            </div>
+          </div>
+        </div>
+        <div class="form-row form-row-horizontal">
+          <div class="form-col">
+            <label class="form-label" for="su_role">Role</label>
+            <select class="form-input form-select" id="su_role" name="role">
+              <option value="">Select…</option>
+              <option value="phd_student">PhD Student</option>
+              <option value="mphil_student">MPhil Student</option>
+              <option value="researcher">Researcher</option>
+              <option value="lecturer">Lecturer / Professor</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="form-col">
+            <label class="form-label" for="su_version">Package <span class="req">*</span></label>
+            <select class="form-input form-select" id="su_version" name="version" required>
+              <option value="">Select package…</option>
+              <option value="bundle">Bundle (~264 MB) — includes R Portable, no R needed</option>
+              <option value="lite">Lite (~72 MB) — requires R already installed</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-msg" id="signupMsg" aria-live="polite"></div>
+        <button class="btn-primary form-submit" type="submit" id="signupBtn">
+          <span class="btn-label">Join the beta</span>
+          <span class="btn-spinner" aria-hidden="true"></span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div id="donateModal" class="modal-overlay" data-close-on-overlay="true">
+    <div class="modal">
+      <button class="modal-close" type="button" data-action="close-modal" data-modal="donateModal" aria-label="Close">×</button>
+      <h2 class="modal-title">Support Wytham ♥</h2>
+      <p class="modal-sub">Help keep this tool free for researchers everywhere.</p>
+      <form class="secure-form" id="donateForm">
+        <div class="hp-field" aria-hidden="true">
+          <label for="hp_donate">Leave this blank</label>
+          <input type="text" id="hp_donate" name="hp_field" tabindex="-1" autocomplete="off"/>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="dn_name">Full name <span class="req">*</span></label>
+          <input class="form-input" type="text" id="dn_name" name="name" required maxlength="100" placeholder="Your name" autocomplete="name"/>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="dn_email">Email <span class="req">*</span></label>
+          <input class="form-input" type="email" id="dn_email" name="email" required maxlength="254" placeholder="you@email.com" autocomplete="email"/>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="dn_country">Country</label>
+          <div class="searchable-select" data-field="country">
+            <input type="text" class="form-input searchable-input" id="dn_country" name="country" placeholder="Search or select country…"/>
+            <div class="searchable-dropdown" style="display:none;">
+              <div class="searchable-options"></div>
+            </div>
+          </div>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="dn_msg">Message <span class="form-optional">(optional)</span></label>
+          <textarea class="form-input form-textarea" id="dn_msg" name="message" maxlength="500" rows="3" placeholder="Share why you’re supporting Wytham…"></textarea>
+        </div>
+        <div class="form-msg" id="donateMsg" aria-live="polite"></div>
+        <button class="btn-primary form-submit" type="submit" id="donateBtn">
+          <span class="btn-label">send support ♥</span>
+          <span class="btn-spinner" aria-hidden="true"></span>
+        </button>
+        <p class="form-note">Your information is processed securely and never shared.</p>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

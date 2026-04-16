@@ -1,0 +1,47 @@
+.ph::before {
+  display: inline-block;
+  width: 1em;
+  text-align: center;
+  font-style: normal;
+  font-weight: 500;
+  line-height: 1;
+  text-transform: none;
+  speak: none;
+}
+
+.ph.ph-arrow-left::before { content: "\2190"; }
+.ph.ph-arrow-right::before { content: "\2192"; }
+.ph.ph-arrow-u-left-up::before { content: "\21b6"; }
+.ph.ph-arrow-u-right-up::before { content: "\21b7"; }
+.ph.ph-bezier-curve::before { content: "\223f"; }
+.ph.ph-bug-beetle::before { content: "\2731"; }
+.ph.ph-buildings::before { content: "\25a6"; }
+.ph.ph-calendar-blank::before { content: "\1f4c5"; }
+.ph.ph-caret-down::before { content: "\25be"; }
+.ph.ph-chart-line-up::before { content: "\2197"; }
+.ph.ph-check-circle::before { content: "\2713"; }
+.ph.ph-code::before,
+.ph.ph-code-simple::before { content: "</>"; }
+.ph.ph-currency-circle-dollar::before { content: "$"; }
+.ph.ph-desktop::before,
+.ph.ph-monitor::before,
+.ph.ph-windows-logo::before { content: "\25a3"; }
+.ph.ph-eye-slash::before { content: "\2298"; }
+.ph.ph-file-html::before { content: "HTML"; font-size: 0.54em; letter-spacing: 0.03em; }
+.ph.ph-folder::before { content: "\1f4c1"; }
+.ph.ph-info::before { content: "i"; font-weight: 700; }
+.ph.ph-lightbulb::before { content: "\1f4a1"; }
+.ph.ph-lightning::before { content: "\26a1"; }
+.ph.ph-list::before { content: "\2261"; }
+.ph.ph-lock-key::before { content: "\1f511"; }
+.ph.ph-moon::before { content: "\263e"; }
+.ph.ph-package::before { content: "\25a4"; }
+.ph.ph-plus::before { content: "+"; }
+.ph.ph-rocket-launch::before { content: "\1f680"; }
+.ph.ph-scales::before { content: "\2696"; }
+.ph.ph-shield-check::before { content: "\1f6e1"; }
+.ph.ph-sun::before { content: "\2600"; }
+.ph.ph-users::before { content: "\25cc"; }
+.ph.ph-warning::before,
+.ph.ph-warning-circle::before { content: "\26a0"; }
+.ph.ph-wrench::before { content: "\1f527"; }

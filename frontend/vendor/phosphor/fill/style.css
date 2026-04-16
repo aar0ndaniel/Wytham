@@ -1,0 +1,19 @@
+.ph-fill::before {
+  display: inline-block;
+  width: 1em;
+  text-align: center;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: none;
+  speak: none;
+}
+
+.ph-fill.ph-chat-centered-dots::before { content: "\22ef"; }
+.ph-fill.ph-check-circle::before { content: "\2713"; }
+.ph-fill.ph-github-logo::before { content: "GH"; font-size: 0.54em; letter-spacing: 0.04em; }
+.ph-fill.ph-heart::before { content: "\2665"; }
+.ph-fill.ph-identification-badge::before { content: "ID"; font-size: 0.54em; letter-spacing: 0.04em; }
+.ph-fill.ph-linkedin-logo::before { content: "in"; font-size: 0.64em; font-weight: 800; }
+.ph-fill.ph-play::before { content: "\25b6"; }
+.ph-fill.ph-x-circle::before { content: "\2715"; }
