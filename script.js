@@ -245,6 +245,7 @@ function openModal(id) {
   if (modal) {
     modal.classList.add('is-open');
     document.body.style.overflow = 'hidden';
+    renderTurnstileWidgets();
   }
 }
 
@@ -343,20 +344,59 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ── Form Helpers ────────────────────────────────────────────────────────
+const TURNSTILE_SITE_KEY = String(window.WYTHAM_SITE_CONFIG?.turnstileSiteKey || '').trim();
+const TURNSTILE_FORMS = Object.freeze({
+  donateForm: { btnId: 'donateBtn', containerId: 'donateTurnstile', msgId: 'donateMsg' },
+  signupForm: { btnId: 'signupBtn', containerId: 'signupTurnstile', msgId: 'signupMsg' },
+});
+const TURNSTILE_STATE_LABELS = Object.freeze({
+  donateBtn: {
+    idle: 'send support ♥',
+    verifying: 'Verifying...',
+    sending: 'Sending...',
+    sent: 'Support sent',
+    failed: 'Try again',
+    retry: 'Verify to continue',
+  },
+  signupBtn: {
+    idle: 'Join the beta',
+    verifying: 'Verifying...',
+    sending: 'Submitting...',
+    sent: 'Request received',
+    failed: 'Try again',
+    retry: 'Verify to continue',
+  },
+});
+const TURNSTILE_WIDGETS = new Map();
+let turnstileLoadPromise = null;
+
 function resetForm(formId, msgId, btnId) {
   const form = document.getElementById(formId);
   const msg  = document.getElementById(msgId);
-  const btn  = document.getElementById(btnId);
   if (form) form.reset();
   if (msg)  { msg.textContent = ''; msg.className = 'form-msg'; }
-  if (btn)  btn.disabled = false;
+  setSubmitState(btnId, 'idle');
+  resetTurnstileWidget(formId);
 }
 
 function setLoading(btnId, loading) {
+  setSubmitState(btnId, loading ? 'sending' : 'idle');
+}
+
+function setSubmitState(btnId, state) {
   const btn = document.getElementById(btnId);
   if (!btn) return;
-  btn.disabled = loading;
-  btn.classList.toggle('is-loading', loading);
+  const label = btn.querySelector('.btn-label');
+  const labels = TURNSTILE_STATE_LABELS[btnId] || { idle: label?.textContent || 'Submit' };
+  const nextState = state || 'idle';
+
+  btn.dataset.state = nextState;
+  btn.disabled = nextState === 'verifying' || nextState === 'sending' || nextState === 'sent';
+  btn.classList.toggle('is-loading', nextState === 'verifying' || nextState === 'sending');
+
+  if (label) {
+    label.textContent = labels[nextState] || labels.idle;
+  }
 }
 
 function escapeHtml(value) {
@@ -380,6 +420,7 @@ function isSafeActionUrl(value) {
 function showMsg(msgId, text, isError, action) {
   const el = document.getElementById(msgId);
   if (!el) return;
+  const tone = isError === 'warning' ? 'warning' : isError ? 'error' : 'success';
   el.textContent = '';
   if (text) {
     el.appendChild(document.createTextNode(String(text)));
@@ -396,7 +437,135 @@ function showMsg(msgId, text, isError, action) {
     link.textContent = action.label || 'Open';
     el.appendChild(link);
   }
-  el.className = 'form-msg ' + (isError ? 'form-msg--error' : 'form-msg--success');
+  el.className = `form-msg form-msg--${tone}`;
+  if (text) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+function getTurnstileToken(form, data) {
+  return String(data?.['cf-turnstile-response'] || form?.dataset.turnstileToken || '').trim();
+}
+
+function resetTurnstileWidget(formId) {
+  const form = document.getElementById(formId);
+  if (form) {
+    delete form.dataset.turnstileToken;
+  }
+
+  const widget = TURNSTILE_WIDGETS.get(formId);
+  if (widget && window.turnstile && typeof window.turnstile.reset === 'function') {
+    window.turnstile.reset(widget.widgetId);
+  }
+}
+
+function handleTurnstileIssue(formId, message) {
+  const context = TURNSTILE_FORMS[formId];
+  const form = document.getElementById(formId);
+  if (!context) return;
+  if (form) {
+    delete form.dataset.turnstileToken;
+  }
+  setSubmitState(context.btnId, 'retry');
+  showMsg(context.msgId, message, 'warning');
+}
+
+function waitForTurnstile() {
+  if (turnstileLoadPromise) {
+    return turnstileLoadPromise;
+  }
+
+  turnstileLoadPromise = new Promise((resolve, reject) => {
+    if (window.turnstile && typeof window.turnstile.render === 'function') {
+      resolve(window.turnstile);
+      return;
+    }
+
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => {
+      if (window.turnstile && typeof window.turnstile.render === 'function') {
+        window.clearInterval(timer);
+        resolve(window.turnstile);
+        return;
+      }
+
+      if (Date.now() - startedAt > 6000) {
+        window.clearInterval(timer);
+        reject(new Error('Turnstile timed out.'));
+      }
+    }, 200);
+  });
+
+  return turnstileLoadPromise;
+}
+
+function renderTurnstileWidgets() {
+  if (!TURNSTILE_SITE_KEY) {
+    return;
+  }
+
+  waitForTurnstile()
+    .then((turnstile) => {
+      Object.entries(TURNSTILE_FORMS).forEach(([formId, context]) => {
+        const form = document.getElementById(formId);
+        const container = document.getElementById(context.containerId);
+        if (!form || !container || TURNSTILE_WIDGETS.has(formId)) {
+          return;
+        }
+
+        const widgetId = turnstile.render(container, {
+          sitekey: TURNSTILE_SITE_KEY,
+          theme: document.body.classList.contains('light') ? 'light' : 'dark',
+          callback(token) {
+            form.dataset.turnstileToken = token;
+            if (document.getElementById(context.btnId)?.dataset.state === 'retry') {
+              setSubmitState(context.btnId, 'idle');
+              showMsg(context.msgId, '', false);
+            }
+          },
+          'error-callback'() {
+            handleTurnstileIssue(formId, 'Verification could not be loaded. Please wait a moment or refresh the page.');
+          },
+          'expired-callback'() {
+            handleTurnstileIssue(formId, 'Verification expired. Please complete it again before submitting.');
+          },
+          'timeout-callback'() {
+            handleTurnstileIssue(formId, 'Verification is taking longer than expected. Please wait a moment or refresh the page.');
+          },
+        });
+
+        TURNSTILE_WIDGETS.set(formId, { widgetId });
+      });
+    })
+    .catch(() => {
+      Object.keys(TURNSTILE_FORMS).forEach((formId) => {
+        handleTurnstileIssue(formId, 'Verification is taking longer than expected. Please wait a moment or refresh the page.');
+      });
+    });
+}
+
+function ensureTurnstileReady(form, msgId, btnId, data) {
+  setSubmitState(btnId, 'verifying');
+
+  if (!TURNSTILE_SITE_KEY) {
+    showMsg(msgId, 'Verification is not configured right now. Please try again later.', true);
+    setSubmitState(btnId, 'failed');
+    return false;
+  }
+
+  if (!window.turnstile || !TURNSTILE_WIDGETS.has(form.id)) {
+    showMsg(msgId, 'Verification is taking longer than expected. Please wait a moment or refresh the page.', 'warning');
+    setSubmitState(btnId, 'retry');
+    return false;
+  }
+
+  if (!getTurnstileToken(form, data)) {
+    showMsg(msgId, 'Please complete the verification challenge before submitting.', 'warning');
+    setSubmitState(btnId, 'retry');
+    return false;
+  }
+
+  return true;
 }
 
 function initPointerPathTrail() {
@@ -805,16 +974,19 @@ async function submitForm(e, action) {
   const btnId   = isSignup ? 'signupBtn'  : 'donateBtn';
   const msgId   = isSignup ? 'signupMsg'  : 'donateMsg';
 
-  setLoading(btnId, true);
+  setSubmitState(btnId, 'verifying');
   showMsg(msgId, '', false);
 
   const data = Object.fromEntries(new FormData(form).entries());
+  if (!ensureTurnstileReady(form, msgId, btnId, data)) {
+    return;
+  }
   if (isSignup) {
     const countryInput = form.querySelector('#su_country');
     if (countryInput && countryInput.hasAttribute('required') && !countryInput.value.trim()) {
       countryInput.setCustomValidity('Please select a country');
       countryInput.reportValidity();
-      setLoading(btnId, false);
+      setSubmitState(btnId, 'failed');
       return;
     }
     data.sourcePage = window.location.pathname || '/';
@@ -822,6 +994,7 @@ async function submitForm(e, action) {
   }
 
   try {
+    setSubmitState(btnId, 'sending');
     const res = await fetch(`${API_BASE}/api/${action}`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -833,15 +1006,19 @@ async function submitForm(e, action) {
 
     if (json.success) {
       showMsg(msgId, json.message || 'Done!', false);
+      setSubmitState(btnId, 'sent');
       form.reset();
+      resetTurnstileWidget(form.id);
       setTimeout(() => closeModal(isSignup ? 'downloadModal' : 'donateModal'), 3000);
     } else {
       showMsg(msgId, json.error || 'Something went wrong. Please try again.', true);
-      setLoading(btnId, false);
+      setSubmitState(btnId, 'failed');
+      resetTurnstileWidget(form.id);
     }
   } catch {
     showMsg(msgId, 'Network error. Please check your connection and try again.', true);
-    setLoading(btnId, false);
+    setSubmitState(btnId, 'failed');
+    resetTurnstileWidget(form.id);
   }
 }
 
@@ -1043,6 +1220,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initSearchableDropdowns();
   initDocsPage();
   initPointerPathTrail();
+  renderTurnstileWidgets();
   const teamRow = document.getElementById('teamRow');
   if (teamRow) {
     teamRow.addEventListener('scroll', updateTeamArrowState, { passive: true });

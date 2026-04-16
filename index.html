@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="vendor/phosphor/regular/style.css" />
   <link rel="stylesheet" href="vendor/phosphor/fill/style.css" />
   <script src="site-config.js?v=20260416a"></script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
   <script src="script.js?v=20260416a" defer></script>
 </head>
 <body>
@@ -1557,6 +1558,12 @@
             </select>
           </div>
         </div>
+        <div class="form-security-block">
+          <div class="turnstile-shell">
+            <div class="turnstile-slot" id="signupTurnstile" data-form-id="signupForm"></div>
+          </div>
+          <p class="form-security-note">Protected by Cloudflare Turnstile.</p>
+        </div>
         <div class="form-msg" id="signupMsg" aria-live="polite"></div>
         <button class="btn-primary form-submit" type="submit" id="signupBtn">
           <span class="btn-label">Join the beta</span>
@@ -1598,6 +1605,12 @@
         <div class="form-row">
           <label class="form-label" for="dn_msg">Message <span class="form-optional">(optional)</span></label>
           <textarea class="form-input form-textarea" id="dn_msg" name="message" maxlength="500" rows="3" placeholder="Share why you’re supporting Wytham…"></textarea>
+        </div>
+        <div class="form-security-block">
+          <div class="turnstile-shell">
+            <div class="turnstile-slot" id="donateTurnstile" data-form-id="donateForm"></div>
+          </div>
+          <p class="form-security-note">Protected by Cloudflare Turnstile.</p>
         </div>
         <div class="form-msg" id="donateMsg" aria-live="polite"></div>
         <button class="btn-primary form-submit" type="submit" id="donateBtn">

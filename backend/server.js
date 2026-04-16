@@ -2891,6 +2891,73 @@ function smtpReady(currentConfig = config) {
   return Boolean(currentConfig.smtpHost && currentConfig.smtpPort && currentConfig.smtpUser && currentConfig.smtpPass && currentConfig.smtpFromEmail);
 }
 
+async function verifyTurnstileToken(token, options = {}) {
+  const currentConfig = options.config || config;
+  const fetchImpl = options.fetchImpl || fetch;
+  const secretKey = trim(currentConfig.turnstile?.secretKey);
+  const trimmedToken = trim(token);
+
+  if (!secretKey) {
+    return {
+      success: false,
+      statusCode: 503,
+      error: 'Verification is unavailable right now. Please try again later.',
+    };
+  }
+
+  if (!trimmedToken) {
+    return {
+      success: false,
+      statusCode: 400,
+      error: 'Complete the verification challenge and try again.',
+    };
+  }
+
+  try {
+    const payload = new URLSearchParams({
+      secret: secretKey,
+      response: trimmedToken,
+    });
+    const remoteIp = trim(options.ip);
+    if (remoteIp) {
+      payload.set('remoteip', remoteIp);
+    }
+
+    const response = await fetchImpl('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+      },
+      body: payload.toString(),
+    });
+
+    if (!response.ok) {
+      return {
+        success: false,
+        statusCode: 502,
+        error: 'Verification could not be completed. Please try again.',
+      };
+    }
+
+    const result = await response.json();
+    if (result && result.success) {
+      return { success: true, statusCode: 200, error: '' };
+    }
+
+    return {
+      success: false,
+      statusCode: 403,
+      error: 'Verification failed. Please try again.',
+    };
+  } catch (_error) {
+    return {
+      success: false,
+      statusCode: 502,
+      error: 'Verification could not be completed. Please try again.',
+    };
+  }
+}
+
 function createMailer(currentConfig = config) {
   if (!smtpReady(currentConfig)) {
     return null;
@@ -3110,9 +3177,10 @@ function publicContentSecurityPolicy() {
     "img-src 'self' https: data: cid:",
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self' https: data:",
-    "script-src 'self'",
+    "script-src 'self' https://challenges.cloudflare.com",
     "script-src-attr 'none'",
-    "connect-src 'self' https:",
+    "connect-src 'self' https: https://challenges.cloudflare.com",
+    "frame-src 'self' https://challenges.cloudflare.com",
     "frame-ancestors 'none'",
     "form-action 'self'",
   ].join('; ');
@@ -3714,6 +3782,9 @@ function createApp(options = {}) {
   const sendEmail = typeof options.sendSignupEmail === 'function'
     ? options.sendSignupEmail
     : (signup) => sendSignupEmail(signup, { config: currentConfig, mailer: currentMailer });
+  const verifyTurnstile = typeof options.verifyTurnstile === 'function'
+    ? options.verifyTurnstile
+    : ({ token, ip }) => verifyTurnstileToken(token, { config: currentConfig, ip });
   const hostedApp = express();
   const actionSecret = crypto.randomBytes(32).toString('hex');
   const sessionSecret = crypto.randomBytes(32).toString('hex');
@@ -3831,6 +3902,18 @@ function createApp(options = {}) {
 
       res.setHeader('Cache-Control', 'no-store');
       const ip = clientIp(req);
+      const verification = await verifyTurnstile({
+        action: 'signup',
+        ip,
+        req,
+        token: req.body?.['cf-turnstile-response'] || req.body?.turnstileToken,
+      });
+      if (!verification || !verification.success) {
+        return res.status(verification?.statusCode || 403).json({
+          success: false,
+          error: verification?.error || 'Verification failed. Please try again.',
+        });
+      }
       if (!allowRate(ip, 'signup')) {
         return res.status(429).json({ success: false, error: 'Too many signup attempts. Please try again later.' });
       }
@@ -3899,6 +3982,18 @@ function createApp(options = {}) {
 
       res.setHeader('Cache-Control', 'no-store');
       const ip = clientIp(req);
+      const verification = await verifyTurnstile({
+        action: 'donate',
+        ip,
+        req,
+        token: req.body?.['cf-turnstile-response'] || req.body?.turnstileToken,
+      });
+      if (!verification || !verification.success) {
+        return res.status(verification?.statusCode || 403).json({
+          success: false,
+          error: verification?.error || 'Verification failed. Please try again.',
+        });
+      }
       if (!allowRate(ip, 'donate')) {
         return res.status(429).json({ success: false, error: 'Too many donation attempts. Please try again later.' });
       }
@@ -4260,4 +4355,5 @@ module.exports = {
   renderAdminAccountPanel,
   startServer,
   startServers,
+  verifyTurnstileToken,
 };

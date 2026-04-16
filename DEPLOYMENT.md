@@ -26,6 +26,7 @@ These three branches intentionally start from the same initial commit. Promotion
 
 - `PUBLIC_BASE_URL`: frontend canonical URL
 - `padi`, `tsotso`, `amenya`: optional client-safe Supabase values only if direct browser reads are introduced later
+- `turnstileSiteKey`: public Cloudflare Turnstile site key stored in `site-config.js`
 
 The deployed frontend reads `window.WYTHAM_SITE_CONFIG.apiBase` from `site-config.js`, so keep the Railway backend URL there instead of baking it into `script.js`.
 
@@ -62,4 +63,4 @@ git push origin deploy/backend
 
 - Connect the Railway service to `deploy/backend`
 - Set the service root to `backend/`
-- Add `padi`, `tsotso`, `amenya`, `Tarkitey`, `SUPABASE_DB_SCHEMA`, SMTP vars, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, and `HEALTH_TOKEN`
+- Add `padi`, `tsotso`, `amenya`, `Tarkitey`, `SUPABASE_DB_SCHEMA`, `TURNSTILE_SECRET_KEY`, SMTP vars, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, and `HEALTH_TOKEN`
