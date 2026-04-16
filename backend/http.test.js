@@ -140,8 +140,7 @@ async function startApp(t, options = {}) {
     store,
   });
 
-  const server = app.listen(0, '127.0.0.1');
-  await once(server, 'listening');
+  const server = await listenOnSafePort(app);
   t.after(() => server.close());
 
   const address = server.address();
@@ -149,6 +148,28 @@ async function startApp(t, options = {}) {
     baseUrl: `http://127.0.0.1:${address.port}`,
     store,
   };
+}
+
+async function listenOnSafePort(app) {
+  const startPort = 18080 + Math.floor(Math.random() * 1000);
+
+  for (let offset = 0; offset < 200; offset += 1) {
+    const port = startPort + offset;
+    const server = app.listen(port, '127.0.0.1');
+
+    try {
+      await once(server, 'listening');
+      return server;
+    } catch (error) {
+      server.close();
+      if (error && error.code === 'EADDRINUSE') {
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  throw new Error('Unable to bind the test app to a safe loopback port.');
 }
 
 async function login(baseUrl) {
