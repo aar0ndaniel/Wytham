@@ -1,5 +1,7 @@
 # Wytham Beta Backend
 
+> This file documents the current local backend flow. The approved deployment target is Railway + Supabase, and that migration is still pending.
+
 This backend is designed to run on your laptop and be exposed through `ngrok`, not by opening router ports directly.
 
 ## What it does

@@ -3,6 +3,8 @@
 .claude/
 .kiro/
 .superpowers/
+.vercel/
+.railway/
 
 # Environment files
 .env
@@ -20,6 +22,9 @@ data/
 
 # Design/editor artifacts
 *.pen
+
+# Generic logs
+*.log
 
 # OS/editor noise
 .DS_Store
