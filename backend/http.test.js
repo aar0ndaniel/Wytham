@@ -25,6 +25,12 @@ function createMemoryStore(initial = {}) {
       return { data: record, error: null };
     },
 
+    async insertDonation(donation) {
+      const record = { ...donation };
+      state.donations.push(record);
+      return { data: record, error: null };
+    },
+
     async listInstitutionRows() {
       return { data: state.signups.map((signup) => ({ institution: signup.institution })), error: null };
     },
@@ -131,6 +137,10 @@ async function startApp(t, options = {}) {
     smtpSecure: true,
     smtpUser: '',
     supportEmail: 'support@wytham.app',
+    turnstile: {
+      secretKey: 'turnstile-secret',
+      isConfigured: true,
+    },
     ...options.config,
   };
 
@@ -138,6 +148,7 @@ async function startApp(t, options = {}) {
     config,
     sendSignupEmail: options.sendSignupEmail,
     store,
+    verifyTurnstile: options.verifyTurnstile,
   });
 
   const server = await listenOnSafePort(app);
@@ -209,6 +220,10 @@ test('POST /api/signup queues a pending signup without sending email automatical
       sentEmails.push(signup.email);
       return { status: 'sent', error: '', sentAt: new Date().toISOString() };
     },
+    verifyTurnstile: async ({ token }) => ({
+      success: token === 'valid-signup-token',
+      error: token === 'valid-signup-token' ? '' : 'Verification failed.',
+    }),
   });
 
   const response = await fetch(`${baseUrl}/api/signup`, {
@@ -226,6 +241,7 @@ test('POST /api/signup queues a pending signup without sending email automatical
       role: 'Researcher',
       sourcePage: '/index.html',
       sourceTitle: 'Landing',
+      'cf-turnstile-response': 'valid-signup-token',
     }),
   });
 
@@ -239,6 +255,71 @@ test('POST /api/signup queues a pending signup without sending email automatical
   assert.equal(store.state.signups[0].email_status, 'pending');
   assert.equal(store.state.signups[0].email_error, '');
   assert.equal(store.state.signups[0].email_sent_at, '');
+});
+
+test('POST /api/signup rejects a missing Turnstile token before writing signup data', async (t) => {
+  const { baseUrl, store } = await startApp(t, {
+    verifyTurnstile: async ({ token }) => ({
+      success: Boolean(token),
+      statusCode: token ? 200 : 400,
+      error: token ? '' : 'Complete the verification challenge and try again.',
+    }),
+  });
+
+  const response = await fetch(`${baseUrl}/api/signup`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      origin: 'https://landing.wytham.app',
+    },
+    body: JSON.stringify({
+      country: 'Ghana',
+      edition: 'lite',
+      email: 'no-token@example.com',
+      institution: 'KNUST',
+      name: 'No Token',
+      role: 'Researcher',
+    }),
+  });
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), {
+    success: false,
+    error: 'Complete the verification challenge and try again.',
+  });
+  assert.equal(store.state.signups.length, 0);
+});
+
+test('POST /api/donate rejects an invalid Turnstile token before writing donation data', async (t) => {
+  const { baseUrl, store } = await startApp(t, {
+    verifyTurnstile: async ({ token }) => ({
+      success: token === 'valid-donation-token',
+      error: token === 'valid-donation-token' ? '' : 'Verification failed. Please try again.',
+    }),
+  });
+
+  const response = await fetch(`${baseUrl}/api/donate`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      origin: 'https://landing.wytham.app',
+    },
+    body: JSON.stringify({
+      amount: '20',
+      country: 'Ghana',
+      email: 'donor@example.com',
+      message: 'Happy to support.',
+      name: 'Donor Person',
+      'cf-turnstile-response': 'invalid-donation-token',
+    }),
+  });
+
+  assert.equal(response.status, 403);
+  assert.deepEqual(await response.json(), {
+    success: false,
+    error: 'Verification failed. Please try again.',
+  });
+  assert.equal(store.state.donations.length, 0);
 });
 
 test('POST /admin/signups/:token/send sends a pending signup manually and marks it sent', async (t) => {

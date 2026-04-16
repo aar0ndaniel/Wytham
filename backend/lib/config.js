@@ -33,6 +33,10 @@ function createConfig(env = process.env) {
       schema: trim(env.SUPABASE_DB_SCHEMA) || 'public',
       isConfigured: Boolean(trim(env.padi) && trim(env.Tarkitey)),
     },
+    turnstile: {
+      secretKey: trim(env.TURNSTILE_SECRET_KEY),
+      isConfigured: Boolean(trim(env.TURNSTILE_SECRET_KEY)),
+    },
   };
 }
 

@@ -27,6 +27,7 @@ test('createConfig maps hosted runtime values and custom Supabase env names', ()
     amenya: 'publishable-key',
     Tarkitey: 'secret-key',
     SUPABASE_DB_SCHEMA: 'wytham',
+    TURNSTILE_SECRET_KEY: 'turnstile-secret',
   });
 
   assert.equal(config.host, '0.0.0.0');
@@ -56,6 +57,10 @@ test('createConfig maps hosted runtime values and custom Supabase env names', ()
     schema: 'wytham',
     isConfigured: true,
   });
+  assert.deepEqual(config.turnstile, {
+    secretKey: 'turnstile-secret',
+    isConfigured: true,
+  });
 });
 
 test('createConfig falls back to current backend defaults', () => {
@@ -76,4 +81,6 @@ test('createConfig falls back to current backend defaults', () => {
   assert.equal(config.supportEmail, '');
   assert.equal(config.supabase.schema, 'public');
   assert.equal(config.supabase.isConfigured, false);
+  assert.equal(config.turnstile.secretKey, '');
+  assert.equal(config.turnstile.isConfigured, false);
 });
