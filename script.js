@@ -785,6 +785,10 @@ function initPointerPathTrail() {
 }
 
 const API_BASE = (() => {
+  const configuredBase = String(window.WYTHAM_SITE_CONFIG?.apiBase || '').trim();
+  if (configuredBase) {
+    return configuredBase.replace(/\/+$/, '');
+  }
   if (window.location.protocol === 'file:') {
     return 'http://127.0.0.1:8787';
   }
