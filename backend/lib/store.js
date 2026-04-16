@@ -2,7 +2,10 @@ const SIGNUP_EMAIL_COLUMNS = 'token,email_status,email_error,email_sent_at';
 const RECENT_SIGNUP_COLUMNS =
   'token,name,email,institution,country,role,edition,created_at,email_status,beta_visits,last_beta_visit_at';
 const RECENT_DONATION_COLUMNS = 'name,email,country,amount,message,created_at';
+const DONATION_SUMMARY_COLUMNS = 'email,country,amount';
 const EXPORT_SIGNUP_COLUMNS = 'name,email,institution,country,role,edition,created_at,email_status,beta_visits';
+const SIGNUP_SERIES_COLUMNS = 'created_at,edition';
+const SIGNUP_SUMMARY_COLUMNS = 'edition,beta_visits';
 
 function createStore(client, options = {}) {
   if (!client || typeof client.from !== 'function') {
@@ -51,6 +54,10 @@ function createStore(client, options = {}) {
       return client.from(tables.signups).select('institution').order('created_at', { ascending: false }).limit(limit);
     },
 
+    listDonationSummaryRows(limit = 5000) {
+      return client.from(tables.donations).select(DONATION_SUMMARY_COLUMNS).order('created_at', { ascending: false }).limit(limit);
+    },
+
     markSignupEmailStatus(token, { error = '', sentAt = '', status } = {}) {
       return client
         .from(tables.signups)
@@ -83,7 +90,16 @@ function createStore(client, options = {}) {
 
     summarizeInstitutionRows,
     summarizeDonations,
+    summarizeDailySignupRows,
     summarizeSignups,
+
+    listSignupSeriesRows(limit = 5000) {
+      return client.from(tables.signups).select(SIGNUP_SERIES_COLUMNS).order('created_at', { ascending: false }).limit(limit);
+    },
+
+    listSignupSummaryRows(limit = 5000) {
+      return client.from(tables.signups).select(SIGNUP_SUMMARY_COLUMNS).order('created_at', { ascending: false }).limit(limit);
+    },
 
     updateSignupByEmail(email, updates) {
       return client.from(tables.signups).update(updates).eq('email', email).select('*').single();
@@ -189,10 +205,53 @@ function summarizeInstitutionRows(rows, limit = 10) {
     .slice(0, limit);
 }
 
+function summarizeDailySignupRows(rows, days = 14, referenceDate = new Date()) {
+  const lookup = new Map();
+
+  for (const row of rows || []) {
+    const createdAt = String(row.created_at || '');
+    const day = createdAt.slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) {
+      continue;
+    }
+
+    const entry = lookup.get(day) || { day, total: 0, lite_count: 0, bundle_count: 0 };
+    entry.total += 1;
+
+    if (row.edition === 'lite') {
+      entry.lite_count += 1;
+    } else if (row.edition === 'bundle') {
+      entry.bundle_count += 1;
+    }
+
+    lookup.set(day, entry);
+  }
+
+  const today = new Date(referenceDate);
+  today.setUTCHours(0, 0, 0, 0);
+
+  const result = [];
+  for (let offset = days - 1; offset >= 0; offset -= 1) {
+    const current = new Date(today);
+    current.setUTCDate(today.getUTCDate() - offset);
+    const day = current.toISOString().slice(0, 10);
+    const entry = lookup.get(day) || { total: 0, lite_count: 0, bundle_count: 0 };
+    result.push({
+      day,
+      total: entry.total,
+      lite_count: entry.lite_count,
+      bundle_count: entry.bundle_count,
+    });
+  }
+
+  return result;
+}
+
 module.exports = {
   createStore,
   normalizeEmailStatus,
   normalizeTimestamp,
+  summarizeDailySignupRows,
   summarizeDonations,
   summarizeInstitutionRows,
   summarizeSignups,

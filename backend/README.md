@@ -1,26 +1,37 @@
 # Wytham Beta Backend
 
-This backend is designed to run on your laptop and be exposed through `ngrok`, not by opening router ports directly.
+This backend now supports the hosted single-port shape used by Railway-style deployments.
+
+- `node server.js` starts one Express app on `HOST:PORT`
+- signups are written as `pending` records only
+- beta emails are sent manually from the admin dashboard
+- the hosted path uses the store abstraction instead of direct route-level SQLite queries
+
+For deployment branches, env mapping, and infrastructure notes, use [../DEPLOYMENT.md](../DEPLOYMENT.md).
 
 ## What it does
 
 - receives beta signup submissions from the landing page
-- stores signups in a local SQLite database file
-- sends the newsletter email using your signup template
+- stores signups in Supabase through `lib/store.js` when hosted config is present
+- falls back to the local SQLite adapter when Supabase admin env vars are missing
+- keeps new signups pending until an admin manually sends the beta email
 - creates a private beta page for each signup
 - routes Lite and Bundle users to the correct OneDrive folder
-- provides a local-only admin dashboard on a separate localhost-only port
+- provides the admin dashboard on the same server under `/admin`
 
 ## Setup
 
 1. Copy `.env.example` to `.env`
 2. Update these values:
    - `PUBLIC_BASE_URL`
-   - `ADMIN_PORT` if you want a different local dashboard port
    - `ADMIN_PASSWORD`
    - `HEALTH_TOKEN`
    - `SMTP_*`
    - `SUPPORT_EMAIL`
+   - hosted store env vars if you want Supabase-backed mode:
+     - `padi`
+     - `Tarkitey`
+     - optional: `SUPABASE_DB_SCHEMA`
 3. Run:
 
 ```bash
@@ -29,35 +40,36 @@ npm start
 ```
 
 The public app listens on `127.0.0.1:8787` by default.
-The admin dashboard listens on `127.0.0.1:8788` by default.
-
-## Ngrok
-
-Once the public app is running locally, start ngrok against the public port only:
-
-```bash
-ngrok http 8787
-```
-
-Then copy the public `https://...ngrok-free.app` URL into:
-
-- `PUBLIC_BASE_URL`
-- `ALLOWED_ORIGINS`
-
-Restart the backend after updating `.env`.
+The hosted admin dashboard is served from the same process at `/admin`.
 
 ## Admin Dashboard
 
-The dashboard is available only from this laptop and is not exposed through ngrok:
+The dashboard is available at:
 
 ```text
-http://127.0.0.1:8788/admin
+http://127.0.0.1:8787/admin
 ```
 
-It also requires HTTP Basic Auth using:
+It requires the configured username and password:
 
 - `ADMIN_USERNAME`
 - `ADMIN_PASSWORD`
+
+### Manual email workflow
+
+`POST /api/signup` does not send email anymore. It only stores or refreshes the signup row as `pending`.
+
+From `/admin` you can now:
+
+- send one pending/failed signup with the row-level `Send` button
+- send multiple selected rows with `Send selected`
+- skip rows already marked `sent`
+
+If SMTP is missing, a manual send marks the row as:
+
+```json
+{ "status": "failed", "error": "SMTP not configured.", "sentAt": "" }
+```
 
 ## Email Sender
 
@@ -70,17 +82,14 @@ The sender fills `../signup-beta-email-template.html` and attaches `../app-logo.
 
 ## Downloads
 
-This backend does not serve installers from your laptop.
-
-Instead, each beta page points users to the correct OneDrive folder:
+This backend does not serve installers directly. Each beta page points users to the correct OneDrive folder:
 
 - Lite: `LITE_SHARE_URL`
 - Bundle: `BUNDLE_SHARE_URL`
 
-That keeps your machine safer and reduces the risk of exposing local files.
-
 ## Security Notes
 
-- The signup API no longer returns the beta page URL directly. Users get their access link through email only.
+- The signup API no longer returns the beta page URL directly.
+- Signup emails are manual admin actions, not automatic side effects of `/api/signup`.
 - The public `/health` route returns only `{ ok: true }` unless you provide the correct `HEALTH_TOKEN`.
-- The admin dashboard and email preview live on the separate admin listener so they are not reachable through your ngrok public URL.
+- The old dual-port local listener still exists as a fallback through `startServers()`, but `npm start` now uses the hosted-ready single-port path.

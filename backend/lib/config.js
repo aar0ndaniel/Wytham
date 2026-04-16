@@ -19,8 +19,12 @@ function createConfig(env = process.env) {
     smtpFromName: trim(env.SMTP_FROM_NAME) || 'Wytham Team',
     smtpFromEmail: trim(env.SMTP_FROM_EMAIL || env.SMTP_USER),
     supportEmail: trim(env.SUPPORT_EMAIL || env.SMTP_FROM_EMAIL || env.SMTP_USER),
-    liteShareUrl: trim(env.LITE_SHARE_URL) || 'https://example.com/wytham-lite',
-    bundleShareUrl: trim(env.BUNDLE_SHARE_URL) || 'https://example.com/wytham-bundle',
+    liteShareUrl:
+      trim(env.LITE_SHARE_URL) ||
+      'https://knustedugh-my.sharepoint.com/:f:/g/personal/adakuteye_st_knust_edu_gh/IgBYClZK6W-YRLviMlqzM1avASTrfMZsrbxSZWAnbUzC79w?e=ynf32b',
+    bundleShareUrl:
+      trim(env.BUNDLE_SHARE_URL) ||
+      'https://knustedugh-my.sharepoint.com/:f:/g/personal/adakuteye_st_knust_edu_gh/IgBNGRrdnVqPQKEy7KHXz-JLAQUaVdSM9Ev1hSNltF1uqVU?e=zD2KS3',
     supabase: {
       url: trim(env.padi),
       projectRef: trim(env.tsotso),

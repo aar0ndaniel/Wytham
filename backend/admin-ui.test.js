@@ -25,21 +25,32 @@ function run() {
     },
     [
       {
-        token: 'abc123',
+        token: 'a'.repeat(48),
         name: 'Ada Lovelace',
         email: 'ada@example.com',
         institution: 'KNUST',
         edition: 'bundle',
-        email_status: 'sent',
+        email_status: 'pending',
         beta_visits: 2,
         last_beta_visit_at: '2026-04-12T10:00:00.000Z',
         created_at: '2026-04-10T10:00:00.000Z',
       },
+      {
+        token: 'b'.repeat(48),
+        name: 'Grace Hopper',
+        email: 'grace@example.com',
+        institution: 'Navy',
+        edition: 'lite',
+        email_status: 'sent',
+        beta_visits: 1,
+        last_beta_visit_at: '2026-04-13T10:00:00.000Z',
+        created_at: '2026-04-09T10:00:00.000Z',
+      },
     ],
     [
       {
-        name: 'Grace Hopper',
-        email: 'grace@example.com',
+        name: 'Ada Lovelace',
+        email: 'ada+donor@example.com',
         country: 'Ghana',
         amount: '$25',
         message: 'Happy to support.',
@@ -63,6 +74,10 @@ function run() {
   assert.match(dashboardHtml, /A quieter view of signups, support notes, and export/i);
   assert.doesNotMatch(dashboardHtml, /var\(--blue|var\(--warm|Beta dashboard/i);
   assert.doesNotMatch(dashboardHtml, /This account panel stays intentionally small|Protected admin route|Protected destructive actions|Session controls|Wrap up cleanly|Use logout when you are done/i);
+  assert.match(dashboardHtml, /Send selected/i);
+  assert.match(dashboardHtml, /action="\/admin\/signups\/a{48}\/send"/i);
+  assert.doesNotMatch(dashboardHtml, /action="\/admin\/signups\/b{48}\/send"/i);
+  assert.match(dashboardHtml, /Already sent/i);
   console.log('admin-ui.test.js: PASS');
 }
 
