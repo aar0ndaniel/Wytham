@@ -788,9 +788,10 @@ async function sendSignupEmail(signup, options = {}) {
   const text = renderEmailText(signup, currentConfig);
   const subject = `Your Wytham ${signup.edition === 'lite' ? 'Lite' : 'Bundle'} beta access`;
   const unsubscribeEmail = currentConfig.supportEmail || currentConfig.smtpFromEmail;
+  const unsubscribeUrl = `${currentConfig.publicBaseUrl}/unsubscribe/${signup.token}`;
   const from = `${currentConfig.smtpFromName} <${currentConfig.smtpFromEmail}>`;
   const extraHeaders = {
-    'List-Unsubscribe': `<mailto:${unsubscribeEmail}?subject=unsubscribe>`,
+    'List-Unsubscribe': `<${unsubscribeUrl}>, <mailto:${unsubscribeEmail}?subject=unsubscribe>`,
     'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
     'Precedence': 'bulk',
     'X-Mailer': 'Wytham Mailer',
@@ -4139,6 +4140,20 @@ function createApp(options = {}) {
     } catch (error) {
       return next(error);
     }
+  });
+
+  hostedApp.post('/unsubscribe/:token', async (req, res, next) => {
+    try {
+      res.setHeader('Cache-Control', 'no-store');
+      res.status(200).end();
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  hostedApp.get('/unsubscribe/:token', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.type('html').send(simplePage('Unsubscribed', 'You have been removed from Wytham beta emails.'));
   });
 
   hostedApp.get('/beta/:token', async (req, res, next) => {
