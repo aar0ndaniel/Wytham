@@ -84,3 +84,19 @@ test('createConfig falls back to current backend defaults', () => {
   assert.equal(config.turnstile.secretKey, '');
   assert.equal(config.turnstile.isConfigured, false);
 });
+
+test('createConfig normalizes allowed origins with trailing slashes', () => {
+  const config = createConfig({
+    ALLOWED_ORIGINS: 'https://wytham.vercel.app/, https://admin.wytham.app/',
+  });
+
+  assert.deepEqual(config.allowedOrigins, ['https://wytham.vercel.app', 'https://admin.wytham.app']);
+});
+
+test('createConfig normalizes quoted allowed origins', () => {
+  const config = createConfig({
+    ALLOWED_ORIGINS: '"https://wytham.vercel.app/", "https://admin.wytham.app"',
+  });
+
+  assert.deepEqual(config.allowedOrigins, ['https://wytham.vercel.app', 'https://admin.wytham.app']);
+});
