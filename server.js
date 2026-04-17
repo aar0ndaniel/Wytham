@@ -24,10 +24,10 @@ if (!fs.existsSync(PRIMARY_DB_PATH) && fs.existsSync(LEGACY_DB_PATH)) {
   fs.copyFileSync(LEGACY_DB_PATH, PRIMARY_DB_PATH);
 }
 const DB_PATH = PRIMARY_DB_PATH;
-const EMAIL_TEMPLATE_PATH = path.join(ROOT_DIR, 'signup-beta-email-template.html');
-const LOGO_PATH = path.join(ROOT_DIR, 'wytham-logo-dark-nav.png');
+const EMAIL_TEMPLATE_PATH = path.join(BACKEND_DIR, 'signup-beta-email-template.html');
+const LOGO_PATH = path.join(BACKEND_DIR, 'wytham-logo-dark-nav.png');
 const ADMIN_SCRIPT_PATH = path.join(BACKEND_DIR, 'admin.js');
-const MATTER_FONT_PATH = path.join(ROOT_DIR, 'matter.woff2');
+const MATTER_FONT_PATH = path.join(BACKEND_DIR, 'matter.woff2');
 const PUBLIC_ROOT_FILES = new Set([
   '/index.html',
   '/contact.html',
