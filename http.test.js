@@ -377,6 +377,20 @@ test('POST /admin/signups/:token/send sends a pending signup manually and marks 
   assert.equal(store.state.signups[0].email_sent_at, '2026-04-16T20:15:00.000Z');
 });
 
+test('GET /admin/preview/email renders the beta page link on the public domain', async (t) => {
+  const { baseUrl } = await startApp(t);
+
+  const cookie = await login(baseUrl);
+  const response = await fetch(`${baseUrl}/admin/preview/email`, {
+    headers: { cookie },
+  });
+
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /https:\/\/landing\.wytham\.app\/beta\/preview/);
+  assert.doesNotMatch(html, /sharepoint\.com/);
+});
+
 test('POST /admin/signups/send skips sent rows and marks pending rows failed when SMTP is missing', async (t) => {
   const pendingToken = 'b'.repeat(48);
   const sentToken = 'c'.repeat(48);

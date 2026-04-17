@@ -668,7 +668,7 @@ function renderEmailTemplate(signup, logoSrc, currentConfig = config) {
     role: signup.role || 'Not provided',
     package_label: `${editionLabel} beta`,
     package_note: packageNote,
-    download_portal_url: shareUrl,
+    download_portal_url: betaUrl(signup.token, currentConfig),
     support_email: currentConfig.supportEmail || currentConfig.smtpFromEmail || '',
   };
 
