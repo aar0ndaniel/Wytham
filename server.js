@@ -708,14 +708,11 @@ async function sendSignupEmail(signup, options = {}) {
   } catch (error) {
     console.error('[debug] sendSignupEmail sendMail failed', {
       message: cut(error?.message || 'Unknown error', 300),
-<<<<<<< Updated upstream:server.js
-=======
       smtpTarget: {
         host: currentConfig.smtpHost || '(missing)',
         port: Number.isFinite(currentConfig.smtpPort) ? currentConfig.smtpPort : '(missing)',
         secure: Boolean(currentConfig.smtpSecure),
       },
->>>>>>> Stashed changes:backend/server.js
     });
     return { status: 'failed', error: cut(error.message, 300), sentAt: '' };
   }
