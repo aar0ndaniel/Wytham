@@ -168,7 +168,8 @@ db.exec(`
     last_beta_visit_at TEXT NOT NULL DEFAULT '',
     email_status TEXT NOT NULL DEFAULT 'pending',
     email_error TEXT NOT NULL DEFAULT '',
-    email_sent_at TEXT NOT NULL DEFAULT ''
+    email_sent_at TEXT NOT NULL DEFAULT '',
+    email_send_count INTEGER NOT NULL DEFAULT 0
   );
   CREATE TABLE IF NOT EXISTS donations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -184,6 +185,10 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_signups_created_at ON signups(created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_signups_edition ON signups(edition);
 `);
+
+try {
+  db.prepare('ALTER TABLE signups ADD COLUMN email_send_count INTEGER NOT NULL DEFAULT 0').run();
+} catch { /* column already exists */ }
 
 const statements = {
   byEmail: db.prepare('SELECT * FROM signups WHERE email = ?'),
@@ -204,7 +209,8 @@ const statements = {
   `),
   markEmail: db.prepare(`
     UPDATE signups
-    SET email_status = ?, email_error = ?, email_sent_at = ?
+    SET email_status = ?, email_error = ?, email_sent_at = ?,
+        email_send_count = CASE WHEN ? = 'sent' THEN email_send_count + 1 ELSE email_send_count END
     WHERE token = ?
   `),
   markVisit: db.prepare(`
@@ -232,7 +238,7 @@ const statements = {
     FROM signups
   `),
   recent: db.prepare(`
-    SELECT token, name, email, institution, country, role, edition, created_at, email_status, beta_visits, last_beta_visit_at
+    SELECT token, name, email, institution, country, role, edition, created_at, email_status, email_send_count, beta_visits, last_beta_visit_at
     FROM signups
     ORDER BY created_at DESC
     LIMIT 50
@@ -375,6 +381,7 @@ app.post('/api/signup', async (req, res) => {
     emailResult.status,
     emailResult.error || '',
     emailResult.sentAt || '',
+    emailResult.status,
     signup.token
   );
 
@@ -1919,12 +1926,12 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
     ? recent
         .map((item) => {
           const status = trim(item.email_status).toLowerCase();
-          const sendAction = status === 'sent'
-            ? `<span class="pill pill-success">Already sent</span>`
-            : `<form method="post" action="/admin/signups/${encodeURIComponent(item.token)}/send" data-confirm="Send the Wytham beta email to ${escapeHtml(jsString(item.email))}?">
-                <input type="hidden" name="csrfToken" value="${escapeHtml(formToken(`${item.token}:send`))}" />
-                <button type="submit" class="ghost-btn">Send</button>
-              </form>`;
+          const sendCount = Number(item.email_send_count) || 0;
+          const sendLabel = sendCount > 0 ? 'Resend' : 'Send';
+          const sendAction = `<form method="post" action="/admin/signups/${encodeURIComponent(item.token)}/send" data-confirm="${sendCount > 0 ? `Resend the Wytham beta email to ${escapeHtml(jsString(item.email))}? (already sent ${sendCount}x)` : `Send the Wytham beta email to ${escapeHtml(jsString(item.email))}?`}">
+              <input type="hidden" name="csrfToken" value="${escapeHtml(formToken(`${item.token}:send`))}" />
+              <button type="submit" class="ghost-btn${sendCount > 0 ? ' resend-btn' : ''}">${sendLabel}</button>
+            </form>`;
 
           return `<tr>
           <td class="select-cell"><input class="row-select" type="checkbox" value="${escapeHtml(item.token)}" data-row-select aria-label="Select ${escapeHtml(item.email)}" /></td>
@@ -1932,6 +1939,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
           <td>${escapeHtml(item.institution || '—')}</td>
           <td>${renderEditionBadge(item.edition)}</td>
           <td>${renderStatusBadge(item.email_status)}</td>
+          <td class="num">${sendCount}</td>
           <td class="num">${item.beta_visits || 0}</td>
           <td>${item.last_beta_visit_at ? escapeHtml(formatDate(item.last_beta_visit_at)) : 'Not yet'}</td>
           <td>${escapeHtml(formatDate(item.created_at))}</td>
@@ -2531,6 +2539,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
                 <th>Institution</th>
                 <th>Edition</th>
                 <th>Email status</th>
+                <th>Sends</th>
                 <th>Visits</th>
                 <th>Last open</th>
                 <th>Signed up</th>
@@ -4292,12 +4301,10 @@ function createApp(options = {}) {
       if (!signup) {
         return res.redirect('/admin?notice=Signup%20not%20found');
       }
-      if (trim(signup.email_status).toLowerCase() === 'sent') {
-        return res.redirect('/admin?notice=Signup%20already%20sent');
-      }
 
       const emailResult = normalizeEmailResult(await sendEmail(signup));
-      await readStoreResult(store.markSignupEmailStatus(signup.token, emailResult));
+      const sendCount = emailResult.status === 'sent' ? (Number(signup.email_send_count) || 0) + 1 : (Number(signup.email_send_count) || 0);
+      await readStoreResult(store.markSignupEmailStatus(signup.token, { ...emailResult, sendCount }));
       const notice = emailResult.status === 'sent'
         ? 'Email sent'
         : `Email failed: ${emailResult.error || 'Unknown error.'}`;
@@ -4321,20 +4328,16 @@ function createApp(options = {}) {
 
       let sentCount = 0;
       let failedCount = 0;
-      let skippedCount = 0;
 
       for (const token of tokens) {
         const signup = await readStoreResult(store.findSignupByToken(token));
         if (!signup) {
           continue;
         }
-        if (trim(signup.email_status).toLowerCase() === 'sent') {
-          skippedCount += 1;
-          continue;
-        }
 
         const emailResult = normalizeEmailResult(await sendEmail(signup));
-        await readStoreResult(store.markSignupEmailStatus(signup.token, emailResult));
+        const sendCount = emailResult.status === 'sent' ? (Number(signup.email_send_count) || 0) + 1 : (Number(signup.email_send_count) || 0);
+        await readStoreResult(store.markSignupEmailStatus(signup.token, { ...emailResult, sendCount }));
 
         if (emailResult.status === 'sent') {
           sentCount += 1;
@@ -4346,9 +4349,6 @@ function createApp(options = {}) {
       let notice = `${sentCount} sent`;
       if (failedCount) {
         notice += `, ${failedCount} failed`;
-      }
-      if (skippedCount) {
-        notice += `, ${skippedCount} skipped`;
       }
 
       return res.redirect(`/admin?notice=${encodeURIComponent(notice)}`);
