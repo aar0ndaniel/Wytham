@@ -101,8 +101,31 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function isPhosphorReady() {
-  if (!document.fonts || typeof document.fonts.check !== 'function') return false;
-  return document.fonts.check('16px "Phosphor"') || document.fonts.check('16px "Phosphor Fill"');
+  if (document.fonts && typeof document.fonts.check === 'function') {
+    if (document.fonts.check('16px "Phosphor"') || document.fonts.check('16px "Phosphor Fill"')) {
+      return true;
+    }
+  }
+
+  // Local icon styles are CSS-based mappings, so verify rendered ::before content directly.
+  const probe = document.createElement('span');
+  probe.style.cssText = 'position:absolute;left:-9999px;top:-9999px;visibility:hidden;pointer-events:none;';
+
+  const regular = document.createElement('i');
+  regular.className = 'ph ph-sun';
+  const fill = document.createElement('i');
+  fill.className = 'ph-fill ph-heart';
+
+  probe.appendChild(regular);
+  probe.appendChild(fill);
+  document.body.appendChild(probe);
+
+  const regularContent = window.getComputedStyle(regular, '::before').content;
+  const fillContent = window.getComputedStyle(fill, '::before').content;
+  probe.remove();
+
+  const hasContent = (value) => !!value && value !== 'none' && value !== 'normal' && value !== '""';
+  return hasContent(regularContent) && hasContent(fillContent);
 }
 
 function applyPhosphorFallback() {
