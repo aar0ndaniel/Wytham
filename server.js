@@ -731,11 +731,50 @@ function renderEmailText(signup, currentConfig = config) {
   ].join('\n');
 }
 
+function shouldUseResendHttp(currentConfig) {
+  const host = String(currentConfig.smtpHost || '').toLowerCase();
+  return host === 'smtp.resend.com' && Boolean(currentConfig.smtpPass);
+}
+
+async function sendViaResendHttp({ from, to, replyTo, subject, html, text, headers, apiKey }) {
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from,
+      to: [to],
+      reply_to: replyTo,
+      subject,
+      html,
+      text,
+      headers,
+    }),
+  });
+
+  const bodyText = await response.text();
+  let parsed = null;
+  try { parsed = bodyText ? JSON.parse(bodyText) : null; } catch { /* non-JSON response */ }
+
+  if (!response.ok) {
+    const message = (parsed && (parsed.message || parsed.error)) || bodyText || `HTTP ${response.status}`;
+    const err = new Error(message);
+    err.statusCode = response.status;
+    err.responseBody = parsed || bodyText;
+    throw err;
+  }
+
+  return parsed || {};
+}
+
 async function sendSignupEmail(signup, options = {}) {
   const currentConfig = options.config || config;
   const currentMailer = options.mailer !== undefined ? options.mailer : mailer;
+  const useHttp = shouldUseResendHttp(currentConfig);
 
-  if (!currentMailer || !currentConfig.smtpFromEmail) {
+  if (!currentConfig.smtpFromEmail || (!useHttp && !currentMailer)) {
     return { status: 'failed', error: 'SMTP not configured.', sentAt: '' };
   }
 
@@ -744,24 +783,41 @@ async function sendSignupEmail(signup, options = {}) {
   const text = renderEmailText(signup, currentConfig);
   const subject = `Your Wytham ${signup.edition === 'lite' ? 'Lite' : 'Bundle'} beta access`;
   const unsubscribeEmail = currentConfig.supportEmail || currentConfig.smtpFromEmail;
+  const from = `${currentConfig.smtpFromName} <${currentConfig.smtpFromEmail}>`;
+  const extraHeaders = {
+    'List-Unsubscribe': `<mailto:${unsubscribeEmail}?subject=unsubscribe>`,
+    'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+    'Precedence': 'bulk',
+    'X-Mailer': 'Wytham Mailer',
+  };
+
   try {
-    await currentMailer.sendMail({
-      from: `"${currentConfig.smtpFromName}" <${currentConfig.smtpFromEmail}>`,
-      to: signup.email,
-      replyTo: unsubscribeEmail,
-      subject,
-      html,
-      text,
-      headers: {
-        'List-Unsubscribe': `<mailto:${unsubscribeEmail}?subject=unsubscribe>`,
-        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
-        'Precedence': 'bulk',
-        'X-Mailer': 'Wytham Mailer',
-      },
-    });
+    if (useHttp) {
+      await sendViaResendHttp({
+        from,
+        to: signup.email,
+        replyTo: unsubscribeEmail,
+        subject,
+        html,
+        text,
+        headers: extraHeaders,
+        apiKey: currentConfig.smtpPass,
+      });
+    } else {
+      await currentMailer.sendMail({
+        from: `"${currentConfig.smtpFromName}" <${currentConfig.smtpFromEmail}>`,
+        to: signup.email,
+        replyTo: unsubscribeEmail,
+        subject,
+        html,
+        text,
+        headers: extraHeaders,
+      });
+    }
     return { status: 'sent', error: '', sentAt: new Date().toISOString() };
   } catch (error) {
-    console.error('[sendSignupEmail] SMTP send failed:', {
+    console.error('[sendSignupEmail] send failed:', {
+      transport: useHttp ? 'resend-http' : 'smtp',
       host: currentConfig.smtpHost,
       port: currentConfig.smtpPort,
       secure: currentConfig.smtpSecure,
@@ -769,7 +825,9 @@ async function sendSignupEmail(signup, options = {}) {
       to: signup.email,
       code: error.code,
       command: error.command,
+      statusCode: error.statusCode,
       responseCode: error.responseCode,
+      responseBody: error.responseBody,
       message: error.message,
     });
     return { status: 'failed', error: cut(error.message, 300), sentAt: '' };
@@ -4390,6 +4448,8 @@ function startServer(options = {}) {
     }
     if (!smtpReady(currentConfig)) {
       console.warn('[warn] SMTP not configured — admin sends will fail until SMTP_* vars are set.');
+    } else if (shouldUseResendHttp(currentConfig)) {
+      console.log(`[email] transport=resend-http from=${currentConfig.smtpFromEmail} — using HTTPS (port 443) to api.resend.com`);
     } else {
       console.log(`[smtp] configured host=${currentConfig.smtpHost} port=${currentConfig.smtpPort} secure=${currentConfig.smtpSecure} user=${currentConfig.smtpUser} from=${currentConfig.smtpFromEmail}`);
       const verifyMailer = createMailer(currentConfig);
