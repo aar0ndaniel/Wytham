@@ -761,6 +761,17 @@ async function sendSignupEmail(signup, options = {}) {
     });
     return { status: 'sent', error: '', sentAt: new Date().toISOString() };
   } catch (error) {
+    console.error('[sendSignupEmail] SMTP send failed:', {
+      host: currentConfig.smtpHost,
+      port: currentConfig.smtpPort,
+      secure: currentConfig.smtpSecure,
+      fromEmail: currentConfig.smtpFromEmail,
+      to: signup.email,
+      code: error.code,
+      command: error.command,
+      responseCode: error.responseCode,
+      message: error.message,
+    });
     return { status: 'failed', error: cut(error.message, 300), sentAt: '' };
   }
 }
@@ -3002,6 +3013,9 @@ function createMailer(currentConfig = config) {
       user: currentConfig.smtpUser,
       pass: currentConfig.smtpPass,
     },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
   });
 }
 
@@ -4376,6 +4390,18 @@ function startServer(options = {}) {
     }
     if (!smtpReady(currentConfig)) {
       console.warn('[warn] SMTP not configured — admin sends will fail until SMTP_* vars are set.');
+    } else {
+      console.log(`[smtp] configured host=${currentConfig.smtpHost} port=${currentConfig.smtpPort} secure=${currentConfig.smtpSecure} user=${currentConfig.smtpUser} from=${currentConfig.smtpFromEmail}`);
+      const verifyMailer = createMailer(currentConfig);
+      if (verifyMailer && typeof verifyMailer.verify === 'function') {
+        verifyMailer.verify((err) => {
+          if (err) {
+            console.error('[smtp] verify failed:', { code: err.code, command: err.command, message: err.message });
+          } else {
+            console.log('[smtp] verify OK — server ready to accept messages');
+          }
+        });
+      }
     }
     if (currentConfig.adminPassword === 'change-this-password') {
       console.warn('[warn] ADMIN_PASSWORD is still the default — change it before exposing the admin login.');
