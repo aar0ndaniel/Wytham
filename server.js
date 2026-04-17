@@ -564,7 +564,7 @@ adminApp.post('/admin/login', (req, res) => {
 adminApp.get('/admin/preview/email', requireLocalAdmin, (_req, res) => {
   const sample = sampleSignup('lite');
   res.setHeader('Cache-Control', 'no-store');
-  res.type('html').send(renderAdminEmailPreviewPage(renderEmailTemplate(sample, '/admin/logo')));
+  res.type('html').send(renderAdminEmailPreviewPage(renderEmailTemplate(sample)));
 });
 
 adminApp.post('/admin/signups/:token/delete', requireLocalAdmin, (req, res) => {
@@ -694,7 +694,7 @@ function sampleSignup(edition) {
   };
 }
 
-function renderEmailTemplate(signup, logoSrc, currentConfig = config) {
+function renderEmailTemplate(signup, currentConfig = config) {
   const template = fs.readFileSync(EMAIL_TEMPLATE_PATH, 'utf8');
   const editionLabel = signup.edition === 'lite' ? 'Lite' : 'Bundle';
   const packageNote =
@@ -703,7 +703,6 @@ function renderEmailTemplate(signup, logoSrc, currentConfig = config) {
       : 'Bundle includes the full setup path and is the easiest option if you want everything together.';
 
   const values = {
-    logo_src: logoSrc,
     first_name: firstName(signup.name),
     full_name: signup.name,
     email: signup.email,
@@ -783,8 +782,7 @@ async function sendSignupEmail(signup, options = {}) {
     return { status: 'failed', error: 'SMTP not configured.', sentAt: '' };
   }
 
-  const logoUrl = `${currentConfig.publicBaseUrl}/logo.png`;
-  const html = renderEmailTemplate(signup, logoUrl, currentConfig);
+  const html = renderEmailTemplate(signup, currentConfig);
   const text = renderEmailText(signup, currentConfig);
   const subject = `Your Wytham ${signup.edition === 'lite' ? 'Lite' : 'Bundle'} beta access`;
   const unsubscribeEmail = currentConfig.supportEmail || currentConfig.smtpFromEmail;
@@ -4301,7 +4299,7 @@ function createApp(options = {}) {
   hostedApp.get('/admin/preview/email', requireHostedAdmin, (_req, res) => {
     const sample = sampleSignup('lite');
     res.setHeader('Cache-Control', 'no-store');
-    res.type('html').send(renderAdminEmailPreviewPage(renderEmailTemplate(sample, '/admin/logo', currentConfig)));
+    res.type('html').send(renderAdminEmailPreviewPage(renderEmailTemplate(sample, currentConfig)));
   });
 
   hostedApp.post('/admin/signups/:token/send', requireHostedAdmin, async (req, res, next) => {
