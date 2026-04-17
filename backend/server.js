@@ -707,6 +707,24 @@ function renderEmailTemplate(signup, logoSrc, currentConfig = config) {
   return template.replace(/\{\{([a-z_]+)\}\}/gi, (_match, key) => escapeHtml(values[key] || ''));
 }
 
+function renderEmailText(signup, currentConfig = config) {
+  const editionLabel = signup.edition === 'lite' ? 'Lite' : 'Bundle';
+  const shareUrl = shareUrlForEdition(signup.edition, currentConfig);
+  const supportEmail = currentConfig.supportEmail || currentConfig.smtpFromEmail || '';
+
+  return [
+    `Hi ${firstName(signup.name)},`,
+    '',
+    `Your Wytham ${editionLabel} beta access is ready.`,
+    `Open your access page: ${shareUrl}`,
+    '',
+    'If you need help, reply to this email or contact support:',
+    supportEmail || 'Not configured',
+    '',
+    'Wytham Team',
+  ].join('\n');
+}
+
 async function sendSignupEmail(signup, options = {}) {
   const currentConfig = options.config || config;
   const currentMailer = options.mailer !== undefined ? options.mailer : mailer;
@@ -716,6 +734,7 @@ async function sendSignupEmail(signup, options = {}) {
   }
 
   const html = renderEmailTemplate(signup, 'cid:wytham-app-icon', currentConfig);
+  const text = renderEmailText(signup, currentConfig);
   const subject = `Your Wytham ${signup.edition === 'lite' ? 'Lite' : 'Bundle'} beta access`;
   try {
     await currentMailer.sendMail({
@@ -724,6 +743,7 @@ async function sendSignupEmail(signup, options = {}) {
       replyTo: currentConfig.supportEmail || currentConfig.smtpFromEmail,
       subject,
       html,
+      text,
       attachments: fs.existsSync(LOGO_PATH)
         ? [{ filename: 'wytham-logo-dark-nav.png', path: LOGO_PATH, cid: 'wytham-app-icon' }]
         : [],

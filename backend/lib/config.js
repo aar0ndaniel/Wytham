@@ -1,5 +1,7 @@
 function createConfig(env = process.env) {
   const port = number(env.PORT, 8787);
+  const smtpFromEmail = trim(env.SMTP_FROM_EMAIL || env.SMTP_USER);
+  const supportEmail = firstEmail(env.SUPPORT_EMAIL) || smtpFromEmail;
 
   return {
     host: trim(env.HOST) || '127.0.0.1',
@@ -17,8 +19,8 @@ function createConfig(env = process.env) {
     smtpUser: trim(env.SMTP_USER),
     smtpPass: trim(env.SMTP_PASS),
     smtpFromName: trim(env.SMTP_FROM_NAME) || 'Wytham Team',
-    smtpFromEmail: trim(env.SMTP_FROM_EMAIL || env.SMTP_USER),
-    supportEmail: trim(env.SUPPORT_EMAIL || env.SMTP_FROM_EMAIL || env.SMTP_USER),
+    smtpFromEmail,
+    supportEmail,
     liteShareUrl:
       trim(env.LITE_SHARE_URL) ||
       'https://knustedugh-my.sharepoint.com/:f:/g/personal/adakuteye_st_knust_edu_gh/IgBYClZK6W-YRLviMlqzM1avASTrfMZsrbxSZWAnbUzC79w?e=ynf32b',
@@ -63,6 +65,18 @@ function csv(value) {
 
 function stripSlash(value) {
   return trim(value).replace(/\/+$/, '');
+}
+
+function firstEmail(value) {
+  const raw = trim(value);
+  if (!raw) return '';
+
+  const parts = raw
+    .split(/[;,|\s]+/)
+    .map((item) => trim(item))
+    .filter(Boolean);
+
+  return parts.find((item) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(item)) || '';
 }
 
 module.exports = {
