@@ -3982,10 +3982,10 @@ function createApp(options = {}) {
         created_at: existing?.created_at || now,
         updated_at: now,
         beta_visits: Number(existing?.beta_visits) || 0,
-        last_beta_visit_at: existing?.last_beta_visit_at || '',
+        last_beta_visit_at: existing?.last_beta_visit_at || null,
         email_status: 'pending',
         email_error: '',
-        email_sent_at: '',
+        email_sent_at: null,
       };
 
       if (existing) {
