@@ -16,7 +16,7 @@ const {
 const { createAdminSupabaseClient } = require('./lib/supabase');
 
 const BACKEND_DIR = __dirname;
-const ASSETS_DIR = path.join(BACKEND_DIR, 'assets');
+const ROOT_DIR = path.resolve(__dirname, '..');
 const DATA_DIR = path.join(BACKEND_DIR, 'data');
 const PRIMARY_DB_PATH = path.join(DATA_DIR, 'wytham-beta.db');
 const LEGACY_DB_PATH = path.join(DATA_DIR, 'semora-beta.db');
@@ -24,12 +24,44 @@ if (!fs.existsSync(PRIMARY_DB_PATH) && fs.existsSync(LEGACY_DB_PATH)) {
   fs.copyFileSync(LEGACY_DB_PATH, PRIMARY_DB_PATH);
 }
 const DB_PATH = PRIMARY_DB_PATH;
-const EMAIL_TEMPLATE_PATH = path.join(ASSETS_DIR, 'signup-beta-email-template.html');
-const LOGO_PATH = path.join(ASSETS_DIR, 'wytham-logo-dark-nav.png');
+const EMAIL_TEMPLATE_PATH = path.join(ROOT_DIR, 'signup-beta-email-template.html');
+const LOGO_PATH = path.join(ROOT_DIR, 'wytham-logo-dark-nav.png');
 const ADMIN_SCRIPT_PATH = path.join(BACKEND_DIR, 'admin.js');
-const MATTER_FONT_PATH = path.join(ASSETS_DIR, 'matter.woff2');
-const PUBLIC_ROOT_FILES = new Set();
-const PUBLIC_PATH_PREFIXES = [];
+const MATTER_FONT_PATH = path.join(ROOT_DIR, 'matter.woff2');
+const PUBLIC_ROOT_FILES = new Set([
+  '/index.html',
+  '/contact.html',
+  '/docs.html',
+  '/team.html',
+  '/updates.html',
+  '/navbar.html',
+  '/signup-beta-email-template.html',
+  '/style.css',
+  '/docs.css',
+  '/team_styles.css',
+  '/script.js',
+  '/update_links.js',
+  '/favicon.ico',
+  '/favicon.svg',
+  '/folder-close.svg',
+  '/folder-open.svg',
+  '/logo-black.svg',
+  '/logo-white.svg',
+  '/matter.woff2',
+  '/paper-mono.woff2',
+  '/Aaron Daniel Akuteye.png',
+  '/Akosua.jpeg',
+  '/app-logo.png',
+  '/wytham-logo-dark-nav.png',
+  '/wytham-logo-light-nav.png',
+  '/wytham-logo-dark.png',
+  '/wytham-logo-light.png',
+  '/bismark.jpeg',
+  '/Emmanuel.jpeg',
+  '/Mavis.jpeg',
+  '/Prof Harry.PNG',
+]);
+const PUBLIC_PATH_PREFIXES = ['/vendor/'];
 
 loadEnv(path.join(BACKEND_DIR, '.env'));
 
@@ -591,8 +623,14 @@ app.use((req, res, next) => {
   return res.sendFile(resolvePublicPath(requestedPath));
 });
 
+app.get('/logo.png', (_req, res) => {
+  if (!fs.existsSync(LOGO_PATH)) return res.sendStatus(404);
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.type('image/png').sendFile(LOGO_PATH);
+});
+
 app.get('/', (_req, res) => {
-  res.type('html').send(simplePage('Wytham Backend', 'This service powers the Wytham API and admin dashboard.'));
+  res.sendFile(path.join(ROOT_DIR, 'index.html'));
 });
 
 registerErrorHandler(app);
@@ -668,44 +706,11 @@ function renderEmailTemplate(signup, logoSrc, currentConfig = config) {
     role: signup.role || 'Not provided',
     package_label: `${editionLabel} beta`,
     package_note: packageNote,
-    download_portal_url: betaUrl(signup.token, currentConfig),
+    download_portal_url: shareUrl,
     support_email: currentConfig.supportEmail || currentConfig.smtpFromEmail || '',
   };
 
   return template.replace(/\{\{([a-z_]+)\}\}/gi, (_match, key) => escapeHtml(values[key] || ''));
-}
-
-async function sendSignupEmailViaHttp(signup, subject, html, currentConfig = config) {
-  const apiKey = String(currentConfig.smtpPass || '').trim();
-  if (!apiKey || !currentConfig.smtpFromEmail) {
-    return { status: 'failed', error: 'SMTP not configured.', sentAt: '' };
-  }
-
-  try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: `"${currentConfig.smtpFromName}" <${currentConfig.smtpFromEmail}>`,
-        to: [signup.email],
-        subject,
-        html,
-        reply_to: currentConfig.supportEmail || currentConfig.smtpFromEmail,
-      }),
-    });
-
-    if (!response.ok) {
-      const bodyText = await response.text();
-      return { status: 'failed', error: cut(bodyText || `Resend HTTP ${response.status}`, 300), sentAt: '' };
-    }
-
-    return { status: 'sent', error: '', sentAt: new Date().toISOString() };
-  } catch (error) {
-    return { status: 'failed', error: cut(error?.message || 'Resend HTTP request failed.', 300), sentAt: '' };
-  }
 }
 
 function renderEmailText(signup, currentConfig = config) {
@@ -730,31 +735,29 @@ async function sendSignupEmail(signup, options = {}) {
   const currentConfig = options.config || config;
   const currentMailer = options.mailer !== undefined ? options.mailer : mailer;
 
-  const logoUrl = `${String(currentConfig.publicBaseUrl || '').replace(/\/+$/, '')}/wytham-logo-dark-nav.png`;
-  const html = renderEmailTemplate(signup, logoUrl, currentConfig);
-  const subject = `Your Wytham ${signup.edition === 'lite' ? 'Lite' : 'Bundle'} beta access`;
-
-  if (String(currentConfig.smtpPass || '').trim()) {
-    return sendSignupEmailViaHttp(signup, subject, html, currentConfig);
-  }
-
   if (!currentMailer || !currentConfig.smtpFromEmail) {
     return { status: 'failed', error: 'SMTP not configured.', sentAt: '' };
   }
 
-  const smtpHtml = renderEmailTemplate(signup, 'cid:wytham-app-icon', currentConfig);
+  const logoUrl = `${currentConfig.publicBaseUrl}/logo.png`;
+  const html = renderEmailTemplate(signup, logoUrl, currentConfig);
   const text = renderEmailText(signup, currentConfig);
+  const subject = `Your Wytham ${signup.edition === 'lite' ? 'Lite' : 'Bundle'} beta access`;
+  const unsubscribeEmail = currentConfig.supportEmail || currentConfig.smtpFromEmail;
   try {
     await currentMailer.sendMail({
       from: `"${currentConfig.smtpFromName}" <${currentConfig.smtpFromEmail}>`,
       to: signup.email,
-      replyTo: currentConfig.supportEmail || currentConfig.smtpFromEmail,
+      replyTo: unsubscribeEmail,
       subject,
-      html: smtpHtml,
+      html,
       text,
-      attachments: fs.existsSync(LOGO_PATH)
-        ? [{ filename: 'wytham-logo-dark-nav.png', path: LOGO_PATH, cid: 'wytham-app-icon' }]
-        : [],
+      headers: {
+        'List-Unsubscribe': `<mailto:${unsubscribeEmail}?subject=unsubscribe>`,
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+        'Precedence': 'bulk',
+        'X-Mailer': 'Wytham Mailer',
+      },
     });
     return { status: 'sent', error: '', sentAt: new Date().toISOString() };
   } catch (error) {
@@ -1850,10 +1853,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
         .map((item) => {
           const status = trim(item.email_status).toLowerCase();
           const sendAction = status === 'sent'
-            ? `<form method="post" action="/admin/signups/${encodeURIComponent(item.token)}/resend" data-confirm="Resend the Wytham beta email to ${escapeHtml(jsString(item.email))}?">
-                <input type="hidden" name="csrfToken" value="${escapeHtml(formToken(`${item.token}:resend`))}" />
-                <button type="submit" class="ghost-btn">Resend</button>
-              </form>`
+            ? `<span class="pill pill-success">Already sent</span>`
             : `<form method="post" action="/admin/signups/${encodeURIComponent(item.token)}/send" data-confirm="Send the Wytham beta email to ${escapeHtml(jsString(item.email))}?">
                 <input type="hidden" name="csrfToken" value="${escapeHtml(formToken(`${item.token}:send`))}" />
                 <button type="submit" class="ghost-btn">Send</button>
@@ -3468,8 +3468,8 @@ function isAllowedPublicPath(requestedPath) {
 }
 
 function resolvePublicPath(requestedPath) {
-  const targetPath = path.resolve(BACKEND_DIR, `.${requestedPath}`);
-  if (!targetPath.startsWith(BACKEND_DIR + path.sep) && targetPath !== BACKEND_DIR) {
+  const targetPath = path.resolve(ROOT_DIR, `.${requestedPath}`);
+  if (!targetPath.startsWith(ROOT_DIR + path.sep) && targetPath !== ROOT_DIR) {
     throw new Error('Resolved public path escaped the root directory.');
   }
   return targetPath;
@@ -3982,10 +3982,10 @@ function createApp(options = {}) {
         created_at: existing?.created_at || now,
         updated_at: now,
         beta_visits: Number(existing?.beta_visits) || 0,
-        last_beta_visit_at: existing?.last_beta_visit_at || null,
+        last_beta_visit_at: existing?.last_beta_visit_at || '',
         email_status: 'pending',
         email_error: '',
-        email_sent_at: null,
+        email_sent_at: '',
       };
 
       if (existing) {
@@ -4183,6 +4183,12 @@ function createApp(options = {}) {
     }
   });
 
+  hostedApp.get('/logo.png', (_req, res) => {
+    if (!fs.existsSync(LOGO_PATH)) return res.sendStatus(404);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.type('image/png').sendFile(LOGO_PATH);
+  });
+
   hostedApp.get('/admin/logo', (_req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     res.sendFile(LOGO_PATH);
@@ -4224,30 +4230,6 @@ function createApp(options = {}) {
       await readStoreResult(store.markSignupEmailStatus(signup.token, emailResult));
       const notice = emailResult.status === 'sent'
         ? 'Email sent'
-        : `Email failed: ${emailResult.error || 'Unknown error.'}`;
-      return res.redirect(`/admin?notice=${encodeURIComponent(notice)}`);
-    } catch (error) {
-      return next(error);
-    }
-  });
-
-  hostedApp.post('/admin/signups/:token/resend', requireHostedAdmin, async (req, res, next) => {
-    try {
-      const signupToken = trim(req.params.token);
-      const csrfToken = trim(req.body?.csrfToken);
-      if (!validToken(signupToken) || !safeEqualStrings(csrfToken, formToken(`${signupToken}:resend`))) {
-        return res.status(403).type('html').send(simplePage('Action Blocked', 'This resend request could not be verified.'));
-      }
-
-      const signup = await readStoreResult(store.findSignupByToken(signupToken));
-      if (!signup) {
-        return res.redirect('/admin?notice=Signup%20not%20found');
-      }
-
-      const emailResult = normalizeEmailResult(await sendEmail(signup));
-      await readStoreResult(store.markSignupEmailStatus(signup.token, emailResult));
-      const notice = emailResult.status === 'sent'
-        ? 'Email resent'
         : `Email failed: ${emailResult.error || 'Unknown error.'}`;
       return res.redirect(`/admin?notice=${encodeURIComponent(notice)}`);
     } catch (error) {
@@ -4372,7 +4354,7 @@ function createApp(options = {}) {
   });
 
   hostedApp.get('/', (_req, res) => {
-    res.type('html').send(simplePage('Wytham Backend', 'This service powers the Wytham API and admin dashboard.'));
+    res.sendFile(path.join(ROOT_DIR, 'index.html'));
   });
 
   registerErrorHandler(hostedApp);
