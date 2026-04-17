@@ -77,7 +77,8 @@ function run() {
   assert.match(dashboardHtml, /Send selected/i);
   assert.match(dashboardHtml, /action="\/admin\/signups\/a{48}\/send"/i);
   assert.doesNotMatch(dashboardHtml, /action="\/admin\/signups\/b{48}\/send"/i);
-  assert.match(dashboardHtml, /Already sent/i);
+  assert.match(dashboardHtml, /action="\/admin\/signups\/b{48}\/resend"/i);
+  assert.match(dashboardHtml, /Resend/i);
   console.log('admin-ui.test.js: PASS');
 }
 

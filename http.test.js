@@ -391,6 +391,63 @@ test('GET /admin/preview/email renders the beta page link on the public domain',
   assert.doesNotMatch(html, /sharepoint\.com/);
 });
 
+test('POST /admin/signups/:token/resend shows a resend button and resends a sent signup', async (t) => {
+  const token = 'd'.repeat(48);
+  const sentEmails = [];
+  const { baseUrl, store } = await startApp(t, {
+    sendSignupEmail: async (signup) => {
+      sentEmails.push(signup.email);
+      return { status: 'sent', error: '', sentAt: '2026-04-16T21:15:00.000Z' };
+    },
+    store: createMemoryStore({
+      signups: [
+        {
+          token,
+          name: 'Ada Lovelace',
+          email: 'ada@example.com',
+          institution: 'KNUST',
+          country: 'Ghana',
+          role: 'Researcher',
+          edition: 'bundle',
+          created_at: '2026-04-16T18:00:00.000Z',
+          updated_at: '2026-04-16T18:00:00.000Z',
+          beta_visits: 0,
+          last_beta_visit_at: '',
+          email_status: 'sent',
+          email_error: '',
+          email_sent_at: '2026-04-16T20:00:00.000Z',
+        },
+      ],
+    }),
+  });
+
+  const cookie = await login(baseUrl);
+  const dashboard = await fetch(`${baseUrl}/admin`, {
+    headers: { cookie },
+  });
+  const html = await dashboard.text();
+  assert.match(html, new RegExp(`/admin/signups/${token}/resend`));
+  assert.match(html, />Resend<\/button>/);
+
+  const csrfToken = extractCsrfToken(html, `/admin/signups/${token}/resend`);
+
+  const response = await fetch(`${baseUrl}/admin/signups/${token}/resend`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/x-www-form-urlencoded',
+      cookie,
+    },
+    body: new URLSearchParams({ csrfToken }),
+    redirect: 'manual',
+  });
+
+  assert.equal(response.status, 302);
+  assert.equal(response.headers.get('location'), '/admin?notice=Email%20resent');
+  assert.deepEqual(sentEmails, ['ada@example.com']);
+  assert.equal(store.state.signups[0].email_status, 'sent');
+  assert.equal(store.state.signups[0].email_sent_at, '2026-04-16T21:15:00.000Z');
+});
+
 test('POST /admin/signups/send skips sent rows and marks pending rows failed when SMTP is missing', async (t) => {
   const pendingToken = 'b'.repeat(48);
   const sentToken = 'c'.repeat(48);

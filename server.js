@@ -1830,7 +1830,10 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
         .map((item) => {
           const status = trim(item.email_status).toLowerCase();
           const sendAction = status === 'sent'
-            ? `<span class="pill pill-success">Already sent</span>`
+            ? `<form method="post" action="/admin/signups/${encodeURIComponent(item.token)}/resend" data-confirm="Resend the Wytham beta email to ${escapeHtml(jsString(item.email))}?">
+                <input type="hidden" name="csrfToken" value="${escapeHtml(formToken(`${item.token}:resend`))}" />
+                <button type="submit" class="ghost-btn">Resend</button>
+              </form>`
             : `<form method="post" action="/admin/signups/${encodeURIComponent(item.token)}/send" data-confirm="Send the Wytham beta email to ${escapeHtml(jsString(item.email))}?">
                 <input type="hidden" name="csrfToken" value="${escapeHtml(formToken(`${item.token}:send`))}" />
                 <button type="submit" class="ghost-btn">Send</button>
@@ -4201,6 +4204,30 @@ function createApp(options = {}) {
       await readStoreResult(store.markSignupEmailStatus(signup.token, emailResult));
       const notice = emailResult.status === 'sent'
         ? 'Email sent'
+        : `Email failed: ${emailResult.error || 'Unknown error.'}`;
+      return res.redirect(`/admin?notice=${encodeURIComponent(notice)}`);
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  hostedApp.post('/admin/signups/:token/resend', requireHostedAdmin, async (req, res, next) => {
+    try {
+      const signupToken = trim(req.params.token);
+      const csrfToken = trim(req.body?.csrfToken);
+      if (!validToken(signupToken) || !safeEqualStrings(csrfToken, formToken(`${signupToken}:resend`))) {
+        return res.status(403).type('html').send(simplePage('Action Blocked', 'This resend request could not be verified.'));
+      }
+
+      const signup = await readStoreResult(store.findSignupByToken(signupToken));
+      if (!signup) {
+        return res.redirect('/admin?notice=Signup%20not%20found');
+      }
+
+      const emailResult = normalizeEmailResult(await sendEmail(signup));
+      await readStoreResult(store.markSignupEmailStatus(signup.token, emailResult));
+      const notice = emailResult.status === 'sent'
+        ? 'Email resent'
         : `Email failed: ${emailResult.error || 'Unknown error.'}`;
       return res.redirect(`/admin?notice=${encodeURIComponent(notice)}`);
     } catch (error) {
