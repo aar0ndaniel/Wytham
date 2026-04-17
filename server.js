@@ -690,7 +690,6 @@ function sampleSignup(edition) {
 function renderEmailTemplate(signup, logoSrc, currentConfig = config) {
   const template = fs.readFileSync(EMAIL_TEMPLATE_PATH, 'utf8');
   const editionLabel = signup.edition === 'lite' ? 'Lite' : 'Bundle';
-  const shareUrl = shareUrlForEdition(signup.edition, currentConfig);
   const packageNote =
     signup.edition === 'lite'
       ? 'Lite is the smaller option and works best if R is already installed on your computer.'
@@ -706,7 +705,7 @@ function renderEmailTemplate(signup, logoSrc, currentConfig = config) {
     role: signup.role || 'Not provided',
     package_label: `${editionLabel} beta`,
     package_note: packageNote,
-    download_portal_url: shareUrl,
+    download_portal_url: betaUrl(signup.token, currentConfig),
     support_email: currentConfig.supportEmail || currentConfig.smtpFromEmail || '',
   };
 
@@ -715,14 +714,13 @@ function renderEmailTemplate(signup, logoSrc, currentConfig = config) {
 
 function renderEmailText(signup, currentConfig = config) {
   const editionLabel = signup.edition === 'lite' ? 'Lite' : 'Bundle';
-  const shareUrl = shareUrlForEdition(signup.edition, currentConfig);
   const supportEmail = currentConfig.supportEmail || currentConfig.smtpFromEmail || '';
 
   return [
     `Hi ${firstName(signup.name)},`,
     '',
     `Your Wytham ${editionLabel} beta access is ready.`,
-    `Open your access page: ${shareUrl}`,
+    `Open your access page: ${betaUrl(signup.token, currentConfig)}`,
     '',
     'If you need help, reply to this email or contact support:',
     supportEmail || 'Not configured',
