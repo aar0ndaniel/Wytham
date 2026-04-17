@@ -680,6 +680,14 @@ async function sendSignupEmail(signup, options = {}) {
   const currentMailer = options.mailer !== undefined ? options.mailer : mailer;
 
   if (!currentMailer || !currentConfig.smtpFromEmail) {
+    console.warn('[debug] sendSignupEmail blocked before Resend', {
+      hasMailer: Boolean(currentMailer),
+      hasSmtpFromEmail: Boolean(currentConfig.smtpFromEmail),
+      hasSmtpHost: Boolean(currentConfig.smtpHost),
+      hasSmtpPort: Boolean(currentConfig.smtpPort),
+      hasSmtpUser: Boolean(currentConfig.smtpUser),
+      hasSmtpPass: Boolean(currentConfig.smtpPass),
+    });
     return { status: 'failed', error: 'SMTP not configured.', sentAt: '' };
   }
 
@@ -698,6 +706,9 @@ async function sendSignupEmail(signup, options = {}) {
     });
     return { status: 'sent', error: '', sentAt: new Date().toISOString() };
   } catch (error) {
+    console.error('[debug] sendSignupEmail sendMail failed', {
+      message: cut(error?.message || 'Unknown error', 300),
+    });
     return { status: 'failed', error: cut(error.message, 300), sentAt: '' };
   }
 }
