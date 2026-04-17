@@ -744,7 +744,6 @@ async function sendSignupEmail(signup, options = {}) {
 
   const smtpHtml = renderEmailTemplate(signup, 'cid:wytham-app-icon', currentConfig);
   const text = renderEmailText(signup, currentConfig);
-  const smtpHtml = renderEmailTemplate(signup, 'cid:wytham-app-icon', currentConfig);
   try {
     await currentMailer.sendMail({
       from: `"${currentConfig.smtpFromName}" <${currentConfig.smtpFromEmail}>`,
@@ -753,7 +752,6 @@ async function sendSignupEmail(signup, options = {}) {
       subject,
       html: smtpHtml,
       text,
-      html: smtpHtml,
       attachments: fs.existsSync(LOGO_PATH)
         ? [{ filename: 'wytham-logo-dark-nav.png', path: LOGO_PATH, cid: 'wytham-app-icon' }]
         : [],
