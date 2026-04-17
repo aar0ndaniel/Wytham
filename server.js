@@ -703,6 +703,7 @@ function renderEmailTemplate(signup, currentConfig = config) {
       : 'Bundle includes the full setup path and is the easiest option if you want everything together.';
 
   const values = {
+    logo_src: `${currentConfig.publicBaseUrl}/logo.png`,
     first_name: firstName(signup.name),
     full_name: signup.name,
     email: signup.email,
