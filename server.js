@@ -675,45 +675,69 @@ function renderEmailTemplate(signup, logoSrc, currentConfig = config) {
   return template.replace(/\{\{([a-z_]+)\}\}/gi, (_match, key) => escapeHtml(values[key] || ''));
 }
 
+async function sendSignupEmailViaHttp(signup, subject, html, currentConfig = config) {
+  const apiKey = String(currentConfig.smtpPass || '').trim();
+  if (!apiKey || !currentConfig.smtpFromEmail) {
+    return { status: 'failed', error: 'SMTP not configured.', sentAt: '' };
+  }
+
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: `"${currentConfig.smtpFromName}" <${currentConfig.smtpFromEmail}>`,
+        to: [signup.email],
+        subject,
+        html,
+        reply_to: currentConfig.supportEmail || currentConfig.smtpFromEmail,
+      }),
+    });
+
+    if (!response.ok) {
+      const bodyText = await response.text();
+      return { status: 'failed', error: cut(bodyText || `Resend HTTP ${response.status}`, 300), sentAt: '' };
+    }
+
+    return { status: 'sent', error: '', sentAt: new Date().toISOString() };
+  } catch (error) {
+    return { status: 'failed', error: cut(error?.message || 'Resend HTTP request failed.', 300), sentAt: '' };
+  }
+}
+
 async function sendSignupEmail(signup, options = {}) {
   const currentConfig = options.config || config;
   const currentMailer = options.mailer !== undefined ? options.mailer : mailer;
 
+  const logoUrl = `${String(currentConfig.publicBaseUrl || '').replace(/\/+$/, '')}/wytham-logo-dark-nav.png`;
+  const html = renderEmailTemplate(signup, logoUrl, currentConfig);
+  const subject = `Your Wytham ${signup.edition === 'lite' ? 'Lite' : 'Bundle'} beta access`;
+
+  if (String(currentConfig.smtpPass || '').trim()) {
+    return sendSignupEmailViaHttp(signup, subject, html, currentConfig);
+  }
+
   if (!currentMailer || !currentConfig.smtpFromEmail) {
-    console.warn('[debug] sendSignupEmail blocked before Resend', {
-      hasMailer: Boolean(currentMailer),
-      hasSmtpFromEmail: Boolean(currentConfig.smtpFromEmail),
-      hasSmtpHost: Boolean(currentConfig.smtpHost),
-      hasSmtpPort: Boolean(currentConfig.smtpPort),
-      hasSmtpUser: Boolean(currentConfig.smtpUser),
-      hasSmtpPass: Boolean(currentConfig.smtpPass),
-    });
     return { status: 'failed', error: 'SMTP not configured.', sentAt: '' };
   }
 
-  const html = renderEmailTemplate(signup, 'cid:wytham-app-icon', currentConfig);
-  const subject = `Your Wytham ${signup.edition === 'lite' ? 'Lite' : 'Bundle'} beta access`;
+  const smtpHtml = renderEmailTemplate(signup, 'cid:wytham-app-icon', currentConfig);
   try {
     await currentMailer.sendMail({
       from: `"${currentConfig.smtpFromName}" <${currentConfig.smtpFromEmail}>`,
       to: signup.email,
       replyTo: currentConfig.supportEmail || currentConfig.smtpFromEmail,
       subject,
-      html,
+      html: smtpHtml,
       attachments: fs.existsSync(LOGO_PATH)
         ? [{ filename: 'wytham-logo-dark-nav.png', path: LOGO_PATH, cid: 'wytham-app-icon' }]
         : [],
     });
     return { status: 'sent', error: '', sentAt: new Date().toISOString() };
   } catch (error) {
-    console.error('[debug] sendSignupEmail sendMail failed', {
-      message: cut(error?.message || 'Unknown error', 300),
-      smtpTarget: {
-        host: currentConfig.smtpHost || '(missing)',
-        port: Number.isFinite(currentConfig.smtpPort) ? currentConfig.smtpPort : '(missing)',
-        secure: Boolean(currentConfig.smtpSecure),
-      },
-    });
     return { status: 'failed', error: cut(error.message, 300), sentAt: '' };
   }
 }
