@@ -3,12 +3,12 @@ const ASSET_VERSION = '20260408i';
 const FALLBACK_NAVBAR_HTML = `
 <nav class="nav">
   <div class="nav-inner">
-      <a href="index.html" class="nav-logo" aria-label="Wytham home">
+      <a href="index.html" class="nav-logo" aria-label="metis home">
       <span class="brand-mark" aria-hidden="true">
-        <img class="brand-logo-icon brand-logo-dark" src="wytham-logo-dark-nav.png?v=20260408i" alt="" />
-        <img class="brand-logo-icon brand-logo-light" src="wytham-logo-light-nav.png?v=20260408i" alt="" />
+        <img class="brand-logo-icon brand-logo-dark" src="metis-logo-dark-nav.png?v=20260408i" alt="" />
+        <img class="brand-logo-icon brand-logo-light" src="metis-logo-light-nav.png?v=20260408i" alt="" />
       </span>
-      <span class="brand-wordmark">Wytham</span>
+      <span class="brand-wordmark">metis</span>
     </a>
     <button class="nav-menu-btn" type="button" aria-label="Open menu" aria-expanded="false" data-action="toggle-mobile-nav">
       <i class="ph ph-caret-down nav-chevron icon-candidate" data-ph-fallback="▾" aria-hidden="true"></i>
@@ -205,9 +205,17 @@ document.addEventListener('click', function(e) {
 });
 
 // ── Theme Toggle ────────────────────────────────────────────────────────
+function updateThemeFavicon(isLight) {
+  const iconHref = isLight ? '/metis-logo-dark-nav.png' : '/metis-logo-light-nav.png';
+  document.querySelectorAll('link[rel="icon"]').forEach((node) => {
+    node.setAttribute('href', iconHref);
+  });
+}
+
 function applyTheme(isLight) {
   document.body.classList.toggle('light', isLight);
   document.documentElement.style.colorScheme = isLight ? 'light' : 'dark';
+  updateThemeFavicon(isLight);
   
   // Update logo colors based on theme
   const logoPrimary = document.querySelectorAll('.logo-primary');
@@ -367,7 +375,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ── Form Helpers ────────────────────────────────────────────────────────
-const TURNSTILE_SITE_KEY = String(window.WYTHAM_SITE_CONFIG?.turnstileSiteKey || '').trim();
+const TURNSTILE_SITE_KEY = String(window.METIS_SITE_CONFIG?.turnstileSiteKey || '').trim();
 const TURNSTILE_FORMS = Object.freeze({
   donateForm: { btnId: 'donateBtn', containerId: 'donateTurnstile', msgId: 'donateMsg' },
   signupForm: { btnId: 'signupBtn', containerId: 'signupTurnstile', msgId: 'signupMsg' },
@@ -591,7 +599,7 @@ function ensureTurnstileReady(form, msgId, btnId, data) {
   return true;
 }
 
-const POINTER_WEB_STORAGE_KEY = 'wytham-pointer-web';
+const POINTER_WEB_STORAGE_KEY = 'metis-pointer-web';
 
 function readPointerWebPreference() {
   try {
@@ -1014,7 +1022,7 @@ function initPointerPathTrail() {
 }
 
 const API_BASE = (() => {
-  const configuredBase = String(window.WYTHAM_SITE_CONFIG?.apiBase || '').trim();
+  const configuredBase = String(window.METIS_SITE_CONFIG?.apiBase || '').trim();
   if (configuredBase) {
     return configuredBase.replace(/\/+$/, '');
   }
@@ -1050,7 +1058,7 @@ async function submitForm(e, action) {
       return;
     }
     data.sourcePage = window.location.pathname || '/';
-    data.sourceTitle = document.title || 'Wytham';
+    data.sourceTitle = document.title || 'metis';
   }
 
   try {
@@ -1065,7 +1073,7 @@ async function submitForm(e, action) {
     const contentType = String(res.headers.get('content-type') || '');
     const json = contentType.includes('application/json')
       ? await res.json()
-      : { success: false, error: 'The Wytham service returned an unexpected response. Please try again in a moment.' };
+      : { success: false, error: 'The metis service returned an unexpected response. Please try again in a moment.' };
 
     if (res.ok && json.success) {
       showMsg(msgId, json.message || 'Done!', false);
@@ -1082,8 +1090,8 @@ async function submitForm(e, action) {
     showMsg(
       msgId,
       API_BASE
-        ? 'We could not reach the Wytham service right now. Please try again in a moment.'
-        : 'The Wytham service is not configured right now. Please refresh and try again.',
+        ? 'We could not reach the metis service right now. Please try again in a moment.'
+        : 'The metis service is not configured right now. Please refresh and try again.',
       true
     );
     setSubmitState(btnId, 'failed');

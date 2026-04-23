@@ -3,7 +3,7 @@ const { renderAdminLoginPage, renderAdminPage } = require('./server.js');
 
 function run() {
   const loginHtml = renderAdminLoginPage();
-  assert.match(loginHtml, /Wytham/i);
+  assert.match(loginHtml, /metis/i);
   assert.doesNotMatch(loginHtml, /Semora admin/i);
   assert.match(loginHtml, /Sign in/i);
   assert.match(loginHtml, /Protected route only/i);
@@ -66,7 +66,7 @@ function run() {
     'Saved'
   );
 
-  assert.match(dashboardHtml, /Wytham admin/i);
+  assert.match(dashboardHtml, /metis admin/i);
   assert.match(dashboardHtml, />Signups</);
   assert.match(dashboardHtml, />Donations</);
   assert.match(dashboardHtml, />Account</);

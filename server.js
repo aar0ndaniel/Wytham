@@ -16,7 +16,7 @@ const {
 const { createAdminSupabaseClient } = require('./lib/supabase');
 
 const BACKEND_DIR = __dirname;
-const ROOT_DIR = path.resolve(__dirname, '..');
+const ASSETS_DIR = path.join(BACKEND_DIR, 'assets');
 const DATA_DIR = path.join(BACKEND_DIR, 'data');
 const PRIMARY_DB_PATH = path.join(DATA_DIR, 'metis-beta.db');
 const LEGACY_DB_PATH = path.join(DATA_DIR, 'semora-beta.db');
@@ -24,44 +24,12 @@ if (!fs.existsSync(PRIMARY_DB_PATH) && fs.existsSync(LEGACY_DB_PATH)) {
   fs.copyFileSync(LEGACY_DB_PATH, PRIMARY_DB_PATH);
 }
 const DB_PATH = PRIMARY_DB_PATH;
-const EMAIL_TEMPLATE_PATH = path.join(ROOT_DIR, 'signup-beta-email-template.html');
-const LOGO_PATH = path.join(ROOT_DIR, 'metis-logo-dark-nav.png');
+const EMAIL_TEMPLATE_PATH = path.join(ASSETS_DIR, 'signup-beta-email-template.html');
+const LOGO_PATH = path.join(ASSETS_DIR, 'metis-logo-dark-nav.png');
 const ADMIN_SCRIPT_PATH = path.join(BACKEND_DIR, 'admin.js');
-const MATTER_FONT_PATH = path.join(ROOT_DIR, 'matter.woff2');
-const PUBLIC_ROOT_FILES = new Set([
-  '/index.html',
-  '/contact.html',
-  '/docs.html',
-  '/team.html',
-  '/updates.html',
-  '/navbar.html',
-  '/signup-beta-email-template.html',
-  '/style.css',
-  '/docs.css',
-  '/team_styles.css',
-  '/script.js',
-  '/update_links.js',
-  '/favicon.ico',
-  '/favicon.svg',
-  '/folder-close.svg',
-  '/folder-open.svg',
-  '/logo-black.svg',
-  '/logo-white.svg',
-  '/matter.woff2',
-  '/paper-mono.woff2',
-  '/Aaron Daniel Akuteye.png',
-  '/Akosua.jpeg',
-  '/app-logo.png',
-  '/metis-logo-dark-nav.png',
-  '/metis-logo-light-nav.png',
-  '/metis-logo-dark.png',
-  '/metis-logo-light.png',
-  '/bismark.jpeg',
-  '/Emmanuel.jpeg',
-  '/Mavis.jpeg',
-  '/Prof Harry.PNG',
-]);
-const PUBLIC_PATH_PREFIXES = ['/vendor/'];
+const MATTER_FONT_PATH = path.join(ASSETS_DIR, 'matter.woff2');
+const PUBLIC_ROOT_FILES = new Set();
+const PUBLIC_PATH_PREFIXES = [];
 
 loadEnv(path.join(BACKEND_DIR, '.env'));
 
@@ -624,7 +592,7 @@ app.use((req, res, next) => {
 });
 
 app.get('/', (_req, res) => {
-  res.sendFile(path.join(ROOT_DIR, 'index.html'));
+  res.type('html').send(simplePage('metis Backend', 'This service powers the metis API and admin dashboard.'));
 });
 
 registerErrorHandler(app);
@@ -707,43 +675,63 @@ function renderEmailTemplate(signup, logoSrc, currentConfig = config) {
   return template.replace(/\{\{([a-z_]+)\}\}/gi, (_match, key) => escapeHtml(values[key] || ''));
 }
 
-function renderEmailText(signup, currentConfig = config) {
-  const editionLabel = signup.edition === 'lite' ? 'Lite' : 'Bundle';
-  const shareUrl = shareUrlForEdition(signup.edition, currentConfig);
-  const supportEmail = currentConfig.supportEmail || currentConfig.smtpFromEmail || '';
+async function sendSignupEmailViaHttp(signup, subject, html, currentConfig = config) {
+  const apiKey = String(currentConfig.smtpPass || '').trim();
+  if (!apiKey || !currentConfig.smtpFromEmail) {
+    return { status: 'failed', error: 'SMTP not configured.', sentAt: '' };
+  }
 
-  return [
-    `Hi ${firstName(signup.name)},`,
-    '',
-    `Your metis ${editionLabel} beta access is ready.`,
-    `Open your access page: ${shareUrl}`,
-    '',
-    'If you need help, reply to this email or contact support:',
-    supportEmail || 'Not configured',
-    '',
-    'metis Team',
-  ].join('\n');
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: `"${currentConfig.smtpFromName}" <${currentConfig.smtpFromEmail}>`,
+        to: [signup.email],
+        subject,
+        html,
+        reply_to: currentConfig.supportEmail || currentConfig.smtpFromEmail,
+      }),
+    });
+
+    if (!response.ok) {
+      const bodyText = await response.text();
+      return { status: 'failed', error: cut(bodyText || `Resend HTTP ${response.status}`, 300), sentAt: '' };
+    }
+
+    return { status: 'sent', error: '', sentAt: new Date().toISOString() };
+  } catch (error) {
+    return { status: 'failed', error: cut(error?.message || 'Resend HTTP request failed.', 300), sentAt: '' };
+  }
 }
 
 async function sendSignupEmail(signup, options = {}) {
   const currentConfig = options.config || config;
   const currentMailer = options.mailer !== undefined ? options.mailer : mailer;
 
+  const logoUrl = `${String(currentConfig.publicBaseUrl || '').replace(/\/+$/, '')}/metis-logo-dark-nav.png`;
+  const html = renderEmailTemplate(signup, logoUrl, currentConfig);
+  const subject = `Your metis ${signup.edition === 'lite' ? 'Lite' : 'Bundle'} beta access`;
+
+  if (String(currentConfig.smtpPass || '').trim()) {
+    return sendSignupEmailViaHttp(signup, subject, html, currentConfig);
+  }
+
   if (!currentMailer || !currentConfig.smtpFromEmail) {
     return { status: 'failed', error: 'SMTP not configured.', sentAt: '' };
   }
 
-  const html = renderEmailTemplate(signup, 'cid:metis-app-icon', currentConfig);
-  const text = renderEmailText(signup, currentConfig);
-  const subject = `Your metis ${signup.edition === 'lite' ? 'Lite' : 'Bundle'} beta access`;
+  const smtpHtml = renderEmailTemplate(signup, 'cid:metis-app-icon', currentConfig);
   try {
     await currentMailer.sendMail({
       from: `"${currentConfig.smtpFromName}" <${currentConfig.smtpFromEmail}>`,
       to: signup.email,
       replyTo: currentConfig.supportEmail || currentConfig.smtpFromEmail,
       subject,
-      html,
-      text,
+      html: smtpHtml,
       attachments: fs.existsSync(LOGO_PATH)
         ? [{ filename: 'metis-logo-dark-nav.png', path: LOGO_PATH, cid: 'metis-app-icon' }]
         : [],
@@ -1842,7 +1830,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
         .map((item) => {
           const status = trim(item.email_status).toLowerCase();
           const sendAction = status === 'sent'
-            ? `<span class="pill pill-success">Already sent</span>`
+            ? `<form method="post" action="/admin/signups/${encodeURIComponent(item.token)}/resend" data-confirm="Resend the metis beta email to ${escapeHtml(jsString(item.email))}?"><input type="hidden" name="csrfToken" value="${escapeHtml(formToken(`${item.token}:resend`))}" /><button type="submit" class="ghost-btn">Resend</button></form>`
             : `<form method="post" action="/admin/signups/${encodeURIComponent(item.token)}/send" data-confirm="Send the metis beta email to ${escapeHtml(jsString(item.email))}?">
                 <input type="hidden" name="csrfToken" value="${escapeHtml(formToken(`${item.token}:send`))}" />
                 <button type="submit" class="ghost-btn">Send</button>
@@ -3457,8 +3445,8 @@ function isAllowedPublicPath(requestedPath) {
 }
 
 function resolvePublicPath(requestedPath) {
-  const targetPath = path.resolve(ROOT_DIR, `.${requestedPath}`);
-  if (!targetPath.startsWith(ROOT_DIR + path.sep) && targetPath !== ROOT_DIR) {
+  const targetPath = path.resolve(BACKEND_DIR, `.${requestedPath}`);
+  if (!targetPath.startsWith(BACKEND_DIR + path.sep) && targetPath !== BACKEND_DIR) {
     throw new Error('Resolved public path escaped the root directory.');
   }
   return targetPath;
@@ -3971,10 +3959,10 @@ function createApp(options = {}) {
         created_at: existing?.created_at || now,
         updated_at: now,
         beta_visits: Number(existing?.beta_visits) || 0,
-        last_beta_visit_at: existing?.last_beta_visit_at || '',
+        last_beta_visit_at: existing?.last_beta_visit_at || null,
         email_status: 'pending',
         email_error: '',
-        email_sent_at: '',
+        email_sent_at: null,
       };
 
       if (existing) {
@@ -4220,6 +4208,30 @@ function createApp(options = {}) {
     }
   });
 
+  hostedApp.post('/admin/signups/:token/resend', requireHostedAdmin, async (req, res, next) => {
+    try {
+      const signupToken = trim(req.params.token);
+      const csrfToken = trim(req.body?.csrfToken);
+      if (!validToken(signupToken) || !safeEqualStrings(csrfToken, formToken(`${signupToken}:resend`))) {
+        return res.status(403).type('html').send(simplePage('Action Blocked', 'This resend request could not be verified.'));
+      }
+
+      const signup = await readStoreResult(store.findSignupByToken(signupToken));
+      if (!signup) {
+        return res.redirect('/admin?notice=Signup%20not%20found');
+      }
+
+      const emailResult = normalizeEmailResult(await sendEmail(signup));
+      await readStoreResult(store.markSignupEmailStatus(signup.token, emailResult));
+      const notice = emailResult.status === 'sent'
+        ? 'Email resent'
+        : `Email failed: ${emailResult.error || 'Unknown error.'}`;
+      return res.redirect(`/admin?notice=${encodeURIComponent(notice)}`);
+    } catch (error) {
+      return next(error);
+    }
+  });
+
   hostedApp.post('/admin/signups/send', requireHostedAdmin, async (req, res, next) => {
     try {
       const csrfToken = trim(req.body?.csrfToken);
@@ -4337,7 +4349,7 @@ function createApp(options = {}) {
   });
 
   hostedApp.get('/', (_req, res) => {
-    res.sendFile(path.join(ROOT_DIR, 'index.html'));
+    res.type('html').send(simplePage('metis Backend', 'This service powers the metis API and admin dashboard.'));
   });
 
   registerErrorHandler(hostedApp);

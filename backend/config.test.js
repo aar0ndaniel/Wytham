@@ -9,8 +9,8 @@ test('createConfig maps hosted runtime values and custom Supabase env names', ()
     PORT: '9000',
     ADMIN_HOST: '0.0.0.0',
     ADMIN_PORT: '9001',
-    PUBLIC_BASE_URL: 'https://landing.wytham.app/',
-    ALLOWED_ORIGINS: ' https://landing.wytham.app, ,https://admin.wytham.app ',
+    PUBLIC_BASE_URL: 'https://metis.emend.it.com/',
+    ALLOWED_ORIGINS: ' https://metis.emend.it.com, ,https://admin.metis.emend.it.com ',
     ADMIN_USERNAME: 'ops',
     ADMIN_PASSWORD: 'secret-password',
     HEALTH_TOKEN: 'health-token',
@@ -19,7 +19,7 @@ test('createConfig maps hosted runtime values and custom Supabase env names', ()
     SMTP_SECURE: 'false',
     SMTP_USER: 'mailer@example.com',
     SMTP_PASS: 'smtp-pass',
-    SMTP_FROM_NAME: 'Wytham Team',
+    SMTP_FROM_NAME: 'metis Team',
     LITE_SHARE_URL: 'https://example.com/lite',
     BUNDLE_SHARE_URL: 'https://example.com/bundle',
     padi: 'https://project.supabase.co',
@@ -34,8 +34,8 @@ test('createConfig maps hosted runtime values and custom Supabase env names', ()
   assert.equal(config.port, 9000);
   assert.equal(config.adminHost, '0.0.0.0');
   assert.equal(config.adminPort, 9001);
-  assert.equal(config.publicBaseUrl, 'https://landing.wytham.app');
-  assert.deepEqual(config.allowedOrigins, ['https://landing.wytham.app', 'https://admin.wytham.app']);
+  assert.equal(config.publicBaseUrl, 'https://metis.emend.it.com');
+  assert.deepEqual(config.allowedOrigins, ['https://metis.emend.it.com', 'https://admin.metis.emend.it.com']);
   assert.equal(config.adminUsername, 'ops');
   assert.equal(config.adminPassword, 'secret-password');
   assert.equal(config.healthToken, 'health-token');
@@ -44,7 +44,7 @@ test('createConfig maps hosted runtime values and custom Supabase env names', ()
   assert.equal(config.smtpSecure, false);
   assert.equal(config.smtpUser, 'mailer@example.com');
   assert.equal(config.smtpPass, 'smtp-pass');
-  assert.equal(config.smtpFromName, 'Wytham Team');
+  assert.equal(config.smtpFromName, 'metis Team');
   assert.equal(config.smtpFromEmail, 'mailer@example.com');
   assert.equal(config.supportEmail, 'mailer@example.com');
   assert.equal(config.liteShareUrl, 'https://example.com/lite');
@@ -76,7 +76,7 @@ test('createConfig falls back to current backend defaults', () => {
   assert.equal(config.adminPassword, 'change-this-password');
   assert.equal(config.smtpPort, 465);
   assert.equal(config.smtpSecure, true);
-  assert.equal(config.smtpFromName, 'Wytham Team');
+  assert.equal(config.smtpFromName, 'metis Team');
   assert.equal(config.smtpFromEmail, '');
   assert.equal(config.supportEmail, '');
   assert.equal(config.supabase.schema, 'public');

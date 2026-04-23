@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-  const panelStorageKey = 'wytham-admin-active-panel';
+  const panelStorageKey = 'metis-admin-active-panel';
   const buttons = Array.from(document.querySelectorAll('[data-panel-target]'));
   const panels = Array.from(document.querySelectorAll('[data-panel]'));
   const rowSelects = Array.from(document.querySelectorAll('[data-row-select]'));

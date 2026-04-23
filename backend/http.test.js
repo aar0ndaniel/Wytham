@@ -120,7 +120,7 @@ function cloneSignup(signup) {
 async function startApp(t, options = {}) {
   const store = options.store || createMemoryStore();
   const config = {
-    allowedOrigins: ['https://landing.wytham.app'],
+    allowedOrigins: ['https://metis.emend.it.com'],
     adminPassword: 'top-secret',
     adminUsername: 'ops',
     bundleShareUrl: 'https://example.com/bundle',
@@ -128,15 +128,15 @@ async function startApp(t, options = {}) {
     host: '127.0.0.1',
     liteShareUrl: 'https://example.com/lite',
     port: 0,
-    publicBaseUrl: 'https://landing.wytham.app',
+    publicBaseUrl: 'https://metis.emend.it.com',
     smtpFromEmail: '',
-    smtpFromName: 'Wytham Team',
+    smtpFromName: 'metis Team',
     smtpHost: '',
     smtpPass: '',
     smtpPort: 465,
     smtpSecure: true,
     smtpUser: '',
-    supportEmail: 'support@wytham.app',
+    supportEmail: 'support@metis.emend.it.com',
     turnstile: {
       secretKey: 'turnstile-secret',
       isConfigured: true,
@@ -198,7 +198,7 @@ async function login(baseUrl) {
 
   assert.equal(response.status, 302);
   const cookie = response.headers.getSetCookie()[0];
-  assert.match(cookie, /wytham_admin=/);
+  assert.match(cookie, /metis_admin=/);
   return cookie.split(';', 1)[0];
 }
 
@@ -230,7 +230,7 @@ test('POST /api/signup queues a pending signup without sending email automatical
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      origin: 'https://landing.wytham.app',
+      origin: 'https://metis.emend.it.com',
     },
     body: JSON.stringify({
       country: 'Ghana',
@@ -248,7 +248,7 @@ test('POST /api/signup queues a pending signup without sending email automatical
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), {
     success: true,
-    message: 'Thank you, Ada. We saved your request and will send your Wytham beta email shortly.',
+    message: 'Thank you, Ada. We saved your request and will send your metis beta email shortly.',
   });
   assert.deepEqual(sentEmails, []);
   assert.equal(store.state.signups.length, 1);
@@ -270,7 +270,7 @@ test('POST /api/signup rejects a missing Turnstile token before writing signup d
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      origin: 'https://landing.wytham.app',
+      origin: 'https://metis.emend.it.com',
     },
     body: JSON.stringify({
       country: 'Ghana',
@@ -302,7 +302,7 @@ test('POST /api/donate rejects an invalid Turnstile token before writing donatio
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      origin: 'https://landing.wytham.app',
+      origin: 'https://metis.emend.it.com',
     },
     body: JSON.stringify({
       amount: '20',

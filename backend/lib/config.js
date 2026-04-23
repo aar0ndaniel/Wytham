@@ -18,7 +18,7 @@ function createConfig(env = process.env) {
     smtpSecure: env.SMTP_SECURE == null ? true : boolean(env.SMTP_SECURE),
     smtpUser: trim(env.SMTP_USER),
     smtpPass: trim(env.SMTP_PASS),
-    smtpFromName: trim(env.SMTP_FROM_NAME) || 'Wytham Team',
+    smtpFromName: trim(env.SMTP_FROM_NAME) || 'metis Team',
     smtpFromEmail,
     supportEmail,
     liteShareUrl:
