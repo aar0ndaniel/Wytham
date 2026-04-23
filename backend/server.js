@@ -25,7 +25,7 @@ if (!fs.existsSync(PRIMARY_DB_PATH) && fs.existsSync(LEGACY_DB_PATH)) {
 }
 const DB_PATH = PRIMARY_DB_PATH;
 const EMAIL_TEMPLATE_PATH = path.join(ROOT_DIR, 'signup-beta-email-template.html');
-const LOGO_PATH = path.join(ROOT_DIR, 'metis-logo-dark-nav.png');
+const LOGO_PATH = path.join(ROOT_DIR, 'metis-logo-light-nav.png');
 const ADMIN_SCRIPT_PATH = path.join(BACKEND_DIR, 'admin.js');
 const MATTER_FONT_PATH = path.join(ROOT_DIR, 'matter.woff2');
 const PUBLIC_ROOT_FILES = new Set([
@@ -52,7 +52,7 @@ const PUBLIC_ROOT_FILES = new Set([
   '/Aaron Daniel Akuteye.png',
   '/Akosua.jpeg',
   '/app-logo.png',
-  '/metis-logo-dark-nav.png',
+  '/metis-logo-light-nav.png',
   '/metis-logo-light-nav.png',
   '/metis-logo-dark.png',
   '/metis-logo-light.png',
@@ -745,7 +745,7 @@ async function sendSignupEmail(signup, options = {}) {
       html,
       text,
       attachments: fs.existsSync(LOGO_PATH)
-        ? [{ filename: 'metis-logo-dark-nav.png', path: LOGO_PATH, cid: 'metis-app-icon' }]
+        ? [{ filename: 'metis-logo-light-nav.png', path: LOGO_PATH, cid: 'metis-app-icon' }]
         : [],
     });
     return { status: 'sent', error: '', sentAt: new Date().toISOString() };

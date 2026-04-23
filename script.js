@@ -5,8 +5,8 @@ const FALLBACK_NAVBAR_HTML = `
   <div class="nav-inner">
       <a href="index.html" class="nav-logo" aria-label="metis home">
       <span class="brand-mark" aria-hidden="true">
-        <img class="brand-logo-icon brand-logo-dark" src="metis-logo-dark-nav.png?v=20260408i" alt="" />
-        <img class="brand-logo-icon brand-logo-light" src="metis-logo-light-nav.png?v=20260408i" alt="" />
+        <img class="brand-logo-icon brand-logo-dark" src="metis-logo-light-nav.png?v=20260408i" alt="" />
+        <img class="brand-logo-icon brand-logo-light" src="metis-logo-moss.png?v=20260408i" alt="" />
       </span>
       <span class="brand-wordmark">metis</span>
     </a>
@@ -206,7 +206,7 @@ document.addEventListener('click', function(e) {
 
 // ── Theme Toggle ────────────────────────────────────────────────────────
 function updateThemeFavicon(isLight) {
-  const iconHref = isLight ? '/metis-logo-dark-nav.png' : '/metis-logo-light-nav.png';
+  const iconHref = '/metis-logo-light-nav.png';
   document.querySelectorAll('link[rel="icon"]').forEach((node) => {
     node.setAttribute('href', iconHref);
   });

@@ -25,7 +25,7 @@ if (!fs.existsSync(PRIMARY_DB_PATH) && fs.existsSync(LEGACY_DB_PATH)) {
 }
 const DB_PATH = PRIMARY_DB_PATH;
 const EMAIL_TEMPLATE_PATH = path.join(ASSETS_DIR, 'signup-beta-email-template.html');
-const LOGO_PATH = path.join(ASSETS_DIR, 'metis-logo-dark-nav.png');
+const LOGO_PATH = path.join(ASSETS_DIR, 'metis-logo-light-nav.png');
 const ADMIN_SCRIPT_PATH = path.join(BACKEND_DIR, 'admin.js');
 const MATTER_FONT_PATH = path.join(ASSETS_DIR, 'matter.woff2');
 const PUBLIC_ROOT_FILES = new Set();
@@ -712,7 +712,7 @@ async function sendSignupEmail(signup, options = {}) {
   const currentConfig = options.config || config;
   const currentMailer = options.mailer !== undefined ? options.mailer : mailer;
 
-  const logoUrl = `${String(currentConfig.publicBaseUrl || '').replace(/\/+$/, '')}/metis-logo-dark-nav.png`;
+  const logoUrl = `${String(currentConfig.publicBaseUrl || '').replace(/\/+$/, '')}/metis-logo-light-nav.png`;
   const html = renderEmailTemplate(signup, logoUrl, currentConfig);
   const subject = `Your metis ${signup.edition === 'lite' ? 'Lite' : 'Bundle'} beta access`;
 
@@ -733,7 +733,7 @@ async function sendSignupEmail(signup, options = {}) {
       subject,
       html: smtpHtml,
       attachments: fs.existsSync(LOGO_PATH)
-        ? [{ filename: 'metis-logo-dark-nav.png', path: LOGO_PATH, cid: 'metis-app-icon' }]
+        ? [{ filename: 'metis-logo-light-nav.png', path: LOGO_PATH, cid: 'metis-app-icon' }]
         : [],
     });
     return { status: 'sent', error: '', sentAt: new Date().toISOString() };
