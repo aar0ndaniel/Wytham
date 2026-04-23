@@ -603,9 +603,9 @@ const POINTER_WEB_STORAGE_KEY = 'metis-pointer-web';
 
 function readPointerWebPreference() {
   try {
-    return localStorage.getItem(POINTER_WEB_STORAGE_KEY) !== 'off';
+    return localStorage.getItem(POINTER_WEB_STORAGE_KEY) === 'on';
   } catch (_error) {
-    return true;
+    return false;
   }
 }
 
@@ -641,8 +641,8 @@ function initPointerPathTrail() {
   const clearButton = document.createElement('button');
   clearButton.type = 'button';
   clearButton.className = 'cursor-path-clear';
-  clearButton.textContent = 'web on';
-  clearButton.setAttribute('aria-label', 'Turn pointer web off');
+  clearButton.textContent = 'web off';
+  clearButton.setAttribute('aria-label', 'Turn pointer web on');
   clearButton.setAttribute('data-pointer-native', 'true');
   document.body.appendChild(clearButton);
 
