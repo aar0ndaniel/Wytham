@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -93,14 +93,14 @@
       <!-- ───────────────────────────────── OVERVIEW ── -->
       <section class="docs-section" id="overview">
         <h2 class="docs-h2">1. What is metis?</h2>
-        <p>metis is a free, open-source desktop application for <strong>Partial Least Squares Structural Equation Modelling (PLS-SEM)</strong>. It is designed to give researchers, academics, and students access to a fully featured PLS-SEM toolkit at no cost — a practical alternative to commercial tools such as SmartPLS for those who cannot afford a subscription.</p>
-        <p>The application is built on the same statistical engine that powers SmartPLS: the peer-reviewed <strong>seminr</strong> package for R. The interface is GUI-first — no knowledge of R or programming is required. R runs silently in the background; users interact only with the graphical interface.</p>
+        <p>metis is a free, open-source desktop application for <strong>Partial Least Squares Structural Equation Modelling (PLS-SEM)</strong>. It is designed to give researchers, academics, and students access to a fully featured PLS-SEM toolkit at no cost, a practical option for researchers who need a free and accessible PLS-SEM workflow.</p>
+        <p>Metis is built on the <strong>seminr</strong> package for R, a research-oriented package for estimating PLS-SEM models. The interface provides a GUI-first workflow so users can work visually without writing R code. R runs silently in the background, and users interact only with the graphical interface.</p>
 
         <div class="docs-info-grid">
           <div class="docs-info-row"><span class="docs-info-key">Version</span><span class="docs-info-val"><span class="docs-code">0.1.7</span></span></div>
           <div class="docs-info-row"><span class="docs-info-key">Licence</span><span class="docs-info-val">GNU General Public Licence v3 (GPL-3)</span></div>
-          <div class="docs-info-row"><span class="docs-info-key">Platform</span><span class="docs-info-val">Windows 10 / 11 (64-bit) — Phase 1</span></div>
-          <div class="docs-info-row"><span class="docs-info-key">Linux / macOS</span><span class="docs-info-val">Phase 2 — subject to community interest</span></div>
+          <div class="docs-info-row"><span class="docs-info-key">Platform</span><span class="docs-info-val">Windows 10 / 11 (64-bit), Phase 1</span></div>
+          <div class="docs-info-row"><span class="docs-info-key">Linux / macOS</span><span class="docs-info-val">Phase 2, subject to community interest</span></div>
           <div class="docs-info-row"><span class="docs-info-key">Statistics</span><span class="docs-info-val">PLS-SEM, Bootstrapping, PLS Predict</span></div>
           <div class="docs-info-row"><span class="docs-info-key">Data privacy</span><span class="docs-info-val"><i class="ph ph-shield-check docs-inline-icon" aria-hidden="true"></i> All calculations run locally. No data leaves your machine.</span></div>
           <div class="docs-info-row"><span class="docs-info-key">Cost</span><span class="docs-info-val docs-info-val--green"><i class="ph ph-check-circle docs-inline-icon" aria-hidden="true"></i> Free forever</span></div>
@@ -127,7 +127,7 @@
       <!-- ──────────────────────────── CHOOSING INSTALLER ── -->
       <section class="docs-section" id="choosing-installer">
         <h2 class="docs-h2">3. Choosing Your Installer</h2>
-        <p>metis is distributed as two separate executable files. Both installers provide the full application — the difference is how R is supplied.</p>
+        <p>metis is distributed as two separate executable files. Both installers provide the full application, the difference is how R is supplied.</p>
 
         <!-- Edition cards -->
         <div class="docs-edition-cards" id="bundle-installer">
@@ -143,7 +143,7 @@
             <h3 class="docs-edition-name">metis Bundle</h3>
             <p class="docs-edition-tagline">Recommended for most users</p>
             <ul class="docs-edition-list">
-              <li class="docs-feat-yes"><i class="ph-fill ph-check-circle" aria-hidden="true"></i>Includes R Portable — no R installation needed</li>
+              <li class="docs-feat-yes"><i class="ph-fill ph-check-circle" aria-hidden="true"></i>Includes R Portable, no R installation needed</li>
               <li class="docs-feat-yes"><i class="ph-fill ph-check-circle" aria-hidden="true"></i>Fully self-contained, works offline</li>
               <li class="docs-feat-yes"><i class="ph-fill ph-check-circle" aria-hidden="true"></i>seminr pre-installed and configured</li>
               <li class="docs-feat-yes"><i class="ph-fill ph-check-circle" aria-hidden="true"></i>Isolated from any existing R environment</li>
@@ -154,7 +154,7 @@
               <h4 class="docs-steps-title">Installation Steps</h4>
               <ol class="docs-steps-list">
                 <li>Download the bundle installer <span class="docs-code">.exe</span> from the release page.</li>
-                <li>Double-click the installer. If Windows Defender SmartScreen shows a warning, click <em>"More info"</em> then <em>"Run anyway"</em> — metis is signed; this warning appears because the certificate is new.</li>
+                <li>Double-click the installer. If Windows Defender SmartScreen shows a warning, click <em>"More info"</em> then <em>"Run anyway"</em>, metis is signed; this warning appears because the certificate is new.</li>
                 <li>Follow the on-screen prompts. metis installs to your chosen directory and creates a desktop shortcut.</li>
                 <li>On first launch, click <strong>Install</strong> to extract the R packages. When setup is complete, click <strong>Launch</strong> to open metis.</li>
               </ol>
@@ -173,11 +173,11 @@
             <h3 class="docs-edition-name">metis Lite</h3>
             <p class="docs-edition-tagline">For users with R already installed</p>
             <ul class="docs-edition-list">
-              <li class="docs-feat-yes"><i class="ph-fill ph-check-circle" aria-hidden="true"></i>Smaller download — faster to install</li>
+              <li class="docs-feat-yes"><i class="ph-fill ph-check-circle" aria-hidden="true"></i>Smaller download, faster to install</li>
               <li class="docs-feat-yes"><i class="ph-fill ph-check-circle" aria-hidden="true"></i>Uses your existing system R environment</li>
               <li class="docs-feat-yes"><i class="ph-fill ph-check-circle" aria-hidden="true"></i>seminr installed on first launch automatically</li>
               <li class="docs-feat-yes"><i class="ph-fill ph-check-circle" aria-hidden="true"></i>Ideal for researchers and data analysts already using R</li>
-              <li class="docs-feat-no"><i class="ph-fill ph-x-circle" aria-hidden="true"></i>Does <strong>not</strong> include R — requires R 4.0+ installed separately</li>
+              <li class="docs-feat-no"><i class="ph-fill ph-x-circle" aria-hidden="true"></i>Does <strong>not</strong> include R, requires R 4.0+ installed separately</li>
               <li class="docs-feat-neutral"><i class="ph ph-info" aria-hidden="true"></i>Download R from <span class="docs-code">cran.r-project.org</span> if needed</li>
             </ul>
             <div class="docs-edition-steps">
@@ -204,10 +204,10 @@
               </tr>
             </thead>
             <tbody>
-              <tr><td>Includes R runtime</td><td class="docs-td-yes">Yes — R Portable</td><td class="docs-td-no">No — uses system R</td></tr>
+              <tr><td>Includes R runtime</td><td class="docs-td-yes">Yes, R Portable</td><td class="docs-td-no">No, uses system R</td></tr>
               <tr><td>Requires prior R install</td><td class="docs-td-yes">No</td><td class="docs-td-no">Yes (R 4.0+)</td></tr>
               <tr><td>R package setup required</td><td class="docs-td-neutral">One-time extraction</td><td class="docs-td-neutral">One-time install</td></tr>
-              <tr><td>Isolated from system R</td><td class="docs-td-yes">Yes</td><td class="docs-td-no">No — shared</td></tr>
+              <tr><td>Isolated from system R</td><td class="docs-td-yes">Yes</td><td class="docs-td-no">No, shared</td></tr>
               <tr><td>Suitable for non-R users</td><td class="docs-td-yes">Yes</td><td class="docs-td-no">No</td></tr>
               <tr><td>Download size</td><td>~264 MB</td><td>~72 MB</td></tr>
               <tr><td>Recommended for</td><td><strong>Most users</strong></td><td>Existing R users</td></tr>
@@ -226,10 +226,10 @@
           <div>
             <strong>What these packages do</strong>
             <ul class="docs-callout-list">
-              <li><span class="docs-code">seminr</span> — core PLS-SEM engine: estimates models, runs bootstrapping, and computes PLS Predict metrics</li>
-              <li><span class="docs-code">plumber</span> — runs a local REST API on your machine so the metis interface can communicate with R</li>
-              <li><span class="docs-code">semPower</span> — post-hoc power analysis for SEM models</li>
-              <li><span class="docs-code">readxl</span> / <span class="docs-code">jsonlite</span> — data import and result serialisation</li>
+              <li><span class="docs-code">seminr</span>, core PLS-SEM engine: estimates models, runs bootstrapping, and computes PLS Predict metrics</li>
+              <li><span class="docs-code">plumber</span>, runs a local REST API on your machine so the metis interface can communicate with R</li>
+              <li><span class="docs-code">semPower</span>, post-hoc power analysis for SEM models</li>
+              <li><span class="docs-code">readxl</span> / <span class="docs-code">jsonlite</span>, data import and result serialisation</li>
             </ul>
             <p class="docs-callout-note">No data is sent to any external server during setup or during analysis.</p>
           </div>
@@ -241,7 +241,7 @@
         <h2 class="docs-h2">5. Getting Started</h2>
 
         <h3 class="docs-h3" id="app-overview">5.1 Application Overview</h3>
-        <p>When metis opens, you are taken to the <strong>Workspace Home</strong> screen. Workspaces are the top-level organising unit in metis — similar to a project folder. Each workspace contains one dataset and one or more models. You can have multiple workspaces for different studies.</p>
+        <p>When metis opens, you are taken to the <strong>Workspace Home</strong> screen. Workspaces are the top-level organising unit in metis, similar to a project folder. Each workspace contains one dataset and one or more models. You can have multiple workspaces for different studies.</p>
 
         <h3 class="docs-h3" id="importing-data">5.2 Importing Your Data</h3>
         <ol class="docs-ol">
@@ -276,7 +276,7 @@
       <!-- ──────────────────────────── RESULTS ── -->
       <section class="docs-section" id="results">
         <h2 class="docs-h2">5.5 Interpreting Results</h2>
-        <p>The <strong>Results View</strong> displays a full SmartPLS-style results tree on the left and the path diagram on the right. The following result sections are available:</p>
+        <p>The <strong>Results View</strong> displays a full results tree on the left and the path diagram on the right. The following result sections are available:</p>
 
         <table class="docs-table">
           <thead><tr><th>Section</th><th>Contents</th></tr></thead>
@@ -311,7 +311,7 @@
       <!-- ──────────────────────────── PLS PREDICT ── -->
       <section class="docs-section" id="plspredict">
         <h2 class="docs-h2">5.7 PLS Predict</h2>
-        <p>PLS Predict evaluates the out-of-sample predictive power of your model using <strong>k-fold cross-validation</strong>. Results include Q² predict values and RMSE metrics compared to a linear model (LM) benchmark, following the SmartPLS 4 reporting convention.</p>
+        <p>PLS Predict evaluates the out-of-sample predictive power of your model using <strong>k-fold cross-validation</strong>. Results include Q² predict values and RMSE metrics compared to a linear model (LM) benchmark, following the current reporting convention.</p>
         <ol class="docs-ol">
           <li>Select <strong>Analysis › PLS Predict</strong> from the menu bar, or click the PLS Predict button.</li>
           <li>Configure the number of folds and repetitions in the settings dialogue.</li>
@@ -363,7 +363,7 @@
 
       <!-- ──────────────────────────── LIMITATIONS ── -->
       <section class="docs-section" id="limitations">
-        <h2 class="docs-h2">7. Known Limitations — v0.1.7</h2>
+        <h2 class="docs-h2">7. Known Limitations, v0.1.7</h2>
         <div class="docs-callout docs-callout-warning">
           <i class="ph ph-warning-circle docs-callout-icon" aria-hidden="true"></i>
           <div>The following limitations apply to the current release and are planned for resolution in subsequent versions.</div>
@@ -451,8 +451,8 @@
             <label class="form-label" for="su_version">Package <span class="req">*</span></label>
             <select class="form-input form-select" id="su_version" name="version" required>
               <option value="">Select package…</option>
-              <option value="bundle">Bundle (~264 MB) — includes R Portable, no R needed</option>
-              <option value="lite">Lite (~72 MB) — requires R already installed</option>
+              <option value="bundle">Bundle (~264 MB), includes R Portable, no R needed</option>
+              <option value="lite">Lite (~72 MB), requires R already installed</option>
             </select>
           </div>
         </div>
@@ -507,3 +507,4 @@
   </div>
 </body>
 </html>
+
