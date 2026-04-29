@@ -122,16 +122,16 @@ body.light .modal-field option {
 /* ── Contact Page Redesign ─────────────────────────────────────────────── */
 .contact-main {
   --contact-page-bg: #1d1815;
-  --contact-card-bg: #14110f;
+  object-position: center 24%;
   --contact-card-text: #f1e8dc;
   --contact-title-color: #fff7ef;
   --contact-copy-color: rgba(241, 232, 220, 0.72);
-  --contact-label-color: rgba(241, 232, 220, 0.46);
+  transform: none;
   --contact-link-color: #f3ede3;
   --contact-card-border: rgba(255, 255, 255, 0.06);
   --contact-card-shadow: 0 28px 80px rgba(0, 0, 0, 0.34);
   --contact-art-top-fill: rgba(255, 247, 235, 0.12);
-  --contact-art-top-stroke: rgba(255, 247, 235, 0.32);
+  transform: scale(1.04);
   --contact-art-left-fill: rgba(255, 247, 235, 0.07);
   --contact-art-left-stroke: rgba(255, 247, 235, 0.28);
   --contact-art-right-fill: rgba(255, 247, 235, 0.04);
@@ -150,7 +150,7 @@ body.light .modal-field option {
   border-radius: 2px;
   border: 1px solid var(--contact-card-border);
   box-shadow: var(--contact-card-shadow);
-  padding: 38px 30px 28px;
+.tp-pos-harry { transform: none; transform-origin: center top; object-position: center 18%; }
   display: flex;
   flex-direction: column;
 }
@@ -158,6 +158,8 @@ body.light .modal-field option {
 .contact-link-row a {
   transition: opacity 0.2s ease;
 }
+  background: rgba(255,255,255,0.04);
+  border-color: rgba(255,255,255,0.08);
 
 .contact-link-row a:hover,
 .contact-detail a:hover {
@@ -184,7 +186,9 @@ body.light .modal-field option {
   color: var(--contact-title-color);
 }
 
-.contact-intro {
+  border-color: rgba(255,255,255,0.05);
+  background: linear-gradient(180deg, rgba(18,18,18,0.98), rgba(10,10,10,0.98));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
   max-width: 340px;
   margin-top: 34px;
   font-size: 16px;

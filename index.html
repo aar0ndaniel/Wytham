@@ -37,6 +37,7 @@
               <strong data-launch-days>26</strong>d
               <strong data-launch-hours>00</strong>h
               <strong data-launch-minutes>00</strong>m
+              <strong data-launch-seconds>00</strong>s
             </span>
           </span>
         </div>
@@ -1396,6 +1397,80 @@
         </div>
       </div>
 
+    </div>
+  </section>
+
+  <!-- TARK FEATURE -->
+  <section class="tark-section">
+    <div class="section-corners" aria-hidden="true">
+      <span class="corner tl"></span>
+      <span class="corner tr"></span>
+      <span class="corner bl"></span>
+      <span class="corner br"></span>
+    </div>
+    <div class="container">
+      <div class="tark-header fade-up">
+        <span class="feature-tag">tark</span>
+        <h2>Journal-ready tables from saved results</h2>
+        <p class="body-text">Tark turns measurement-model and structural-model outputs into APA-friendly tables with clean labels, consistent notes, and one-click copy into Word.</p>
+      </div>
+
+      <div class="tark-grid fade-up" style="--delay:0.1s">
+        <article class="tark-card tark-card-measurement">
+          <div class="tark-card-top">
+            <span class="tark-card-kicker">Measurement model</span>
+            <span class="tark-card-chip">Loadings · VIF · CR · AVE</span>
+          </div>
+          <div class="tark-table-shell">
+            <div class="tark-table-shell-head">Construct assessment</div>
+            <div class="tark-table tark-table-measurement">
+              <div class="tark-row tark-row-head">
+                <span>Construct</span><span>Loadings</span><span>VIF</span><span>CR</span><span>AVE</span>
+              </div>
+              <div class="tark-row">
+                <span>PEOU</span><span>0.81 / 0.84 / 0.79</span><span>1.42</span><span>0.91</span><span>0.68</span>
+              </div>
+              <div class="tark-row">
+                <span>PU</span><span>0.83 / 0.85 / 0.80</span><span>1.37</span><span>0.90</span><span>0.67</span>
+              </div>
+              <div class="tark-row">
+                <span>ATT</span><span>0.78 / 0.82 / 0.80</span><span>1.29</span><span>0.89</span><span>0.64</span>
+              </div>
+            </div>
+          </div>
+          <div class="tark-note">Table family: measurement-model assessment</div>
+        </article>
+
+        <article class="tark-card tark-card-structural">
+          <div class="tark-card-top">
+            <span class="tark-card-kicker">Structural model</span>
+            <span class="tark-card-chip">Path coefficients · CI · Decision</span>
+          </div>
+          <div class="tark-table-shell tark-table-shell-structural">
+            <div class="tark-table-shell-head">Hypothesis testing</div>
+            <div class="tark-table tark-table-structural">
+              <div class="tark-row tark-row-head">
+                <span>Path</span><span>β</span><span>t</span><span>p</span><span>Decision</span>
+              </div>
+              <div class="tark-row">
+                <span>PEOU → ATT</span><span>0.41</span><span>4.28</span><span>&lt; .001</span><span>Supported</span>
+              </div>
+              <div class="tark-row">
+                <span>PU → ATT</span><span>0.28</span><span>2.94</span><span>.003</span><span>Supported</span>
+              </div>
+              <div class="tark-row">
+                <span>ATT → BI</span><span>0.57</span><span>6.12</span><span>&lt; .001</span><span>Supported</span>
+              </div>
+            </div>
+          </div>
+          <div class="tark-note">Table family: structural-model assessment</div>
+        </article>
+      </div>
+
+      <div class="tark-footer fade-up" style="--delay:0.18s">
+        <button class="btn-primary" type="button" data-action="open-download">Open Tark</button>
+        <p class="tark-footer-text">Copy journal-ready tables without rebuilding them by hand.</p>
+      </div>
     </div>
   </section>
 
