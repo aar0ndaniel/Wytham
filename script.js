@@ -24,7 +24,7 @@ const FALLBACK_NAVBAR_HTML = `
         <i class="ph ph-sun theme-icon icon-candidate" id="themeIcon" data-ph-fallback-dark="☀" data-ph-fallback-light="☾" aria-hidden="true"></i>
       </button>
       <a href="#" class="btn-donate" data-action="open-donate"><i class="ph-fill ph-heart btn-donate-icon icon-candidate" data-ph-fallback="💙" aria-hidden="true"></i><span class="btn-donate-label"> donate</span></a>
-      <button class="btn-download nav-cta" type="button" data-action="open-download">Join the beta <i class="ph ph-arrow-right" aria-hidden="true"></i></button>
+      <button class="btn-download nav-cta" type="button" data-action="open-download">Join the waitlist <i class="ph ph-arrow-right" aria-hidden="true"></i></button>
     </div>
   </div>
 </nav>`;
@@ -390,7 +390,7 @@ const TURNSTILE_STATE_LABELS = Object.freeze({
     retry: 'Verify to continue',
   },
   signupBtn: {
-    idle: 'Join the beta',
+    idle: 'Join the waitlist',
     verifying: 'Verifying...',
     sending: 'Submitting...',
     sent: 'Request received',
@@ -400,6 +400,38 @@ const TURNSTILE_STATE_LABELS = Object.freeze({
 });
 const TURNSTILE_WIDGETS = new Map();
 let turnstileLoadPromise = null;
+
+function initLaunchCountdown() {
+  const daysNode = document.querySelector('[data-launch-days]');
+  const hoursNode = document.querySelector('[data-launch-hours]');
+  const minutesNode = document.querySelector('[data-launch-minutes]');
+  const labelNode = document.querySelector('.hero-launch-label');
+  const valuesNode = document.querySelector('.hero-launch-values');
+  if (!daysNode || !hoursNode || !minutesNode || !labelNode || !valuesNode) return;
+
+  const launchAt = new Date('2026-05-25T00:00:00');
+
+  const render = () => {
+    const remainingMs = launchAt.getTime() - Date.now();
+    if (remainingMs <= 0) {
+      labelNode.textContent = 'Public beta is live';
+      valuesNode.textContent = '';
+      return;
+    }
+
+    const totalMinutes = Math.floor(remainingMs / 60000);
+    const days = Math.floor(totalMinutes / 1440);
+    const hours = Math.floor((totalMinutes % 1440) / 60);
+    const minutes = totalMinutes % 60;
+
+    daysNode.textContent = String(days);
+    hoursNode.textContent = String(hours).padStart(2, '0');
+    minutesNode.textContent = String(minutes).padStart(2, '0');
+  };
+
+  render();
+  window.setInterval(render, 60000);
+}
 
 function resetForm(formId, msgId, btnId) {
   const form = document.getElementById(formId);
@@ -1297,6 +1329,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initSearchableDropdowns();
   initDocsPage();
   initPointerPathTrail();
+  initLaunchCountdown();
   renderTurnstileWidgets();
   const teamRow = document.getElementById('teamRow');
   if (teamRow) {

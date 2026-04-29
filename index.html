@@ -30,6 +30,16 @@
     </div>
     <div class="hero-inner">
       <div class="hero-text fade-up">
+        <div class="hero-proof-row hero-launch-row" aria-live="polite">
+          <span class="hero-proof-pill hero-launch-pill">
+            <span class="hero-launch-label">Public beta opens in</span>
+            <span class="hero-launch-values">
+              <strong data-launch-days>26</strong>d
+              <strong data-launch-hours>00</strong>h
+              <strong data-launch-minutes>00</strong>m
+            </span>
+          </span>
+        </div>
         <div class="hero-title-frame">
           <h1 class="hero-h1">A calmer way to build and read<br> <span class="hero-h1-muted">PLS-SEM models.</span></h1>
           <!-- Figma-style text frame selection animation -->
@@ -92,7 +102,7 @@
         <p class="hero-body">metis brings model design, calculation, and interpretation into one research-grade desktop
           workflow, so you can follow the logic of the analysis from structure to result.</p>
         <div class="hero-ctas">
-          <button class="btn-primary" type="button" data-action="open-download">Join the beta</button>
+          <button class="btn-primary" type="button" data-action="open-download">Join the waitlist</button>
           <a href="#features" class="btn-ghost">See how it works <i class="ph ph-arrow-right"
               aria-hidden="true"></i></a>
         </div>
@@ -1389,105 +1399,6 @@
     </div>
   </section>
 
-  <!-- TESTIMONIALS -->
-  <section class="testimonials-section">
-    <div class="section-corners" aria-hidden="true">
-      <span class="corner tl"></span>
-      <span class="corner tr"></span>
-      <span class="corner bl"></span>
-      <span class="corner br"></span>
-    </div>
-    <div class="container">
-      <div class="testimonials-header fade-up">
-        <span class="feature-tag">testimonials</span>
-        <h2>Trusted by researchers</h2>
-        <p class="body-text">Early feedback from lecturers, researchers, and postgraduate users is helping shape the
-          public beta.</p>
-      </div>
-      <div class="testimonials-grid fade-up" style="--delay:0.1s">
-
-        <div class="testimonial-card bento-span2">
-          <div class="testimonial-quote-mark">"</div>
-          <p class="testimonial-quote">metis changed how I teach PLS-SEM to postgraduate students. The visual canvas
-            makes abstract structural modelling concepts immediately tangible.</p>
-          <div class="testimonial-author">
-            <div class="testimonial-avatar">DA</div>
-            <div>
-              <div class="testimonial-name">Dr. Adomako</div>
-              <div class="testimonial-role">Researcher, KNUST</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="testimonial-card">
-          <div class="testimonial-quote-mark">"</div>
-          <p class="testimonial-quote">Finally a tool that connects the model I draw on the whiteboard with the actual
-            seminr computation. Nothing was this seamless before metis.</p>
-          <div class="testimonial-author">
-            <div class="testimonial-avatar">FK</div>
-            <div>
-              <div class="testimonial-name">Dr. Francis Kofi Nunoo</div>
-              <div class="testimonial-role">Lecturer, KNUST</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="testimonial-card">
-          <div class="testimonial-quote-mark">"</div>
-          <p class="testimonial-quote">I used metis for a multi-group analysis and the setup that would have taken days
-            in other tools was complete in a single afternoon. Remarkable efficiency.</p>
-          <div class="testimonial-author">
-            <div class="testimonial-avatar">GO</div>
-            <div>
-              <div class="testimonial-name">George Owusu</div>
-              <div class="testimonial-role">PhD Researcher, KNUST</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="testimonial-card">
-          <div class="testimonial-quote-mark">"</div>
-          <p class="testimonial-quote">The visual canvas removed every barrier I had with SEM. I ran my first
-            bootstrapped model in under an hour, no code, no confusion. metis is a game changer.</p>
-          <div class="testimonial-author">
-            <div class="testimonial-avatar">PA</div>
-            <div>
-              <div class="testimonial-name">Prosper Asante</div>
-              <div class="testimonial-role">Graduate Researcher</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="testimonial-card">
-          <div class="testimonial-quote-mark">"</div>
-          <p class="testimonial-quote">My dissertation committee was impressed by the path diagram output directly from
-            metis. It made the whole methodology section look highly professional.</p>
-          <div class="testimonial-author">
-            <div class="testimonial-avatar">RN</div>
-            <div>
-              <div class="testimonial-name">Raphael Nii Okai</div>
-              <div class="testimonial-role">MPhil Student</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="testimonial-card bento-span2">
-          <div class="testimonial-quote-mark">"</div>
-          <p class="testimonial-quote">The fit indices update as I refine the model. That live feedback loop during
-            model specification is invaluable. A genuine research-grade tool.</p>
-          <div class="testimonial-author">
-            <div class="testimonial-avatar">BG</div>
-            <div>
-              <div class="testimonial-name">Dr. Boakye</div>
-              <div class="testimonial-role">Academic, KNUST</div>
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-  </section>
-
   <!-- TEAM -->
   <section class="team-section" id="team-section">
     <div class="container">
@@ -1788,10 +1699,10 @@
           <nav class="footer-nav">
             <a href="index.html">home</a>
             <a href="#">features</a>
-            <a href="#" data-action="open-download">Join the beta</a>
+            <a href="#" data-action="open-download">Join the waitlist</a>
           </nav>
         </div>
-        <div class="footer-col">
+            <button class="btn-primary" type="button" data-action="open-download">Join the waitlist</button>
           <div class="footer-col-label">Tools</div>
           <nav class="footer-nav">
             <span class="footer-text-item">seminr package</span>
@@ -1828,7 +1739,7 @@
     <div class="modal">
       <button class="modal-close" type="button" data-action="close-modal" data-modal="downloadModal"
         aria-label="Close">×</button>
-      <h2 class="modal-title">Join the beta</h2>
+      <h2 class="modal-title">Join the waitlist</h2>
       <p class="modal-sub">Be among the first to try metis. We’ll let you know when your beta build is ready.</p>
       <form class="secure-form" id="signupForm">
         <!-- Honeypot: hidden from real users via CSS, not type=hidden so bots fill it -->
@@ -1890,7 +1801,7 @@
         </div>
         <div class="form-msg" id="signupMsg" aria-live="polite"></div>
         <button class="btn-primary form-submit" type="submit" id="signupBtn">
-          <span class="btn-label">Join the beta</span>
+          <span class="btn-label">Join the waitlist</span>
           <span class="btn-spinner" aria-hidden="true"></span>
         </button>
       </form>
