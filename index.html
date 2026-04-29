@@ -34,10 +34,10 @@
           <span class="hero-proof-pill hero-launch-pill">
             <span class="hero-launch-label">Public beta opens in</span>
             <span class="hero-launch-values">
-              <strong data-launch-days>26</strong>d
-              <strong data-launch-hours>00</strong>h
-              <strong data-launch-minutes>00</strong>m
-              <strong data-launch-seconds>00</strong>s
+              <strong data-launch-days>26</strong>
+              <strong data-launch-hours>00</strong>
+              <strong data-launch-minutes>00</strong>
+              <strong data-launch-seconds>00</strong>
             </span>
           </span>
         </div>
@@ -1412,64 +1412,80 @@
       <div class="tark-header fade-up">
         <span class="feature-tag">tark</span>
         <h2>Journal-ready tables from saved results</h2>
-        <p class="body-text">Tark turns measurement-model and structural-model outputs into APA-friendly tables with clean labels, consistent notes, and one-click copy into Word.</p>
       </div>
 
-      <div class="tark-grid fade-up" style="--delay:0.1s">
-        <article class="tark-card tark-card-measurement">
-          <div class="tark-card-top">
-            <span class="tark-card-kicker">Measurement model</span>
-            <span class="tark-card-chip">Loadings · VIF · CR · AVE</span>
-          </div>
-          <div class="tark-table-shell">
-            <div class="tark-table-shell-head">Construct assessment</div>
-            <div class="tark-table tark-table-measurement">
-              <div class="tark-row tark-row-head">
-                <span>Construct</span><span>Loadings</span><span>VIF</span><span>CR</span><span>AVE</span>
-              </div>
-              <div class="tark-row">
-                <span>PEOU</span><span>0.81 / 0.84 / 0.79</span><span>1.42</span><span>0.91</span><span>0.68</span>
-              </div>
-              <div class="tark-row">
-                <span>PU</span><span>0.83 / 0.85 / 0.80</span><span>1.37</span><span>0.90</span><span>0.67</span>
-              </div>
-              <div class="tark-row">
-                <span>ATT</span><span>0.78 / 0.82 / 0.80</span><span>1.29</span><span>0.89</span><span>0.64</span>
-              </div>
+      <div class="tark-mockup-shell fade-up" style="--delay:0.1s">
+        <div class="tark-window">
+          <div class="tark-windowbar">
+            <div class="tark-window-dots" aria-hidden="true">
+              <span></span><span></span><span></span>
             </div>
+            <span class="tark-window-title">Tark / report builder</span>
+            <span class="tark-window-pill">journal export</span>
           </div>
-          <div class="tark-note">Table family: measurement-model assessment</div>
-        </article>
 
-        <article class="tark-card tark-card-structural">
-          <div class="tark-card-top">
-            <span class="tark-card-kicker">Structural model</span>
-            <span class="tark-card-chip">Path coefficients · CI · Decision</span>
-          </div>
-          <div class="tark-table-shell tark-table-shell-structural">
-            <div class="tark-table-shell-head">Hypothesis testing</div>
-            <div class="tark-table tark-table-structural">
-              <div class="tark-row tark-row-head">
-                <span>Path</span><span>β</span><span>t</span><span>p</span><span>Decision</span>
-              </div>
-              <div class="tark-row">
-                <span>PEOU → ATT</span><span>0.41</span><span>4.28</span><span>&lt; .001</span><span>Supported</span>
-              </div>
-              <div class="tark-row">
-                <span>PU → ATT</span><span>0.28</span><span>2.94</span><span>.003</span><span>Supported</span>
-              </div>
-              <div class="tark-row">
-                <span>ATT → BI</span><span>0.57</span><span>6.12</span><span>&lt; .001</span><span>Supported</span>
-              </div>
-            </div>
-          </div>
-          <div class="tark-note">Table family: structural-model assessment</div>
-        </article>
-      </div>
+          <div class="tark-window-body">
+            <aside class="tark-sidebar">
+              <div class="tark-sidebar-label">report families</div>
+              <button class="tark-family is-active" type="button">Measurement model</button>
+              <button class="tark-family" type="button">Structural model</button>
+              <button class="tark-family" type="button">Discriminant validity</button>
+              <button class="tark-family" type="button">Model fit</button>
+            </aside>
 
-      <div class="tark-footer fade-up" style="--delay:0.18s">
-        <button class="btn-primary" type="button" data-action="open-download">Open Tark</button>
-        <p class="tark-footer-text">Copy journal-ready tables without rebuilding them by hand.</p>
+            <main class="tark-canvas">
+              <div class="tark-pane tark-pane-primary">
+                <div class="tark-pane-head">
+                  <span>Construct assessment</span>
+                  <span class="tark-pane-chip">ready to copy</span>
+                </div>
+                <div class="tark-table-grid tark-table-grid-primary">
+                  <div class="tark-table-head">Construct</div>
+                  <div class="tark-table-head">Loadings</div>
+                  <div class="tark-table-head">CR</div>
+                  <div class="tark-table-head">AVE</div>
+                  <div class="tark-table-row">PEOU</div>
+                  <div class="tark-table-row">0.81 / 0.84 / 0.79</div>
+                  <div class="tark-table-row">0.91</div>
+                  <div class="tark-table-row">0.68</div>
+                  <div class="tark-table-row">PU</div>
+                  <div class="tark-table-row">0.83 / 0.85 / 0.80</div>
+                  <div class="tark-table-row">0.90</div>
+                  <div class="tark-table-row">0.67</div>
+                </div>
+              </div>
+
+              <div class="tark-pane tark-pane-secondary">
+                <div class="tark-pane-head">
+                  <span>Hypothesis testing</span>
+                  <span class="tark-pane-chip">APA notes on</span>
+                </div>
+                <div class="tark-path-list">
+                  <div class="tark-path-row"><span>PEOU → ATT</span><span>0.41</span><span>Supported</span></div>
+                  <div class="tark-path-row"><span>PU → ATT</span><span>0.28</span><span>Supported</span></div>
+                  <div class="tark-path-row"><span>ATT → BI</span><span>0.57</span><span>Supported</span></div>
+                </div>
+              </div>
+            </main>
+
+            <aside class="tark-inspector">
+              <div class="tark-sidebar-label">export settings</div>
+              <div class="tark-setting-card">
+                <span class="tark-setting-label">style</span>
+                <strong>APA 7</strong>
+              </div>
+              <div class="tark-setting-card">
+                <span class="tark-setting-label">output</span>
+                <strong>Word table</strong>
+              </div>
+              <div class="tark-setting-card">
+                <span class="tark-setting-label">notes</span>
+                <strong>Auto appended</strong>
+              </div>
+              <button class="btn-primary tark-export-btn" type="button" data-action="open-download">Open Tark</button>
+            </aside>
+          </div>
+        </div>
       </div>
     </div>
   </section>
@@ -1629,7 +1645,7 @@
         <div class="edition-card edition-card-bundle">
           <div class="edition-card-top">
             <span class="edition-badge edition-badge-bundle">Bundle</span>
-            <span class="edition-size">~264 MB</span>
+            <span class="edition-size">270 MB</span>
           </div>
           <h3 class="edition-name">metis Bundle</h3>
           <ul class="edition-features">
@@ -1650,7 +1666,7 @@
         <div class="edition-card edition-card-lite">
           <div class="edition-card-top">
             <span class="edition-badge edition-badge-lite">Lite</span>
-            <span class="edition-size">~72 MB</span>
+            <span class="edition-size">75 MB</span>
           </div>
           <h3 class="edition-name">metis Lite</h3>
           <ul class="edition-features">
@@ -1777,14 +1793,17 @@
             <a href="#" data-action="open-download">Join the waitlist</a>
           </nav>
         </div>
-            <button class="btn-primary" type="button" data-action="open-download">Join the waitlist</button>
+
+        <div class="footer-col">
           <div class="footer-col-label">Tools</div>
           <nav class="footer-nav">
             <span class="footer-text-item">seminr package</span>
             <span class="footer-text-item">R-Portable</span>
             <span class="footer-text-item">semPower</span>
           </nav>
+          <button class="btn-primary footer-waitlist-btn" type="button" data-action="open-download">Join the waitlist</button>
         </div>
+
         <div class="footer-col">
           <div class="footer-col-label">More</div>
           <nav class="footer-nav">
@@ -1794,6 +1813,7 @@
             <a href="contact.html">contact</a>
           </nav>
         </div>
+
         <div class="footer-col">
           <div class="footer-col-label">Community</div>
           <nav class="footer-nav">
@@ -1863,8 +1883,8 @@
             <label class="form-label" for="su_version">Package <span class="req">*</span></label>
             <select class="form-input form-select" id="su_version" name="version" required>
               <option value="">Select package…</option>
-              <option value="bundle">Bundle (~264 MB), includes R Portable, no R needed</option>
-              <option value="lite">Lite (~72 MB), requires R already installed</option>
+              <option value="bundle">Bundle (270 MB), includes R Portable, no R needed</option>
+              <option value="lite">Lite (75 MB), requires R already installed</option>
             </select>
           </div>
         </div>
