@@ -85,6 +85,21 @@ body.light .modal-field option {
   object-position: center 35%;
 }
 
+.team-photo-aaron {
+  transform: translateY(-50px);
+  transform-origin: center top;
+}
+
+.team-card:hover .team-photo-aaron {
+  transform: translateY(-50px) scale(1.04);
+  filter: grayscale(100%) !important;
+}
+
+.team-photo,
+.team-card:hover .team-photo {
+  filter: grayscale(100%) !important;
+}
+
 .team-photo-bismark {
   transform: scale(1.5) translateX(40px) translateY(-100px);
   transform-origin: center top;
@@ -4140,7 +4155,7 @@ body.light .tp-main::before {
 .tp-pos-top { object-position: center 15%; }
 .tp-pos-aaron { object-position: center 22%; }  /* Aaron — shifted up */
 .tp-pos-emmanuel { transform: scale(1.5) translateY(-66px); transform-origin: center top; object-position: center center; }
-.tp-pos-harry { transform: scale(1.5) translateY(-33px); transform-origin: center top; object-position: center center; }
+.tp-pos-harry { transform: scale(1.5) translateY(50px); transform-origin: center top; object-position: center center; }
 .tp-pos-bismark { transform: scale(1.5) translateX(10px) translateY(-50px); transform-origin: center top; object-position: center center; }
 .tp-pos-akosua { object-position: center 20%; } /* Akosua — fill card, face centred */
 
