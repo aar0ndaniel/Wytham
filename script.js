@@ -382,10 +382,19 @@ document.addEventListener('keydown', (e) => {
 // ── Form Helpers ────────────────────────────────────────────────────────
 const TURNSTILE_SITE_KEY = String(window.METIS_SITE_CONFIG?.turnstileSiteKey || '').trim();
 const TURNSTILE_FORMS = Object.freeze({
+  commentForm: { btnId: 'commentBtn', containerId: 'commentTurnstile', msgId: 'commentMsg' },
   donateForm: { btnId: 'donateBtn', containerId: 'donateTurnstile', msgId: 'donateMsg' },
   signupForm: { btnId: 'signupBtn', containerId: 'signupTurnstile', msgId: 'signupMsg' },
 });
 const TURNSTILE_STATE_LABELS = Object.freeze({
+  commentBtn: {
+    idle: 'pin to the wall',
+    verifying: 'Verifying...',
+    sending: 'Pinning...',
+    sent: 'Pinned',
+    failed: 'Try again',
+    retry: 'Verify to continue',
+  },
   donateBtn: {
     idle: 'send support ♥',
     verifying: 'Verifying...',
