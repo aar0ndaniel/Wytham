@@ -106,10 +106,7 @@ body.light .modal-field option {
   filter: grayscale(100%) !important;
 }
 
-.team-photo,
-.team-card:hover .team-photo {
-  filter: grayscale(100%) !important;
-}
+
 
 .team-photo-bismark {
   transform: scale(1.5) translateX(40px) translateY(-100px);
@@ -156,10 +153,10 @@ body.light .modal-field option {
   width: min(100%, 1080px);
   min-height: calc(100vh - 132px);
   margin: 0 auto;
-  background: var(--contact-card-bg);
+  background: transparent;
   color: var(--contact-card-text);
   border-radius: 2px;
-  border: 1px solid var(--contact-card-border);
+  border: none;
   box-shadow: var(--contact-card-shadow);
 .tp-pos-harry { transform: none; transform-origin: center top; object-position: center 18%; }
   display: flex;
