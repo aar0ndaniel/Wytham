@@ -205,8 +205,6 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL DEFAULT '',
     body TEXT NOT NULL,
-    ip_address TEXT NOT NULL DEFAULT '',
-    user_agent TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL
   );
   CREATE INDEX IF NOT EXISTS idx_signups_created_at ON signups(created_at DESC);
@@ -306,8 +304,8 @@ const statements = {
   `),
   insertComment: db.prepare(`
     INSERT INTO comments (
-      name, body, ip_address, user_agent, created_at
-    ) VALUES (?, ?, ?, ?, ?)
+      name, body, created_at
+    ) VALUES (?, ?, ?)
   `),
   recentComments: db.prepare(`
     SELECT id, name, body, created_at
@@ -3779,8 +3777,6 @@ function createLegacySqliteStore() {
       const result = statements.insertComment.run(
         comment.name || '',
         comment.body,
-        comment.ip_address || '',
-        comment.user_agent || '',
         comment.created_at
       );
       const row = {
@@ -4176,8 +4172,6 @@ function createApp(options = {}) {
         store.insertComment({
           name: displayName,
           body: body.body,
-          ip_address: ip,
-          user_agent: cut(req.headers['user-agent'], 300),
           created_at: new Date().toISOString(),
         })
       );

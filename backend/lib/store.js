@@ -108,7 +108,12 @@ function createStore(client, options = {}) {
     },
 
     insertComment(comment) {
-      return client.from(tables.comments).insert(comment).select(COMMENT_PUBLIC_COLUMNS).single();
+      const row = {
+        name: comment.name,
+        body: comment.body,
+        created_at: comment.created_at,
+      };
+      return client.from(tables.comments).insert(row).select(COMMENT_PUBLIC_COLUMNS).single();
     },
 
     listRecentComments(limit = 200) {

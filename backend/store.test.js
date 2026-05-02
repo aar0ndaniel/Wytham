@@ -226,6 +226,44 @@ test('createStore shapes signup and admin queries around the supplied client', (
   ]);
 });
 
+test('createStore keeps comment writes limited to public wall fields', () => {
+  const queries = [];
+  const client = {
+    from(table) {
+      const query = new QueryRecorder(table);
+      queries.push(query);
+      return query;
+    },
+  };
+  const store = createStore(client);
+
+  store.insertComment({
+    name: 'Ada',
+    body: 'A careful public note.',
+    ip_address: '203.0.113.8',
+    user_agent: 'node-test',
+    created_at: '2026-05-02T12:00:00.000Z',
+  });
+  store.listRecentComments(12);
+
+  assert.equal(queries[0].table, 'comments');
+  assert.deepEqual(queries[0].steps, [
+    {
+      method: 'insert',
+      args: [{ name: 'Ada', body: 'A careful public note.', created_at: '2026-05-02T12:00:00.000Z' }],
+    },
+    { method: 'select', args: ['id,name,body,created_at'] },
+    { method: 'single', args: [] },
+  ]);
+
+  assert.equal(queries[1].table, 'comments');
+  assert.deepEqual(queries[1].steps, [
+    { method: 'select', args: ['id,name,body,created_at'] },
+    { method: 'order', args: ['created_at', { ascending: false }] },
+    { method: 'limit', args: [12] },
+  ]);
+});
+
 test('summary helpers preserve the current admin dashboard metrics', () => {
   const signupSummary = summarizeSignups([
     { edition: 'lite', beta_visits: 2 },

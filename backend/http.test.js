@@ -6,6 +6,7 @@ const { createApp } = require('./server.js');
 
 function createMemoryStore(initial = {}) {
   const state = {
+    comments: Array.isArray(initial.comments) ? initial.comments.map(cloneComment) : [],
     donations: Array.isArray(initial.donations) ? [...initial.donations] : [],
     signups: Array.isArray(initial.signups) ? initial.signups.map(cloneSignup) : [],
   };
@@ -29,6 +30,19 @@ function createMemoryStore(initial = {}) {
       const record = { ...donation };
       state.donations.push(record);
       return { data: record, error: null };
+    },
+
+    async insertComment(comment) {
+      const record = {
+        id: state.comments.length + 1,
+        ...cloneComment(comment),
+      };
+      state.comments.push(record);
+      return { data: cloneComment(record), error: null };
+    },
+
+    async listRecentComments(limit = 200) {
+      return { data: state.comments.slice(0, limit).map(cloneComment), error: null };
     },
 
     async listInstitutionRows() {
@@ -115,6 +129,10 @@ function createMemoryStore(initial = {}) {
 
 function cloneSignup(signup) {
   return { ...signup };
+}
+
+function cloneComment(comment) {
+  return { ...comment };
 }
 
 async function startApp(t, options = {}) {
@@ -320,6 +338,69 @@ test('POST /api/donate rejects an invalid Turnstile token before writing donatio
     error: 'Verification failed. Please try again.',
   });
   assert.equal(store.state.donations.length, 0);
+});
+
+test('POST /api/comment stores only public wall fields after Turnstile verification', async (t) => {
+  const { baseUrl, store } = await startApp(t, {
+    verifyTurnstile: async ({ token, action }) => ({
+      success: action === 'comment' && token === 'valid-comment-token',
+      error: token === 'valid-comment-token' ? '' : 'Verification failed. Please try again.',
+    }),
+  });
+
+  const response = await fetch(`${baseUrl}/api/comment`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      origin: 'https://metis.emend.it.com',
+      'user-agent': 'wall-test-agent',
+      'x-forwarded-for': '203.0.113.8',
+    },
+    body: JSON.stringify({
+      name: 'Grace <script>',
+      body: 'Ship the wall, safely.',
+      sourcePage: '/wall.html',
+      'cf-turnstile-response': 'valid-comment-token',
+    }),
+  });
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    success: true,
+    message: 'Pinned to the wall.',
+  });
+  assert.equal(store.state.comments.length, 1);
+  assert.deepEqual(Object.keys(store.state.comments[0]).sort(), ['body', 'created_at', 'id', 'name']);
+  assert.equal(store.state.comments[0].name, 'Grace script');
+  assert.equal(store.state.comments[0].body, 'Ship the wall, safely.');
+});
+
+test('POST /api/comment rejects missing Turnstile token before writing comment data', async (t) => {
+  const { baseUrl, store } = await startApp(t, {
+    verifyTurnstile: async ({ token }) => ({
+      success: Boolean(token),
+      statusCode: token ? 200 : 400,
+      error: token ? '' : 'Complete the verification challenge and try again.',
+    }),
+  });
+
+  const response = await fetch(`${baseUrl}/api/comment`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      origin: 'https://metis.emend.it.com',
+    },
+    body: JSON.stringify({
+      body: 'No token should mean no write.',
+    }),
+  });
+
+  assert.equal(response.status, 400);
+  assert.deepEqual(await response.json(), {
+    success: false,
+    error: 'Complete the verification challenge and try again.',
+  });
+  assert.equal(store.state.comments.length, 0);
 });
 
 test('POST /admin/signups/:token/send sends a pending signup manually and marks it sent', async (t) => {
