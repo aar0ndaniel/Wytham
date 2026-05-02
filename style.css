@@ -5716,6 +5716,19 @@ body.light .wall-fab {
   border-color: rgba(0, 0, 0, 0.10);
 }
 
+@media (max-width: 640px) {
+  .wall-header { padding: clamp(48px, 5vw, 64px) var(--site-gutter) clamp(20px, 2vw, 28px); }
+  .wall-header-inner { max-width: 100%; }
+  .wall-title { font-size: clamp(36px, 6vw, 52px); margin: 8px 0 12px; }
+  .wall-lede { font-size: 14px; }
+  .wall-canvas { height: clamp(500px, 75vh, 640px); }
+  .wall-card { width: clamp(160px, 55vw, 200px); padding: 14px 12px 12px; font-size: 13px; }
+  .wall-card-body { font-size: 13px; }
+  .wall-fab { padding: 10px; bottom: 24px; right: 16px; }
+  .wall-fab i { font-size: 20px; }
+  .wall-fab-label { display: none; }
+}
+
 @media (max-width: 720px) {
   .wall-card { width: clamp(200px, 60vw, 240px); padding: 16px 16px 14px; }
   .wall-card-body { font-size: 14px; }
