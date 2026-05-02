@@ -18,7 +18,7 @@
   <script src="script.js?v=20260416a" defer></script>
 </head>
 
-<body>
+<body class="index-page">
 
   <!-- HERO -->
   <section class="hero">
@@ -1266,19 +1266,8 @@
           <span class="feature-tag">zero-code</span>
           <h3>No R required</h3>
           <h4>Let the statistical engine run in the background while you stay with the research.</h4>
-          <p class="body-text">metis handles bootstrapping, PLS predict, and the seminr setup work for you, so you can
-            focus on specification, interpretation, and reporting.</p>
-          <div class="callout-cards">
-            <div class="callout-card">
-              <div class="callout-title">seminr runs in the background</div>
-              <div class="callout-body">The R engine computes locally while you work through the interface.</div>
-            </div>
-            <div class="callout-card">
-              <div class="callout-title">Keep control of the method</div>
-              <div class="callout-body">Adjust bootstrap subsamples, inner weighting, and algorithm settings without
-                leaving the workflow.</div>
-            </div>
-          </div>
+          <p class="body-text">metis handles bootstrapping, PLS predict, NCA, cIPMA, IPMA, and the seminr setup work for
+            you, so you can focus on specification, interpretation, and reporting.</p>
         </div>
         <div class="feature-mockup">
           <svg viewBox="0 0 480 360" xmlns="http://www.w3.org/2000/svg">
@@ -1490,13 +1479,47 @@
     </div>
   </section>
 
+  <!-- WALL TEASER -->
+  <section class="wall-teaser-section" id="wall-teaser">
+    <div class="container">
+      <div class="wall-teaser-head fade-up">
+        <span class="feature-tag">wall</span>
+        <div class="wall-teaser-title-row">
+          <h2><span class="wall-heading-accent">notes</span> on the wall</h2>
+          <button class="wall-fab wall-header-action" type="button" data-action="open-comment" data-wall-header-action aria-label="Make a mark on the wall" hidden>
+            <i class="ph-fill ph-plus-circle" aria-hidden="true"></i>
+            <span class="wall-fab-label">make a mark on the wall</span>
+          </button>
+        </div>
+        <p class="wall-teaser-lede">Voices from people who can&rsquo;t wait to use metis &mdash; or who want to nudge a friend to join the waitlist. Drag a card; press a corner; the cards push back.</p>
+      </div>
+
+      <div class="wall-teaser-stage fade-up" style="--delay:0.1s">
+        <div class="wall-card-bed" id="wallTeaserBed" data-wall-bed>
+          <div class="wall-empty wall-teaser-empty" data-wall-empty hidden>
+            <i class="ph ph-chat-circle-dots" aria-hidden="true"></i>
+            <p>Be the first to add your voice to the wall.</p>
+            <button class="wall-fab wall-empty-action" type="button" data-action="open-comment" aria-label="Make a mark on the wall">
+              <i class="ph-fill ph-plus-circle" aria-hidden="true"></i>
+              <span class="wall-fab-label">make a mark on the wall</span>
+            </button>
+          </div>
+        </div>
+        <a class="wall-teaser-link" href="wall.html">
+          <span>see the full wall</span>
+          <i class="ph ph-arrow-up-right" aria-hidden="true"></i>
+        </a>
+      </div>
+    </div>
+  </section>
+
   <!-- TEAM -->
   <section class="team-section" id="team-section">
     <div class="container">
       <!-- header row -->
       <div class="team-header-row fade-up">
         <div class="team-header-left">
-          <span class="team-kicker">Our Team <span class="team-count">6</span></span>
+          <span class="team-kicker">Our Team <span class="team-count">7</span></span>
           <h2 class="team-heading">The People Behind<br><span class="team-heading-brand">metis</span></h2>
         </div>
         <div class="team-header-right">
@@ -1957,8 +1980,39 @@
     </div>
   </div>
 
-
-
+  <div id="commentModal" class="modal-overlay" data-close-on-overlay="true">
+    <div class="modal modal-comment">
+      <button class="modal-close" type="button" data-action="close-modal" data-modal="commentModal" aria-label="Close">×</button>
+      <h2 class="modal-title">Pin a note to the wall</h2>
+      <p class="modal-sub">Tell us why you&rsquo;re excited &mdash; or rally a friend to join the waitlist. Anonymous works too.</p>
+      <form class="secure-form" id="commentForm">
+        <div class="hp-field" aria-hidden="true">
+          <label for="hp_comment">Leave this blank</label>
+          <input type="text" id="hp_comment" name="hp_field" tabindex="-1" autocomplete="off"/>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="cm_name">Display name <span class="form-optional">(optional)</span></label>
+          <input class="form-input" type="text" id="cm_name" name="name" maxlength="60" placeholder="Anonymous" autocomplete="nickname"/>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="cm_body">Your note <span class="req">*</span></label>
+          <textarea class="form-input form-textarea" id="cm_body" name="body" required maxlength="280" rows="4" placeholder="Counting down the days… my whole lab needs this." data-charcount="commentCharCount"></textarea>
+          <div class="form-charcount"><span id="commentCharCount">0</span>/280</div>
+        </div>
+        <div class="form-security-block">
+          <div class="turnstile-shell">
+            <div class="turnstile-slot" id="commentTurnstile" data-form-id="commentForm"></div>
+          </div>
+          <p class="form-security-note">Protected by Cloudflare Turnstile.</p>
+        </div>
+        <div class="form-msg" id="commentMsg" aria-live="polite"></div>
+        <button class="btn-primary form-submit" type="submit" id="commentBtn">
+          <span class="btn-label">pin to the wall</span>
+          <span class="btn-spinner" aria-hidden="true"></span>
+        </button>
+      </form>
+    </div>
+  </div>
 
 
 

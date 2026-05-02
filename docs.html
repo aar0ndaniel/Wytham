@@ -440,7 +440,7 @@
           <li><strong>Windows only.</strong> Linux and macOS support is planned for Phase 2, subject to sufficient user interest.</li>
           <li><strong>CSV and Excel are the supported import formats.</strong> Other data formats may appear in the file picker, but use CSV or Excel for the smoothest workflow.</li>
           <li><strong>Tark prepares tables, not the written argument.</strong> It gives you cleaner tables and diagrams, but you still write the interpretation for your study.</li>
-          <li><strong>Large datasets can take time.</strong> Bootstrap, PLSpredict, and advanced analysis may run slowly on very large datasets depending on your computer.</li>
+          <li><strong>Large calculations can take time.</strong> metis runs Bootstrap, PLSpredict, and advanced analysis locally through R and seminr. It automatically uses available CPU cores safely, but large models, 5,000-10,000 bootstrap samples, current workload, and hardware can still make calculations take several minutes. A longer run does not mean the calculation has failed; metis continues computing locally, and completed reports are generated from the finished seminr results.</li>
           <li><strong>Saved results matter.</strong> Tark and later review workflows work best when you save PLS-SEM, Bootstrap, PLSpredict, and any Advanced analysis results you want to reuse.</li>
         </ul>
       </section>

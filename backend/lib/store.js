@@ -6,6 +6,7 @@ const DONATION_SUMMARY_COLUMNS = 'email,country,amount';
 const EXPORT_SIGNUP_COLUMNS = 'name,email,institution,country,role,edition,created_at,email_status,beta_visits';
 const SIGNUP_SERIES_COLUMNS = 'created_at,edition';
 const SIGNUP_SUMMARY_COLUMNS = 'edition,beta_visits';
+const COMMENT_PUBLIC_COLUMNS = 'id,name,body,created_at';
 
 function createStore(client, options = {}) {
   if (!client || typeof client.from !== 'function') {
@@ -15,6 +16,7 @@ function createStore(client, options = {}) {
   const tables = {
     donations: options.donationsTable || 'donations',
     signups: options.signupsTable || 'signups',
+    comments: options.commentsTable || 'comments',
   };
 
   return {
@@ -103,6 +105,18 @@ function createStore(client, options = {}) {
 
     updateSignupByEmail(email, updates) {
       return client.from(tables.signups).update(updates).eq('email', email).select('*').single();
+    },
+
+    insertComment(comment) {
+      return client.from(tables.comments).insert(comment).select(COMMENT_PUBLIC_COLUMNS).single();
+    },
+
+    listRecentComments(limit = 200) {
+      return client
+        .from(tables.comments)
+        .select(COMMENT_PUBLIC_COLUMNS)
+        .order('created_at', { ascending: false })
+        .limit(limit);
     },
   };
 }

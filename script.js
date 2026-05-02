@@ -17,6 +17,7 @@ const FALLBACK_NAVBAR_HTML = `
       <a href="docs.html">docs</a>
       <a href="team.html">team</a>
       <a href="updates.html">updates</a>
+      <a href="wall.html">wall</a>
       <a href="contact.html">contact</a>
     </div>
     <div class="nav-actions">
@@ -328,6 +329,9 @@ function runAction(node) {
     case 'open-donate':
       openDonateModal();
       return true;
+    case 'open-comment':
+      openCommentModal();
+      return true;
     case 'close-modal':
       closeModal(node.getAttribute('data-modal') || '');
       return true;
@@ -363,6 +367,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     closeModal('downloadModal');
     closeModal('donateModal');
+    closeModal('commentModal');
     return;
   }
 
@@ -1144,6 +1149,8 @@ document.addEventListener('submit', (e) => {
     submitForm(e, 'signup');
   } else if (form.id === 'donateForm') {
     submitForm(e, 'donate');
+  } else if (form.id === 'commentForm') {
+    submitCommentForm(e);
   }
 });
 
@@ -1337,6 +1344,8 @@ document.addEventListener('DOMContentLoaded', () => {
   initPointerPathTrail();
   initLaunchCountdown();
   renderTurnstileWidgets();
+  initCommentCharCounter();
+  initWall();
   const teamRow = document.getElementById('teamRow');
   if (teamRow) {
     teamRow.addEventListener('scroll', updateTeamArrowState, { passive: true });
@@ -1345,3 +1354,350 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+// ── Wall (comments) ─────────────────────────────────────────────────────
+const WALL_TEASER_LAYOUT = [
+  { left: '6%',  top: '8%',  rot: -3.4 },
+  { left: '38%', top: '4%',  rot:  2.1 },
+  { left: '64%', top: '14%', rot: -1.6 },
+  { left: '22%', top: '52%', rot:  4.2 },
+];
+
+function openCommentModal() {
+  openModal('commentModal');
+  const ta = document.getElementById('cm_body');
+  if (ta) {
+    setTimeout(() => ta.focus(), 60);
+  }
+  updateCommentCharCount();
+}
+
+function closeCommentModal() {
+  closeModal('commentModal');
+  resetForm('commentForm', 'commentMsg', 'commentBtn');
+}
+
+function initCommentCharCounter() {
+  const ta = document.getElementById('cm_body');
+  if (!ta) return;
+  ta.addEventListener('input', updateCommentCharCount);
+  updateCommentCharCount();
+}
+
+function updateCommentCharCount() {
+  const ta = document.getElementById('cm_body');
+  const out = document.getElementById('commentCharCount');
+  if (!ta || !out) return;
+  out.textContent = String(ta.value.length || 0);
+}
+
+async function submitCommentForm(e) {
+  e.preventDefault();
+  const form = e.target;
+  const btnId = 'commentBtn';
+  const msgId = 'commentMsg';
+
+  setSubmitState(btnId, 'verifying');
+  showMsg(msgId, '', false);
+
+  const data = Object.fromEntries(new FormData(form).entries());
+  if (!ensureTurnstileReady(form, msgId, btnId, data)) {
+    return;
+  }
+
+  data.sourcePage = window.location.pathname || '/';
+
+  try {
+    setSubmitState(btnId, 'sending');
+    const res = await fetch(`${API_BASE}/api/comment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      cache: 'no-store',
+      body: JSON.stringify(data),
+    });
+    const contentType = String(res.headers.get('content-type') || '');
+    const json = contentType.includes('application/json')
+      ? await res.json()
+      : { success: false, error: 'The metis service returned an unexpected response. Please try again in a moment.' };
+
+    if (res.ok && json.success) {
+      showMsg(msgId, json.message || 'Pinned!', false);
+      setSubmitState(btnId, 'sent');
+      form.reset();
+      updateCommentCharCount();
+      resetTurnstileWidget(form.id);
+      setTimeout(() => {
+        closeModal('commentModal');
+        loadAndRenderWall({ refresh: true });
+      }, 1200);
+    } else {
+      showMsg(msgId, json.error || 'Could not pin your note. Please try again.', true);
+      setSubmitState(btnId, 'failed');
+      resetTurnstileWidget(form.id);
+    }
+  } catch {
+    showMsg(
+      msgId,
+      API_BASE
+        ? 'We could not reach the metis service right now. Please try again in a moment.'
+        : 'The metis service is not configured right now. Please refresh and try again.',
+      true
+    );
+    setSubmitState(btnId, 'failed');
+    resetTurnstileWidget(form.id);
+  }
+}
+
+let WALL_COMMENTS_CACHE = null;
+
+async function fetchComments() {
+  if (!API_BASE) return [];
+  try {
+    const res = await fetch(`${API_BASE}/api/comments`, {
+      method: 'GET',
+      cache: 'no-store',
+      credentials: 'same-origin',
+    });
+    const json = await res.json();
+    if (json && json.success && Array.isArray(json.comments)) {
+      return json.comments;
+    }
+  } catch {}
+  return [];
+}
+
+function pickRandom(list, n) {
+  const copy = list.slice();
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy.slice(0, n);
+}
+
+function escapeHtml(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function formatRelative(iso) {
+  if (!iso) return '';
+  const then = new Date(iso).getTime();
+  if (!Number.isFinite(then)) return '';
+  const diff = Math.max(0, Date.now() - then);
+  const day = 86400000;
+  if (diff < 60000) return 'just now';
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m`;
+  if (diff < day) return `${Math.floor(diff / 3600000)}h`;
+  if (diff < day * 30) return `${Math.floor(diff / day)}d`;
+  if (diff < day * 365) return `${Math.floor(diff / (day * 30))}mo`;
+  return `${Math.floor(diff / (day * 365))}y`;
+}
+
+function buildWallCard(comment, opts = {}) {
+  const card = document.createElement('article');
+  card.className = 'wall-card';
+  card.dataset.id = String(comment.id || '');
+  if (opts.layout) {
+    card.style.left = opts.layout.left;
+    card.style.top = opts.layout.top;
+    card.style.setProperty('--rot', `${opts.layout.rot}deg`);
+  }
+  const safeName = (comment.name || '').trim() || 'Anonymous';
+  card.innerHTML = `
+    <div class="wall-card-body">${escapeHtml(comment.body || '')}</div>
+    <div class="wall-card-meta">
+      <span class="wall-card-name">${escapeHtml(safeName)}</span>
+      <span class="wall-card-time">${escapeHtml(formatRelative(comment.created_at))}</span>
+    </div>
+  `;
+  attachCardPhysics(card, { draggable: !!opts.draggable });
+  return card;
+}
+
+function attachCardPhysics(card, { draggable }) {
+  let pressActive = false;
+  let dragActive = false;
+  let dragStartX = 0;
+  let dragStartY = 0;
+  let cardStartX = 0;
+  let cardStartY = 0;
+  let pointerId = null;
+
+  function onPointerMove(e) {
+    if (e.pointerId !== pointerId) return;
+    if (dragActive) {
+      const dx = e.clientX - dragStartX;
+      const dy = e.clientY - dragStartY;
+      card.style.setProperty('--x', `${cardStartX + dx}px`);
+      card.style.setProperty('--y', `${cardStartY + dy}px`);
+      return;
+    }
+    if (!pressActive) return;
+    const rect = card.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const dx = (e.clientX - cx) / (rect.width / 2);
+    const dy = (e.clientY - cy) / (rect.height / 2);
+    const max = 14;
+    card.style.setProperty('--tilt-y', `${Math.max(-1, Math.min(1, dx)) * max}deg`);
+    card.style.setProperty('--tilt-x', `${Math.max(-1, Math.min(1, dy)) * -max}deg`);
+    card.style.setProperty('--tilt-z', `-6px`);
+  }
+
+  function endInteraction() {
+    if (pointerId !== null) {
+      try { card.releasePointerCapture(pointerId); } catch {}
+    }
+    pointerId = null;
+    pressActive = false;
+    dragActive = false;
+    card.classList.remove('is-pressed');
+    card.classList.remove('is-dragging');
+    card.style.setProperty('--tilt-x', '0deg');
+    card.style.setProperty('--tilt-y', '0deg');
+    card.style.setProperty('--tilt-z', '0px');
+    window.removeEventListener('pointermove', onPointerMove);
+    window.removeEventListener('pointerup', endInteraction);
+    window.removeEventListener('pointercancel', endInteraction);
+  }
+
+  function onHoverMove(e) {
+    if (pressActive || dragActive) return;
+    const rect = card.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const dx = (e.clientX - cx) / (rect.width / 2);
+    const dy = (e.clientY - cy) / (rect.height / 2);
+    const max = 6;
+    card.style.setProperty('--tilt-y', `${Math.max(-1, Math.min(1, dx)) * max}deg`);
+    card.style.setProperty('--tilt-x', `${Math.max(-1, Math.min(1, dy)) * -max}deg`);
+  }
+
+  function onHoverLeave() {
+    if (pressActive || dragActive) return;
+    card.style.setProperty('--tilt-x', '0deg');
+    card.style.setProperty('--tilt-y', '0deg');
+  }
+
+  card.addEventListener('pointermove', onHoverMove);
+  card.addEventListener('pointerleave', onHoverLeave);
+
+  card.addEventListener('pointerdown', (e) => {
+    pointerId = e.pointerId;
+    try { card.setPointerCapture(pointerId); } catch {}
+    pressActive = true;
+    card.classList.add('is-pressed');
+    if (draggable) {
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
+      const cssX = parseFloat(card.style.getPropertyValue('--x')) || 0;
+      const cssY = parseFloat(card.style.getPropertyValue('--y')) || 0;
+      cardStartX = cssX;
+      cardStartY = cssY;
+      let moved = false;
+      const onFirstMove = (ev) => {
+        if (ev.pointerId !== pointerId) return;
+        const adx = Math.abs(ev.clientX - dragStartX);
+        const ady = Math.abs(ev.clientY - dragStartY);
+        if (!moved && (adx > 4 || ady > 4)) {
+          moved = true;
+          dragActive = true;
+          card.classList.add('is-dragging');
+          window.removeEventListener('pointermove', onFirstMove);
+        }
+      };
+      window.addEventListener('pointermove', onFirstMove);
+    }
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', endInteraction);
+    window.addEventListener('pointercancel', endInteraction);
+  });
+}
+
+function renderWallTeaser(bed, comments) {
+  bed.querySelectorAll('.wall-card').forEach((node) => node.remove());
+  const empty = bed.querySelector('[data-wall-empty]');
+  if (!comments.length) {
+    bed.classList.add('is-empty');
+    if (empty) empty.hidden = false;
+    return;
+  }
+  bed.classList.remove('is-empty');
+  if (empty) empty.hidden = true;
+  const pool = comments.length > 4 ? pickRandom(comments, 4) : comments.slice(0, 4);
+  pool.forEach((comment, index) => {
+    const layout = WALL_TEASER_LAYOUT[index] || WALL_TEASER_LAYOUT[index % WALL_TEASER_LAYOUT.length];
+    const card = buildWallCard(comment, { layout, draggable: false });
+    bed.appendChild(card);
+  });
+}
+
+function renderWallCanvas(canvas, comments) {
+  canvas.querySelectorAll('.wall-card').forEach((node) => node.remove());
+  const empty = canvas.querySelector('#wallEmpty');
+  if (!comments.length) {
+    if (empty) empty.hidden = false;
+    return;
+  }
+  if (empty) empty.hidden = true;
+
+  const rect = canvas.getBoundingClientRect();
+  const W = rect.width || 800;
+  const H = rect.height || 600;
+  const cardW = Math.min(280, Math.max(220, W * 0.18));
+  const cardH = 150;
+  const colW = cardW * 1.05;
+  const cols = Math.max(2, Math.floor(W / colW));
+  const padX = 24;
+  const padY = 24;
+  const stride = (W - padX * 2 - cardW) / Math.max(1, cols - 1);
+
+  comments.forEach((comment, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const jitterX = (Math.random() - 0.5) * Math.min(40, stride * 0.18);
+    const jitterY = (Math.random() - 0.5) * 18;
+    const left = padX + col * stride + jitterX;
+    const top = padY + row * (cardH * 0.92) + jitterY;
+    const rot = (Math.random() - 0.5) * 8;
+    const card = buildWallCard(comment, {
+      layout: { left: `${left}px`, top: `${Math.min(top, H - cardH - 8)}px`, rot },
+      draggable: true,
+    });
+    canvas.appendChild(card);
+  });
+}
+
+async function loadAndRenderWall(opts = {}) {
+  const teaser = document.querySelector('[data-wall-bed]');
+  const canvas = document.querySelector('[data-wall-canvas]');
+  const counter = document.getElementById('wallCount');
+  if (!teaser && !canvas) return;
+
+  if (!WALL_COMMENTS_CACHE || opts.refresh) {
+    WALL_COMMENTS_CACHE = await fetchComments();
+  }
+  const comments = WALL_COMMENTS_CACHE || [];
+
+  if (counter) {
+    const n = comments.length;
+    counter.textContent = `${n} ${n === 1 ? 'note' : 'notes'} pinned`;
+  }
+  document.querySelectorAll('[data-wall-header-action]').forEach((action) => {
+    action.hidden = !comments.length;
+  });
+  if (teaser) renderWallTeaser(teaser, comments);
+  if (canvas) renderWallCanvas(canvas, comments);
+}
+
+function initWall() {
+  if (!document.querySelector('[data-wall-bed]') && !document.querySelector('[data-wall-canvas]')) {
+    return;
+  }
+  loadAndRenderWall();
+}

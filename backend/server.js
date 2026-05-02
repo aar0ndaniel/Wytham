@@ -71,6 +71,7 @@ const RATE_POLICIES = Object.freeze({
   signup: { limit: 5, windowMs: 10 * 60 * 1000 },
   donate: { limit: 5, windowMs: 10 * 60 * 1000 },
   beta: { limit: 60, windowMs: 10 * 60 * 1000 },
+  comment: { limit: 4, windowMs: 10 * 60 * 1000 },
   'admin-login': { limit: 10, windowMs: 10 * 60 * 1000 },
 });
 const RATE_SWEEP_INTERVAL_MS = 60 * 1000;
@@ -137,6 +138,25 @@ const donateSchema = z
     }
   });
 
+const commentSchema = z
+  .object({
+    name: z.string().optional().default(''),
+    body: z.string({ error: 'Please write a short note.' }),
+    hp_field: z.string().optional().default(''),
+    sourcePage: z.string().optional().default(''),
+  })
+  .transform((input) => ({
+    name: clean(input.name, 60),
+    body: clean(input.body, 280),
+    hp_field: clean(input.hp_field, 200),
+    source_page: clean(input.sourcePage, 120),
+  }))
+  .superRefine((input, ctx) => {
+    if (!input.body || input.body.length < 4) {
+      ctx.addIssue({ code: 'custom', message: 'Please write a short note (at least 4 characters).', path: ['body'] });
+    }
+  });
+
 const adminLoginSchema = z.object({
   username: z
     .string({ error: 'Please enter your username.' })
@@ -181,8 +201,17 @@ db.exec(`
     user_agent TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL DEFAULT '',
+    body TEXT NOT NULL,
+    ip_address TEXT NOT NULL DEFAULT '',
+    user_agent TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL
+  );
   CREATE INDEX IF NOT EXISTS idx_signups_created_at ON signups(created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_signups_edition ON signups(edition);
+  CREATE INDEX IF NOT EXISTS idx_comments_created_at ON comments(created_at DESC);
 `);
 
 const statements = {
@@ -274,6 +303,17 @@ const statements = {
     SELECT name, email, institution, country, role, edition, created_at, email_status, beta_visits
     FROM signups
     ORDER BY created_at DESC
+  `),
+  insertComment: db.prepare(`
+    INSERT INTO comments (
+      name, body, ip_address, user_agent, created_at
+    ) VALUES (?, ?, ?, ?, ?)
+  `),
+  recentComments: db.prepare(`
+    SELECT id, name, body, created_at
+    FROM comments
+    ORDER BY created_at DESC
+    LIMIT ?
   `),
 };
 
@@ -3734,6 +3774,28 @@ function createLegacySqliteStore() {
 
       return { data: statements.byEmail.get(email) || null, error: null };
     },
+
+    async insertComment(comment) {
+      const result = statements.insertComment.run(
+        comment.name || '',
+        comment.body,
+        comment.ip_address || '',
+        comment.user_agent || '',
+        comment.created_at
+      );
+      const row = {
+        id: Number(result.lastInsertRowid) || null,
+        name: comment.name || '',
+        body: comment.body,
+        created_at: comment.created_at,
+      };
+      return { data: row, error: null };
+    },
+
+    async listRecentComments(limit = 200) {
+      const rows = statements.recentComments.all(Number(limit) || 200) || [];
+      return { data: rows, error: null };
+    },
   };
 }
 
@@ -4046,6 +4108,81 @@ function createApp(options = {}) {
       );
 
       return res.json({ success: true, message: 'Thank you for your support! We will be in touch.' });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  hostedApp.get('/api/comments', async (req, res, next) => {
+    try {
+      if (!originAllowed(req, currentConfig.allowedOrigins)) {
+        return res.status(403).json({ success: false, error: 'Origin not allowed.' });
+      }
+      res.setHeader('Cache-Control', 'public, max-age=20');
+      const limit = Math.max(1, Math.min(200, Number(req.query.limit) || 200));
+      const rows = (await readStoreResult(store.listRecentComments(limit))) || [];
+      const sanitized = rows.map((row) => ({
+        id: row.id,
+        name: clean(row.name || '', 60),
+        body: clean(row.body || '', 280),
+        created_at: row.created_at,
+      }));
+      return res.json({ success: true, comments: sanitized });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  hostedApp.post('/api/comment', async (req, res, next) => {
+    try {
+      if (!originAllowed(req, currentConfig.allowedOrigins)) {
+        return res.status(403).json({ success: false, error: 'Origin not allowed.' });
+      }
+
+      res.setHeader('Cache-Control', 'no-store');
+      const ip = clientIp(req);
+      const verification = await verifyTurnstile({
+        action: 'comment',
+        ip,
+        req,
+        token: req.body?.['cf-turnstile-response'] || req.body?.turnstileToken,
+      });
+      if (!verification || !verification.success) {
+        return res.status(verification?.statusCode || 403).json({
+          success: false,
+          error: verification?.error || 'Verification failed. Please try again.',
+        });
+      }
+      if (!allowRate(ip, 'comment')) {
+        return res.status(429).json({ success: false, error: 'You have pinned a few notes already. Please come back in a bit.' });
+      }
+
+      const parsed = commentSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          success: false,
+          error: firstValidationMessage(parsed.error, 'Please write a short note and try again.'),
+        });
+      }
+
+      const body = parsed.data;
+      if (body.hp_field) {
+        tripRateLimit(ip, 'comment');
+        return res.json({ success: true, message: 'Pinned!' });
+      }
+
+      const displayName = body.name && body.name.trim() ? body.name.trim() : 'Anonymous';
+      await readStoreResult(
+        store.insertComment({
+          name: displayName,
+          body: body.body,
+          ip_address: ip,
+          user_agent: cut(req.headers['user-agent'], 300),
+          created_at: new Date().toISOString(),
+        })
+      );
+
+      return res.json({ success: true, message: 'Pinned to the wall.' });
     } catch (error) {
       return next(error);
     }

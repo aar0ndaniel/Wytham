@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" type="image/png" href="/metis-logo-light-nav.png" />
-  <title>Contact &mdash; metis</title>
-  <meta name="description" content="Contact metis for support, collaborations, and institutional inquiries." />
+  <title>The Wall &mdash; metis</title>
+  <meta name="description" content="Voices from researchers waiting to use metis. Drag a card, press a corner, leave your own note." />
   <link rel="stylesheet" href="style.css?v=20260502a" />
   <link rel="stylesheet" href="vendor/phosphor/regular/style.css" />
   <link rel="stylesheet" href="vendor/phosphor/fill/style.css" />
@@ -20,100 +20,70 @@
   <!-- NAV -->
   <nav class="nav"></nav>
 
-  <main class="contact-main">
-    <section class="contact-card fade-up">
-      <header class="contact-head">
-        <span class="contact-eyebrow">contact</span>
-        <h1 class="contact-title">Say&nbsp;hello.</h1>
-        <p class="contact-lede">
-          A small team that reads every message. Reach the person closest to your
-          question &mdash; we usually reply within a working day.
+  <main class="wall-main">
+    <header class="wall-header">
+      <div class="wall-header-inner">
+        <span class="contact-eyebrow">the wall</span>
+        <h1 class="wall-title"><span class="wall-title-accent">Voices</span>&nbsp;before&nbsp;launch.</h1>
+        <p class="wall-lede">
+          Notes pinned by people who can&rsquo;t wait to use metis &mdash; and who want
+          you to join them on the waitlist.
         </p>
-      </header>
-
-      <div class="contact-grid">
-        <article class="contact-detail">
-          <div class="contact-label">general</div>
-          <a class="contact-line contact-line-strong" href="mailto:aaronakuteye@gmail.com">aaronakuteye@gmail.com</a>
-          <span class="contact-line">Aaron Daniel Akuteye</span>
-          <span class="contact-line-meta">project lead</span>
-        </article>
-
-        <article class="contact-detail">
-          <div class="contact-label">research</div>
-          <a class="contact-line contact-line-strong" href="mailto:Hbessel.art@knust.edu.gh">Hbessel.art@knust.edu.gh</a>
-          <span class="contact-line">Dr. Harry Barton Essel</span>
-          <span class="contact-line-meta">supervising faculty &middot; KNUST</span>
-        </article>
-
-        <article class="contact-detail">
-          <div class="contact-label">support</div>
-          <a class="contact-line contact-line-strong" href="mailto:hbessel.art@knust.edu.gh?bcc=aaronakuteye@gmail.com&subject=metis%20support">support&nbsp;metis</a>
-          <span class="contact-line">Help keep the tool free</span>
-          <span class="contact-line-meta">donations &middot; sponsorships</span>
-        </article>
-
-        <article class="contact-detail">
-          <div class="contact-label">community</div>
-          <a class="contact-line contact-line-strong" href="wall.html">the wall</a>
-          <span class="contact-line">Read what early users are saying</span>
-          <span class="contact-line-meta">leave your own note</span>
-        </article>
-      </div>
-
-      <div class="contact-stage-row">
-        <div class="contact-art-panel" aria-hidden="true">
-          <div class="contact-art-stage">
-            <svg class="contact-geo" viewBox="0 0 880 260" xmlns="http://www.w3.org/2000/svg" role="presentation" aria-hidden="true">
-              <g transform="translate(36,8)">
-                <polygon class="geo-top" points="170,22 232,52 170,82 108,52"/>
-                <polygon class="geo-left" points="108,52 170,82 170,142 108,112"/>
-                <polygon class="geo-right" points="170,82 232,52 232,112 170,142"/>
-
-                <polygon class="geo-top" points="294,22 356,52 294,82 232,52"/>
-                <polygon class="geo-left" points="232,52 294,82 294,142 232,112"/>
-                <polygon class="geo-right" points="294,82 356,52 356,112 294,142"/>
-
-                <polygon class="geo-top" points="418,22 480,52 418,82 356,52"/>
-                <polygon class="geo-left" points="356,52 418,82 418,142 356,112"/>
-                <polygon class="geo-right" points="418,82 480,52 480,112 418,142"/>
-
-                <polygon class="geo-top" points="232,82 294,112 232,142 170,112"/>
-                <polygon class="geo-left" points="170,112 232,142 232,202 170,172"/>
-                <polygon class="geo-right" points="232,142 294,112 294,172 232,202"/>
-
-                <polygon class="geo-top" points="356,82 418,112 356,142 294,112"/>
-                <polygon class="geo-left" points="294,112 356,142 356,202 294,172"/>
-                <polygon class="geo-right" points="356,142 418,112 418,172 356,202"/>
-
-                <polygon class="geo-top" points="480,82 542,112 480,142 418,112"/>
-                <polygon class="geo-left" points="418,112 480,142 480,202 418,172"/>
-                <polygon class="geo-right" points="480,142 542,112 542,172 480,202"/>
-
-                <polygon class="geo-top" points="604,82 666,112 604,142 542,112"/>
-                <polygon class="geo-left" points="542,112 604,142 604,202 542,172"/>
-                <polygon class="geo-right" points="604,142 666,112 666,172 604,202"/>
-              </g>
-            </svg>
-          </div>
-          <div class="contact-art-caption">
-            <span class="contact-art-caption-label">field notes</span>
-            <span class="contact-art-caption-text">Built in Kumasi &middot; calm tools for serious work</span>
-          </div>
+        <div class="wall-meta">
+          <span class="wall-meta-pill" id="wallCount" aria-live="polite">loading&hellip;</span>
         </div>
+      </div>
+    </header>
 
-        <nav class="contact-link-row" aria-label="Contact quick links">
-          <a href="docs.html"><i class="ph ph-book-open" aria-hidden="true"></i><span>Docs</span></a>
-          <a href="team.html"><i class="ph ph-users-three" aria-hidden="true"></i><span>Team</span></a>
-          <a href="updates.html"><i class="ph ph-sparkle" aria-hidden="true"></i><span>Updates</span></a>
-          <a href="wall.html"><i class="ph ph-chat-circle-dots" aria-hidden="true"></i><span>Wall</span></a>
-          <a href="index.html"><i class="ph ph-arrow-up-left" aria-hidden="true"></i><span>Home</span></a>
-        </nav>
+    <section class="wall-canvas-section">
+      <div class="wall-canvas" id="wallCanvas" data-wall-canvas>
+        <div class="wall-empty" id="wallEmpty" hidden>
+          <i class="ph ph-chat-circle-dots" aria-hidden="true"></i>
+          <p>Be the first to add your voice to the wall.</p>
+        </div>
       </div>
     </section>
   </main>
 
-  <!-- MODALS -->
+  <button class="wall-fab wall-fab-fixed" type="button" data-action="open-comment" aria-label="Make a mark on the wall">
+    <i class="ph-fill ph-plus-circle" aria-hidden="true"></i>
+    <span class="wall-fab-label">make a mark on the wall</span>
+  </button>
+
+  <div id="commentModal" class="modal-overlay" data-close-on-overlay="true">
+    <div class="modal modal-comment">
+      <button class="modal-close" type="button" data-action="close-modal" data-modal="commentModal" aria-label="Close">&times;</button>
+      <h2 class="modal-title">Pin a note to the wall</h2>
+      <p class="modal-sub">Tell us why you&rsquo;re excited &mdash; or rally a friend to join the waitlist. Anonymous works too.</p>
+      <form class="secure-form" id="commentForm">
+        <div class="hp-field" aria-hidden="true">
+          <label for="hp_comment">Leave this blank</label>
+          <input type="text" id="hp_comment" name="hp_field" tabindex="-1" autocomplete="off"/>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="cm_name">Display name <span class="form-optional">(optional)</span></label>
+          <input class="form-input" type="text" id="cm_name" name="name" maxlength="60" placeholder="Anonymous" autocomplete="nickname"/>
+        </div>
+        <div class="form-row">
+          <label class="form-label" for="cm_body">Your note <span class="req">*</span></label>
+          <textarea class="form-input form-textarea" id="cm_body" name="body" required maxlength="280" rows="4" placeholder="Counting down the days&hellip; my whole lab needs this." data-charcount="commentCharCount"></textarea>
+          <div class="form-charcount"><span id="commentCharCount">0</span>/280</div>
+        </div>
+        <div class="form-security-block">
+          <div class="turnstile-shell">
+            <div class="turnstile-slot" id="commentTurnstile" data-form-id="commentForm"></div>
+          </div>
+          <p class="form-security-note">Protected by Cloudflare Turnstile.</p>
+        </div>
+        <div class="form-msg" id="commentMsg" aria-live="polite"></div>
+        <button class="btn-primary form-submit" type="submit" id="commentBtn">
+          <span class="btn-label">pin to the wall</span>
+          <span class="btn-spinner" aria-hidden="true"></span>
+        </button>
+      </form>
+    </div>
+  </div>
+
   <div id="downloadModal" class="modal-overlay" data-close-on-overlay="true">
     <div class="modal">
       <button class="modal-close" type="button" data-action="close-modal" data-modal="downloadModal" aria-label="Close">&times;</button>
@@ -228,38 +198,5 @@
     </div>
   </div>
 
-  <div id="commentModal" class="modal-overlay" data-close-on-overlay="true">
-    <div class="modal modal-comment">
-      <button class="modal-close" type="button" data-action="close-modal" data-modal="commentModal" aria-label="Close">&times;</button>
-      <h2 class="modal-title">Pin a note to the wall</h2>
-      <p class="modal-sub">Tell us why you&rsquo;re excited &mdash; or rally a friend to join the waitlist. Anonymous works too.</p>
-      <form class="secure-form" id="commentForm">
-        <div class="hp-field" aria-hidden="true">
-          <label for="hp_comment">Leave this blank</label>
-          <input type="text" id="hp_comment" name="hp_field" tabindex="-1" autocomplete="off"/>
-        </div>
-        <div class="form-row">
-          <label class="form-label" for="cm_name">Display name <span class="form-optional">(optional)</span></label>
-          <input class="form-input" type="text" id="cm_name" name="name" maxlength="60" placeholder="Anonymous" autocomplete="nickname"/>
-        </div>
-        <div class="form-row">
-          <label class="form-label" for="cm_body">Your note <span class="req">*</span></label>
-          <textarea class="form-input form-textarea" id="cm_body" name="body" required maxlength="280" rows="4" placeholder="Counting down the days&hellip; my whole lab needs this." data-charcount="commentCharCount"></textarea>
-          <div class="form-charcount"><span id="commentCharCount">0</span>/280</div>
-        </div>
-        <div class="form-security-block">
-          <div class="turnstile-shell">
-            <div class="turnstile-slot" id="commentTurnstile" data-form-id="commentForm"></div>
-          </div>
-          <p class="form-security-note">Protected by Cloudflare Turnstile.</p>
-        </div>
-        <div class="form-msg" id="commentMsg" aria-live="polite"></div>
-        <button class="btn-primary form-submit" type="submit" id="commentBtn">
-          <span class="btn-label">pin to the wall</span>
-          <span class="btn-spinner" aria-hidden="true"></span>
-        </button>
-      </form>
-    </div>
-  </div>
 </body>
 </html>
