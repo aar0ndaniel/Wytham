@@ -8,7 +8,7 @@
   <title>metis</title>
   <meta name="description"
     content="metis brings model design, calculation, and interpretation into one research-grade desktop environment for PLS-SEM, built on R and seminr." />
-  <link rel="stylesheet" href="style.css?v=20260408i" />
+  <link rel="stylesheet" href="style.css?v=20260503p" />
   <link rel="stylesheet" href="vendor/phosphor/regular/style.css" />
   <link rel="stylesheet" href="vendor/phosphor/fill/style.css" />
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/regular/style.css" />
@@ -1849,7 +1849,8 @@
         </div>
       </div>
       <div class="footer-bottom">
-        <span class="footer-copyright">© 2026 metis</span>
+        <span class="footer-copyright">© 2026 Metis. All rights reserved.</span>
+        <span class="footer-legal-links"><a href="privacy.html">Privacy Policy</a><span aria-hidden="true">·</span><a href="terms.html">Beta Terms</a><span aria-hidden="true">·</span><a href="contact.html">Contact</a></span>
       </div>
     </div>
   </footer>
@@ -1912,6 +1913,22 @@
               <option value="lite">Lite (75 MB), requires R already installed</option>
             </select>
           </div>
+        </div>
+        <input type="hidden" name="privacyPolicyVersion" value="1.0" />
+        <input type="hidden" name="termsVersion" value="1.0" />
+        <div class="form-consent-stack">
+          <label class="form-check-row" for="su_terms">
+            <input class="form-check-input" type="checkbox" id="su_terms" name="termsAccepted" value="yes" required />
+            <span class="form-check-copy">I agree to the <a href="terms.html" target="_blank" rel="noopener">Metis Beta Terms</a> and understand that Metis is pre-release Windows beta software that may contain bugs, crashes, incomplete features, or incorrect outputs.</span>
+          </label>
+          <label class="form-check-row" for="su_privacy">
+            <input class="form-check-input" type="checkbox" id="su_privacy" name="privacyAccepted" value="yes" required />
+            <span class="form-check-copy">I agree that Metis may process my registration details and feedback according to the <a href="privacy.html" target="_blank" rel="noopener">Metis Privacy Policy</a>.</span>
+          </label>
+          <label class="form-check-row" for="su_marketing">
+            <input class="form-check-input" type="checkbox" id="su_marketing" name="marketingOptIn" value="yes" />
+            <span class="form-check-copy">I would like to receive future Metis product news, launch updates, and research-related announcements. I understand I can unsubscribe at any time.</span>
+          </label>
         </div>
         <div class="form-security-block">
           <div class="turnstile-shell">
