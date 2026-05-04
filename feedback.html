@@ -32,15 +32,69 @@
     }
 
     .contact-title-accent {
-      color: var(--accent);
+      color: #d8b11e;
     }
 
     .contact-form-wrap {
-      padding: clamp(24px, 4vw, 42px);
+      padding: clamp(30px, 5vw, 56px);
       border: 1px solid var(--border);
       border-radius: 8px;
       background: var(--surface);
       box-shadow: 0 24px 80px rgba(0, 0, 0, 0.16);
+    }
+
+    .feedback-step1-grid {
+      display: grid;
+      gap: 28px;
+      margin-bottom: 24px;
+    }
+
+    .feedback-row {
+      display: grid;
+      gap: 18px;
+    }
+
+    .feedback-row-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .feedback-row-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .feedback-row-4 { grid-template-columns: 1.54fr 0.91fr 0.9fr 0.9fr; }
+
+    .feedback-row .form-col {
+      min-width: 0;
+    }
+
+    .contact-form-wrap .form-input,
+    .contact-form-wrap .form-select,
+    .contact-form-wrap .form-textarea {
+      background: transparent;
+      border: 1px solid rgba(54, 54, 54, 0.72);
+      box-shadow: none;
+    }
+
+    .contact-form-wrap .form-input:focus,
+    .contact-form-wrap .form-select:focus,
+    .contact-form-wrap .form-textarea:focus {
+      border-color: rgba(54, 54, 54, 0.92);
+      box-shadow: 0 0 0 3px rgba(54, 54, 54, 0.08);
+      background: transparent;
+    }
+
+    .contact-form-wrap .form-select {
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      padding-right: 40px;
+    }
+
+    .wizard-step#step2 .form-row {
+      margin-top: 2.75rem;
+    }
+
+    .wizard-step#step2 .form-row:first-of-type {
+      margin-top: 2rem;
+    }
+
+    .wizard-step#step2 .helper-copy {
+      margin-top: 14px;
     }
 
     .theme-light .contact-form-wrap,
@@ -74,7 +128,7 @@
       height: 2px;
       background: var(--border);
     }
-    .wizard-step-pill.is-done::after { background: var(--accent); }
+    .wizard-step-pill.is-done::after { background: #7b9c3a; }
     .wizard-step-dot {
       width: 32px;
       height: 32px;
@@ -96,8 +150,8 @@
       color: #fff;
     }
     .wizard-step-pill.is-done .wizard-step-dot {
-      border-color: var(--accent);
-      background: var(--accent);
+      border-color: #7b9c3a;
+      background: #7b9c3a;
       color: #fff;
     }
     .wizard-step-label {
@@ -106,7 +160,13 @@
       text-align: center;
       white-space: nowrap;
     }
-    .wizard-step-pill.is-active .wizard-step-label { color: var(--text); font-weight: 600; }
+    .wizard-step-pill.is-active .wizard-step-label,
+    .wizard-step-label {
+      color: #d8b11e;
+    }
+    .wizard-step-pill.is-done .wizard-step-label {
+      color: #7b9c3a;
+    }
 
     /* Wizard steps */
     .wizard-step { display: none; }
@@ -124,6 +184,7 @@
       border-bottom: 1px solid var(--border);
     }
     .form-section-heading:first-child { margin-top: 0; }
+    .form-section-heading--accent { color: #d8b11e; }
 
     /* Likert scale */
     .likert-row {
@@ -176,27 +237,48 @@
 
     /* Checkbox grid */
     .checkbox-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      gap: 12px;
       margin-top: 0.5rem;
     }
     .checkbox-item {
-      display: flex;
+      display: inline-flex;
       align-items: center;
-      gap: 10px;
-      padding: 10px 12px;
-      border: 1.5px solid var(--border);
-      border-radius: 8px;
+      gap: 12px;
+      padding: 10px 14px;
+      border: 1.5px solid rgba(54, 54, 54, 0.38);
+      border-radius: 100px;
+      min-height: 42px;
+      width: fit-content;
+      background: transparent;
       cursor: pointer;
-      transition: border-color 0.12s;
+      transition: border-color 0.12s, background 0.12s, color 0.12s, box-shadow 0.12s;
+      position: relative;
     }
-    .checkbox-item:has(input:checked) { border-color: var(--accent); }
-    .checkbox-item input[type="checkbox"] { accent-color: var(--accent); }
-    .checkbox-item span { font-size: 13px; line-height: 1.4; }
+    .checkbox-item input[type="checkbox"] {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .checkbox-item .checkbox-label-text {
+      font-size: 12px;
+      line-height: 1.4;
+      flex: 1;
+    }
+    .checkbox-item:has(input:checked) {
+      border-color: rgba(118, 132, 72, 0.9);
+      background: rgba(118, 132, 72, 0.12);
+      box-shadow: inset 0 0 0 1px rgba(118, 132, 72, 0.06);
+      color: #405027;
+    }
+    .checkbox-item:has(input:checked) .checkbox-label-text { color: #405027; }
+    .checkbox-item:has(input:checked):hover { border-color: rgba(118, 132, 72, 0.98); }
+    .checkbox-item:hover { border-color: rgba(54, 54, 54, 0.62); }
 
     .helper-copy {
-      margin: 6px 0 0;
+      margin: 14px 0 0;
       color: var(--text-muted);
       font-size: 12px;
       line-height: 1.55;
@@ -233,26 +315,37 @@
 
     /* Adoption rating */
     .adoption-rating {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
       margin-top: 0.5rem;
+      align-items: stretch;
     }
     .adoption-option input[type="radio"] { display: none; }
+    .adoption-option {
+      width: 100%;
+      display: flex;
+    }
     .adoption-option span {
-      padding: 8px 18px;
-      border-radius: 8px;
+      width: 100%;
+      height: 100%;
+      min-height: 82px;
+      padding: 14px 10px;
+      border-radius: 14px;
       border: 1.5px solid var(--border);
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
       cursor: pointer;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 2px;
+      justify-content: center;
+      gap: 4px;
       transition: background 0.12s, border-color 0.12s;
+      text-align: center;
+      box-sizing: border-box;
     }
-    .adoption-option span small { font-weight: 400; font-size: 10px; color: var(--text-muted); }
+    .adoption-option span small { font-weight: 400; font-size: 10px; color: var(--text-muted); line-height: 1.2; }
     .adoption-option input:checked + span {
       background: var(--accent);
       border-color: var(--accent);
@@ -260,11 +353,131 @@
     }
     .adoption-option input:checked + span small { color: rgba(255,255,255,0.8); }
 
+    .wizard-step#step3 .form-row {
+      margin-top: 2.5rem;
+    }
+
+    .wizard-step#step3 .form-row:first-of-type {
+      margin-top: 2rem;
+    }
+
+    .wizard-step#step3 .form-row + .form-row {
+      margin-top: 2.5rem;
+    }
+
+    .wizard-step#step3 .form-row + .form-row + .form-row {
+      margin-top: 2.75rem;
+    }
+
+    .wizard-step#step3 .form-row + .form-row + .form-row + .form-row {
+      margin-top: 2.75rem;
+    }
+
+    .wizard-step#step3 .form-input,
+    .wizard-step#step3 .form-textarea {
+      background: transparent;
+      border: 1px solid rgba(54, 54, 54, 0.72);
+      box-shadow: none;
+    }
+
+    .wizard-step#step3 .form-input:focus,
+    .wizard-step#step3 .form-textarea:focus {
+      background: transparent;
+      border-color: rgba(54, 54, 54, 0.92);
+      box-shadow: 0 0 0 3px rgba(54, 54, 54, 0.08);
+    }
+
+    .likert-option input[type="radio"]:checked + span,
+    .adoption-option input[type="radio"]:checked + span {
+      color: #111;
+      border-color: transparent;
+    }
+
+    .likert-option input[type="radio"][value="1"]:checked + span,
+    .adoption-option input[type="radio"][value="1"]:checked + span {
+      background: rgba(198, 162, 75, 0.10);
+    }
+
+    .likert-option input[type="radio"][value="2"]:checked + span,
+    .adoption-option input[type="radio"][value="2"]:checked + span {
+      background: rgba(198, 162, 75, 0.25);
+    }
+
+    .likert-option input[type="radio"][value="3"]:checked + span,
+    .adoption-option input[type="radio"][value="3"]:checked + span {
+      background: rgba(198, 162, 75, 0.50);
+    }
+
+    .likert-option input[type="radio"][value="4"]:checked + span,
+    .adoption-option input[type="radio"][value="4"]:checked + span {
+      background: rgba(198, 162, 75, 0.75);
+    }
+
+    .likert-option input[type="radio"][value="5"]:checked + span,
+    .adoption-option input[type="radio"][value="5"]:checked + span {
+      background: #C6A24B;
+    }
+
+    .likert-option input[type="radio"]:checked + span small,
+    .adoption-option input[type="radio"]:checked + span small {
+      color: rgba(17, 17, 17, 0.8);
+    }
+
+    .form-security-block {
+      padding-top: 50px;
+    }
+
+    .turnstile-shell {
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .turnstile-slot {
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+    }
+
     @media (max-width: 600px) {
       .likert-row { grid-template-columns: 1fr; }
       .likert-options { flex-wrap: wrap; }
       .wizard-progress { gap: 0; }
       .wizard-step-label { font-size: 10px; }
+
+      .feedback-row-2,
+      .feedback-row-3,
+      .feedback-row-4 {
+        grid-template-columns: 1fr;
+      }
+
+      .contact-main {
+        padding-left: 56px;
+        padding-right: 56px;
+      }
+
+      .adoption-rating {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .adoption-option span {
+        min-height: 72px;
+        padding: 10px 6px;
+        font-size: 11px;
+      }
+
+      .form-security-block {
+        padding-top: 50px;
+      }
+    }
+
+    @media (min-width: 601px) and (max-width: 980px) {
+      .feedback-row-4 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
     }
   </style>
 </head>
@@ -309,80 +522,86 @@
         <div class="wizard-step is-active" id="step1">
           <p class="form-section-heading">About You</p>
 
-          <div class="form-row">
-            <label class="form-label" for="fb_name">Full name <span class="req">*</span></label>
-            <input class="form-input" type="text" id="fb_name" name="name" required maxlength="100"
-              placeholder="Dr. Jane Doe" autocomplete="name" />
-          </div>
-          <div class="form-row">
-            <label class="form-label" for="fb_email">Email <span class="req">*</span></label>
-            <input class="form-input" type="email" id="fb_email" name="email" required maxlength="254"
-              placeholder="you@university.edu" autocomplete="email" />
-          </div>
-          <div class="form-row form-row-horizontal">
-            <div class="form-col">
-              <label class="form-label" for="fb_windows">Windows version <span class="req">*</span></label>
-              <select class="form-input form-select" id="fb_windows" name="windows_version" required>
-                <option value="">Select&hellip;</option>
-                <option value="Windows 10">Windows 10</option>
-                <option value="Windows 11">Windows 11</option>
-                <option value="Other">Other</option>
-              </select>
+          <div class="feedback-step1-grid">
+            <div class="feedback-row feedback-row-2">
+              <div class="form-col">
+                <label class="form-label" for="fb_name">Full name <span class="req">*</span></label>
+                <input class="form-input" type="text" id="fb_name" name="name" required maxlength="100"
+                  placeholder="Dr. Jane Doe" autocomplete="name" />
+              </div>
+              <div class="form-col">
+                <label class="form-label" for="fb_email">Email <span class="req">*</span></label>
+                <input class="form-input" type="email" id="fb_email" name="email" required maxlength="254"
+                  placeholder="you@university.edu" autocomplete="email" />
+              </div>
             </div>
-            <div class="form-col">
-              <label class="form-label" for="fb_ram">RAM <span class="req">*</span></label>
-              <select class="form-input form-select" id="fb_ram" name="ram" required>
-                <option value="">Select&hellip;</option>
-                <option value="4 GB">4 GB</option>
-                <option value="8 GB">8 GB</option>
-                <option value="16 GB">16 GB</option>
-                <option value="32 GB">32 GB</option>
-                <option value="Not sure">Not sure</option>
-              </select>
+
+            <div class="feedback-row feedback-row-3">
+              <div class="form-col">
+                <label class="form-label" for="fb_windows">Windows version <span class="req">*</span></label>
+                <select class="form-input form-select" id="fb_windows" name="windows_version" required>
+                  <option value="">Select&hellip;</option>
+                  <option value="Windows 10">Windows 10</option>
+                  <option value="Windows 11">Windows 11</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div class="form-col">
+                <label class="form-label" for="fb_ram">RAM <span class="req">*</span></label>
+                <select class="form-input form-select" id="fb_ram" name="ram" required>
+                  <option value="">Select&hellip;</option>
+                  <option value="4 GB">4 GB</option>
+                  <option value="8 GB">8 GB</option>
+                  <option value="16 GB">16 GB</option>
+                  <option value="32 GB">32 GB</option>
+                  <option value="Not sure">Not sure</option>
+                </select>
+              </div>
+              <div class="form-col">
+                <label class="form-label" for="fb_version">App version tested <span class="req">*</span></label>
+                <input class="form-input" type="text" id="fb_version" name="app_version" required maxlength="50"
+                  placeholder="e.g. 0.1.0" />
+              </div>
             </div>
-          </div>
-          <div class="form-row">
-            <label class="form-label" for="fb_version">App version tested <span class="req">*</span></label>
-            <input class="form-input" type="text" id="fb_version" name="app_version" required maxlength="50"
-              placeholder="e.g. 0.1.0" />
-          </div>
-          <div class="form-row">
-            <label class="form-label" for="fb_dataset">What type of dataset did you test? <span class="req">*</span></label>
-            <input class="form-input" type="text" id="fb_dataset" name="dataset_type" required maxlength="200"
-              placeholder="e.g. Survey data, cross-sectional, 5-point Likert" />
-          </div>
-          <div class="form-row form-row-horizontal">
-            <div class="form-col">
-              <label class="form-label" for="fb_sample">Approximate sample size <span class="req">*</span></label>
-              <input class="form-input" type="text" id="fb_sample" name="sample_size" required maxlength="50"
-                placeholder="e.g. 250" />
+
+            <div class="feedback-row feedback-row-4">
+              <div class="form-col">
+                <label class="form-label" for="fb_dataset">What type of dataset did you test? <span class="req">*</span></label>
+                <input class="form-input" type="text" id="fb_dataset" name="dataset_type" required maxlength="200"
+                  placeholder="e.g. Survey data, cross-sectional, 5-point Likert" />
+              </div>
+              <div class="form-col">
+                <label class="form-label" for="fb_sample">Approximate sample size <span class="req">*</span></label>
+                <input class="form-input" type="text" id="fb_sample" name="sample_size" required maxlength="50"
+                  placeholder="e.g. 250" />
+              </div>
+              <div class="form-col">
+                <label class="form-label" for="fb_constructs">Number of constructs <span class="req">*</span></label>
+                <input class="form-input" type="text" id="fb_constructs" name="num_constructs" required maxlength="50"
+                  placeholder="e.g. 5" />
+              </div>
+              <div class="form-col">
+                <label class="form-label" for="fb_indicators">Number of indicators <span class="req">*</span></label>
+                <input class="form-input" type="text" id="fb_indicators" name="num_indicators" required maxlength="50"
+                  placeholder="e.g. 24" />
+              </div>
             </div>
-            <div class="form-col">
-              <label class="form-label" for="fb_constructs">Number of constructs <span class="req">*</span></label>
-              <input class="form-input" type="text" id="fb_constructs" name="num_constructs" required maxlength="50"
-                placeholder="e.g. 5" />
-            </div>
-          </div>
-          <div class="form-row">
-            <label class="form-label" for="fb_indicators">Number of indicators / items <span class="req">*</span></label>
-            <input class="form-input" type="text" id="fb_indicators" name="num_indicators" required maxlength="50"
-              placeholder="e.g. 24" />
           </div>
 
-          <p class="form-section-heading">Which parts of Metis did you test? <span class="req">*</span></p>
+          <p class="form-section-heading form-section-heading--accent">Which parts of Metis did you test? <span class="req">*</span></p>
           <div class="checkbox-grid" id="featuresGrid">
-            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="Installation / opening the app" /><span>Installation / opening the app</span></label>
-            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="Draw mode / model building" /><span>Draw mode / model building</span></label>
-            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="Data import" /><span>Data import</span></label>
-            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="Measurement model setup" /><span>Measurement model setup</span></label>
-            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="PLS-SEM analysis" /><span>PLS-SEM analysis</span></label>
-            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="Bootstrapping" /><span>Bootstrapping</span></label>
-            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="PLSpredict" /><span>PLSpredict</span></label>
-            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="NCA" /><span>NCA</span></label>
-            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="IPMA" /><span>IPMA</span></label>
-            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="Export / reporting" /><span>Export / reporting</span></label>
-            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="Feedback tab" /><span>Feedback tab</span></label>
-            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="Other" /><span>Other</span></label>
+            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="Installation" /><span class="checkbox-label-text">Installation</span></label>
+            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="Model building" /><span class="checkbox-label-text">Model building</span></label>
+            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="Data import" /><span class="checkbox-label-text">Data import</span></label>
+            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="Measurement model setup" /><span class="checkbox-label-text">Measurement model setup</span></label>
+            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="PLS-SEM analysis" /><span class="checkbox-label-text">PLS-SEM analysis</span></label>
+            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="Bootstrapping" /><span class="checkbox-label-text">Bootstrapping</span></label>
+            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="PLSpredict" /><span class="checkbox-label-text">PLSpredict</span></label>
+            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="NCA" /><span class="checkbox-label-text">NCA</span></label>
+            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="IPMA" /><span class="checkbox-label-text">IPMA</span></label>
+            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="Export reporting" /><span class="checkbox-label-text">Export reporting</span></label>
+            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="Feedback tab" /><span class="checkbox-label-text">Feedback tab</span></label>
+            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="Other" /><span class="checkbox-label-text">Other</span></label>
           </div>
 
           <div class="wizard-nav">
@@ -407,7 +626,7 @@
             <!-- Likert rows inserted by JS -->
           </div>
 
-          <div class="form-row" style="margin-top:1.25rem">
+          <div class="form-row" style="margin-top:2rem">
             <label class="form-label" for="dm_open">Which part of the draw mode was easiest to figure out? <span class="req">*</span></label>
             <textarea class="form-input form-textarea" id="dm_open" rows="3" required
               placeholder="e.g. Creating constructs was easy; mediating paths needed more trials&hellip;"></textarea>
@@ -425,7 +644,7 @@
             <!-- Likert rows inserted by JS -->
           </div>
 
-          <div class="form-row" style="margin-top:1.25rem">
+          <div class="form-row" style="margin-top:2rem">
             <label class="form-label" for="nav_open">Was there any button, tab, or action that was difficult to find? <span class="req">*</span></label>
             <textarea class="form-input form-textarea" id="nav_open" rows="3" required
               placeholder="e.g. The Calculate button was hidden under a collapsed panel&hellip;"></textarea>
@@ -443,7 +662,7 @@
             <!-- Likert rows inserted by JS -->
           </div>
 
-          <div class="form-row" style="margin-top:1.25rem">
+          <div class="form-row" style="margin-top:2rem">
             <label class="form-label" for="an_best">Which feature worked best for you? <span class="req">*</span></label>
             <textarea class="form-input form-textarea" id="an_best" rows="2" required placeholder="e.g. PLS-SEM results were very clear"></textarea>
           </div>
@@ -460,7 +679,7 @@
             <textarea class="form-input form-textarea" id="an_bugs" rows="3" required placeholder="e.g. App froze during bootstrapping with 5 000 samples&hellip;"></textarea>
           </div>
 
-          <div class="form-row">
+          <div class="form-row" style="margin-top:2rem">
             <label class="form-label" for="fb_screenshot_url">Screenshot link <span class="form-optional">(optional)</span></label>
             <input class="form-input" type="url" id="fb_screenshot_url" name="screenshot_url" maxlength="500"
               placeholder="https://..." />
@@ -534,7 +753,7 @@
             <label class="form-label" for="ov_improve">What would need to be improved before you could confidently use Metis? <span class="req">*</span></label>
             <textarea class="form-input form-textarea" id="ov_improve" rows="3" required placeholder="e.g. NCA output needs clearer labels, IPMA took too long&hellip;"></textarea>
           </div>
-          <div class="form-row">
+          <div class="form-row" style="margin-top:3.5rem">
             <label class="form-label" for="ov_feature">What feature would make Metis more valuable to you? <span class="req">*</span></label>
             <textarea class="form-input form-textarea" id="ov_feature" rows="3" required placeholder="e.g. A comparison table between model variants&hellip;"></textarea>
           </div>
@@ -542,12 +761,12 @@
           <p class="form-section-heading">Final Note</p>
           <p class="wall-note-hint">Share a thought, a short reaction, or anything else the Metis team should understand before the next beta build.</p>
 
-          <div class="form-row">
+          <div class="form-row" style="margin-top:2rem">
             <label class="form-label" for="wall_name">Display name <span class="req">*</span></label>
             <input class="form-input" type="text" id="wall_name" name="wall_name" required maxlength="60"
               placeholder="Anonymous" autocomplete="nickname" />
           </div>
-          <div class="form-row">
+          <div class="form-row" style="margin-top:1.5rem">
             <label class="form-label" for="wall_body">Your note <span class="req">*</span></label>
             <textarea class="form-input form-textarea" id="wall_body" name="wall_body" required maxlength="280" rows="3"
               placeholder="One thing I want the Metis team to know is&hellip;" data-charcount="wallCharCount"></textarea>
@@ -557,7 +776,7 @@
             <input class="form-check-input" type="checkbox" id="fb_privacy" required />
             <span class="form-check-copy">I agree that Metis may process my feedback and contact details according to the <a href="privacy.html" target="_blank" rel="noopener">Metis Privacy Policy</a>.</span>
           </label>
-          <div class="form-security-block">
+          <div class="form-security-block" style="padding-top:50px">
             <div class="turnstile-shell">
               <div class="turnstile-slot" id="feedbackTurnstile" data-form-id="feedbackForm"></div>
             </div>
@@ -682,6 +901,22 @@
     renderLikert('tamAttSection',    TAM_ATT,           'tam');
     renderLikert('tamBiSection',     TAM_BI,            'tam');
 
+    const featuresGrid = document.getElementById('featuresGrid');
+    if (featuresGrid) {
+      const syncFeatureState = (label) => {
+        const checkbox = label.querySelector('input[type="checkbox"]');
+        if (!checkbox) return;
+        label.classList.toggle('is-selected', checkbox.checked);
+      };
+
+      featuresGrid.querySelectorAll('.checkbox-item').forEach((label) => {
+        const checkbox = label.querySelector('input[type="checkbox"]');
+        if (!checkbox) return;
+        checkbox.addEventListener('change', () => syncFeatureState(label));
+        syncFeatureState(label);
+      });
+    }
+
     // Wizard state
     let currentStep = 1;
     let screenshotUrl = '';
@@ -701,7 +936,7 @@
         pill.classList.toggle('is-active', n === currentStep);
         pill.classList.toggle('is-done', n < currentStep);
         const dot = pill.querySelector('.wizard-step-dot');
-        if (dot) dot.textContent = n < currentStep ? 'OK' : String(n);
+        if (dot) dot.textContent = n < currentStep ? '✓' : String(n);
       });
     }
 
