@@ -1,0 +1,949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <link rel="icon" type="image/png" href="/metis-logo-light-nav.png" />
+  <title>Metis Beta Feedback</title>
+  <meta name="description" content="Share your beta testing experience with the Metis team." />
+  <link rel="stylesheet" href="style.css?v=20260503p" />
+  <link rel="stylesheet" href="vendor/phosphor/regular/style.css" />
+  <link rel="stylesheet" href="vendor/phosphor/fill/style.css" />
+  <script src="site-config.js?v=20260502a"></script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
+  <script src="vercel-analytics.js?v=20260503a" defer></script>
+  <script src="/_vercel/insights/script.js" defer></script>
+  <script src="script.js?v=20260502b" defer></script>
+  <style>
+    .contact-header,
+    .contact-form-section {
+      width: min(100%, 980px);
+      margin: 0 auto;
+    }
+
+    .contact-header {
+      padding: clamp(48px, 8vw, 92px) 0 28px;
+    }
+
+    .contact-header-inner {
+      display: grid;
+      gap: 16px;
+    }
+
+    .contact-title-accent {
+      color: var(--accent);
+    }
+
+    .contact-form-wrap {
+      padding: clamp(24px, 4vw, 42px);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.16);
+    }
+
+    .theme-light .contact-form-wrap,
+    body.light .contact-form-wrap {
+      background: #fffaf2;
+      box-shadow: 0 20px 60px rgba(31, 58, 46, 0.08);
+    }
+
+    /* Wizard progress bar */
+    .wizard-progress {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin: 0 auto 2.5rem;
+      max-width: 480px;
+    }
+    .wizard-step-pill {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      position: relative;
+    }
+    .wizard-step-pill:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      top: 16px;
+      left: calc(50% + 16px);
+      right: calc(-50% + 16px);
+      height: 2px;
+      background: var(--border);
+    }
+    .wizard-step-pill.is-done::after { background: var(--accent); }
+    .wizard-step-dot {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      background: var(--surface);
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      z-index: 1;
+    }
+    .wizard-step-pill.is-active .wizard-step-dot {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+    }
+    .wizard-step-pill.is-done .wizard-step-dot {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+    }
+    .wizard-step-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+      white-space: nowrap;
+    }
+    .wizard-step-pill.is-active .wizard-step-label { color: var(--text); font-weight: 600; }
+
+    /* Wizard steps */
+    .wizard-step { display: none; }
+    .wizard-step.is-active { display: block; }
+
+    /* Section heading inside a step */
+    .form-section-heading {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin: 2rem 0 1rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .form-section-heading:first-child { margin-top: 0; }
+
+    /* Likert scale */
+    .likert-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: start;
+      gap: 0.75rem;
+      padding: 0.6rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .likert-row:last-child { border-bottom: none; }
+    .likert-statement { font-size: 14px; line-height: 1.5; }
+    .likert-options {
+      display: flex;
+      gap: 6px;
+    }
+    .likert-option input[type="radio"] { display: none; }
+    .likert-option span {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      border: 1.5px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: background 0.12s, border-color 0.12s, color 0.12s;
+    }
+    .likert-option input[type="radio"]:checked + span {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .likert-option span:hover { border-color: var(--accent); color: var(--accent); }
+    .likert-scale-labels {
+      display: flex;
+      justify-content: flex-end;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+    .likert-scale-label {
+      width: 32px;
+      text-align: center;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    /* Checkbox grid */
+    .checkbox-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 8px;
+      margin-top: 0.5rem;
+    }
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: border-color 0.12s;
+    }
+    .checkbox-item:has(input:checked) { border-color: var(--accent); }
+    .checkbox-item input[type="checkbox"] { accent-color: var(--accent); }
+    .checkbox-item span { font-size: 13px; line-height: 1.4; }
+
+    .helper-copy {
+      margin: 6px 0 0;
+      color: var(--text-muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    /* Wizard nav */
+    .wizard-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 2rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+      gap: 1rem;
+    }
+    .wizard-nav-left { display: flex; gap: 0.75rem; align-items: center; }
+
+    /* Success screen */
+    .wizard-success {
+      display: none;
+      text-align: center;
+      padding: 3rem 1rem;
+    }
+    .wizard-success.is-active { display: block; }
+    .wizard-success-icon { font-size: 3rem; margin-bottom: 1rem; }
+
+    /* Final note section */
+    .wall-note-hint {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+      line-height: 1.6;
+    }
+
+    /* Adoption rating */
+    .adoption-rating {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 0.5rem;
+    }
+    .adoption-option input[type="radio"] { display: none; }
+    .adoption-option span {
+      padding: 8px 18px;
+      border-radius: 8px;
+      border: 1.5px solid var(--border);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      transition: background 0.12s, border-color 0.12s;
+    }
+    .adoption-option span small { font-weight: 400; font-size: 10px; color: var(--text-muted); }
+    .adoption-option input:checked + span {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .adoption-option input:checked + span small { color: rgba(255,255,255,0.8); }
+
+    @media (max-width: 600px) {
+      .likert-row { grid-template-columns: 1fr; }
+      .likert-options { flex-wrap: wrap; }
+      .wizard-progress { gap: 0; }
+      .wizard-step-label { font-size: 10px; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav class="nav"></nav>
+
+  <main class="contact-main">
+    <header class="contact-header">
+      <div class="contact-header-inner">
+        <span class="contact-eyebrow">beta feedback</span>
+        <h1 class="contact-title">Help us build<br>a better <span class="contact-title-accent">Metis.</span></h1>
+        <p class="contact-lede">
+          Your testing experience matters. Answer every question as honestly as you can &mdash;
+          the good, the bad, and the confusing.
+        </p>
+      </div>
+    </header>
+
+    <section class="contact-form-section">
+      <div class="contact-form-wrap">
+
+        <!-- Progress bar -->
+        <nav class="wizard-progress" aria-label="Form progress" id="wizardProgress">
+          <div class="wizard-step-pill is-active" data-step-pill="1">
+            <div class="wizard-step-dot">1</div>
+            <span class="wizard-step-label">About You</span>
+          </div>
+          <div class="wizard-step-pill" data-step-pill="2">
+            <div class="wizard-step-dot">2</div>
+            <span class="wizard-step-label">Testing</span>
+          </div>
+          <div class="wizard-step-pill" data-step-pill="3">
+            <div class="wizard-step-dot">3</div>
+            <span class="wizard-step-label">Your Take</span>
+          </div>
+        </nav>
+
+        <div class="form-msg" id="wizardMsg" aria-live="polite"></div>
+
+        <!-- STEP 1: About You & Features Tested -->
+        <div class="wizard-step is-active" id="step1">
+          <p class="form-section-heading">About You</p>
+
+          <div class="form-row">
+            <label class="form-label" for="fb_name">Full name <span class="req">*</span></label>
+            <input class="form-input" type="text" id="fb_name" name="name" required maxlength="100"
+              placeholder="Dr. Jane Doe" autocomplete="name" />
+          </div>
+          <div class="form-row">
+            <label class="form-label" for="fb_email">Email <span class="req">*</span></label>
+            <input class="form-input" type="email" id="fb_email" name="email" required maxlength="254"
+              placeholder="you@university.edu" autocomplete="email" />
+          </div>
+          <div class="form-row form-row-horizontal">
+            <div class="form-col">
+              <label class="form-label" for="fb_windows">Windows version <span class="req">*</span></label>
+              <select class="form-input form-select" id="fb_windows" name="windows_version" required>
+                <option value="">Select&hellip;</option>
+                <option value="Windows 10">Windows 10</option>
+                <option value="Windows 11">Windows 11</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="form-col">
+              <label class="form-label" for="fb_ram">RAM <span class="req">*</span></label>
+              <select class="form-input form-select" id="fb_ram" name="ram" required>
+                <option value="">Select&hellip;</option>
+                <option value="4 GB">4 GB</option>
+                <option value="8 GB">8 GB</option>
+                <option value="16 GB">16 GB</option>
+                <option value="32 GB">32 GB</option>
+                <option value="Not sure">Not sure</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <label class="form-label" for="fb_version">App version tested <span class="req">*</span></label>
+            <input class="form-input" type="text" id="fb_version" name="app_version" required maxlength="50"
+              placeholder="e.g. 0.1.0" />
+          </div>
+          <div class="form-row">
+            <label class="form-label" for="fb_dataset">What type of dataset did you test? <span class="req">*</span></label>
+            <input class="form-input" type="text" id="fb_dataset" name="dataset_type" required maxlength="200"
+              placeholder="e.g. Survey data, cross-sectional, 5-point Likert" />
+          </div>
+          <div class="form-row form-row-horizontal">
+            <div class="form-col">
+              <label class="form-label" for="fb_sample">Approximate sample size <span class="req">*</span></label>
+              <input class="form-input" type="text" id="fb_sample" name="sample_size" required maxlength="50"
+                placeholder="e.g. 250" />
+            </div>
+            <div class="form-col">
+              <label class="form-label" for="fb_constructs">Number of constructs <span class="req">*</span></label>
+              <input class="form-input" type="text" id="fb_constructs" name="num_constructs" required maxlength="50"
+                placeholder="e.g. 5" />
+            </div>
+          </div>
+          <div class="form-row">
+            <label class="form-label" for="fb_indicators">Number of indicators / items <span class="req">*</span></label>
+            <input class="form-input" type="text" id="fb_indicators" name="num_indicators" required maxlength="50"
+              placeholder="e.g. 24" />
+          </div>
+
+          <p class="form-section-heading">Which parts of Metis did you test? <span class="req">*</span></p>
+          <div class="checkbox-grid" id="featuresGrid">
+            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="Installation / opening the app" /><span>Installation / opening the app</span></label>
+            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="Draw mode / model building" /><span>Draw mode / model building</span></label>
+            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="Data import" /><span>Data import</span></label>
+            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="Measurement model setup" /><span>Measurement model setup</span></label>
+            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="PLS-SEM analysis" /><span>PLS-SEM analysis</span></label>
+            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="Bootstrapping" /><span>Bootstrapping</span></label>
+            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="PLSpredict" /><span>PLSpredict</span></label>
+            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="NCA" /><span>NCA</span></label>
+            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="IPMA" /><span>IPMA</span></label>
+            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="Export / reporting" /><span>Export / reporting</span></label>
+            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="Feedback tab" /><span>Feedback tab</span></label>
+            <label class="checkbox-item"><input type="checkbox" name="features_tested" value="Other" /><span>Other</span></label>
+          </div>
+
+          <div class="wizard-nav">
+            <div class="wizard-nav-left"></div>
+            <button class="btn-primary" type="button" id="step1Next">Next &rarr;</button>
+          </div>
+        </div>
+
+        <!-- STEP 2: Testing Experience -->
+        <div class="wizard-step" id="step2">
+
+          <p class="form-section-heading">Draw Mode &amp; Model Building</p>
+          <p class="form-note" style="margin-bottom:1rem">1 = Strongly disagree &nbsp;&bull;&nbsp; 5 = Strongly agree</p>
+          <div class="likert-scale-labels">
+            <span class="likert-scale-label">1</span>
+            <span class="likert-scale-label">2</span>
+            <span class="likert-scale-label">3</span>
+            <span class="likert-scale-label">4</span>
+            <span class="likert-scale-label">5</span>
+          </div>
+          <div id="drawModeSection">
+            <!-- Likert rows inserted by JS -->
+          </div>
+
+          <div class="form-row" style="margin-top:1.25rem">
+            <label class="form-label" for="dm_open">Which part of the draw mode was easiest to figure out? <span class="req">*</span></label>
+            <textarea class="form-input form-textarea" id="dm_open" rows="3" required
+              placeholder="e.g. Creating constructs was easy; mediating paths needed more trials&hellip;"></textarea>
+          </div>
+
+          <p class="form-section-heading">Navigation &amp; Key Actions</p>
+          <div class="likert-scale-labels">
+            <span class="likert-scale-label">1</span>
+            <span class="likert-scale-label">2</span>
+            <span class="likert-scale-label">3</span>
+            <span class="likert-scale-label">4</span>
+            <span class="likert-scale-label">5</span>
+          </div>
+          <div id="navSection">
+            <!-- Likert rows inserted by JS -->
+          </div>
+
+          <div class="form-row" style="margin-top:1.25rem">
+            <label class="form-label" for="nav_open">Was there any button, tab, or action that was difficult to find? <span class="req">*</span></label>
+            <textarea class="form-input form-textarea" id="nav_open" rows="3" required
+              placeholder="e.g. The Calculate button was hidden under a collapsed panel&hellip;"></textarea>
+          </div>
+
+          <p class="form-section-heading">Analysis &amp; Output</p>
+          <div class="likert-scale-labels">
+            <span class="likert-scale-label">1</span>
+            <span class="likert-scale-label">2</span>
+            <span class="likert-scale-label">3</span>
+            <span class="likert-scale-label">4</span>
+            <span class="likert-scale-label">5</span>
+          </div>
+          <div id="analysisSection">
+            <!-- Likert rows inserted by JS -->
+          </div>
+
+          <div class="form-row" style="margin-top:1.25rem">
+            <label class="form-label" for="an_best">Which feature worked best for you? <span class="req">*</span></label>
+            <textarea class="form-input form-textarea" id="an_best" rows="2" required placeholder="e.g. PLS-SEM results were very clear"></textarea>
+          </div>
+          <div class="form-row">
+            <label class="form-label" for="an_confusing">Which feature was most confusing? <span class="req">*</span></label>
+            <textarea class="form-input form-textarea" id="an_confusing" rows="2" required placeholder="e.g. PLSpredict output format"></textarea>
+          </div>
+          <div class="form-row">
+            <label class="form-label" for="an_comparison">Did you compare Metis results with SmartPLS, seminr, or another tool? If yes, what differences did you notice? <span class="req">*</span></label>
+            <textarea class="form-input form-textarea" id="an_comparison" rows="3" required placeholder="e.g. Path coefficients matched SmartPLS within 0.01&hellip;"></textarea>
+          </div>
+          <div class="form-row">
+            <label class="form-label" for="an_bugs">Did anything crash, freeze, or behave unexpectedly? <span class="req">*</span></label>
+            <textarea class="form-input form-textarea" id="an_bugs" rows="3" required placeholder="e.g. App froze during bootstrapping with 5 000 samples&hellip;"></textarea>
+          </div>
+
+          <div class="form-row">
+            <label class="form-label" for="fb_screenshot_url">Screenshot link <span class="form-optional">(optional)</span></label>
+            <input class="form-input" type="url" id="fb_screenshot_url" name="screenshot_url" maxlength="500"
+              placeholder="https://..." />
+            <p class="helper-copy">Upload screenshots to your own Drive/OneDrive link if needed. Do not share confidential datasets or private participant data.</p>
+          </div>
+
+          <div class="wizard-nav">
+            <div class="wizard-nav-left">
+              <button class="ghost-btn" type="button" id="step2Back">&larr; Back</button>
+            </div>
+            <button class="btn-primary" type="button" id="step2Next">Next &rarr;</button>
+          </div>
+        </div>
+
+        <!-- STEP 3: Your Take & Your Voice -->
+        <div class="wizard-step" id="step3">
+
+          <p class="form-section-heading">Perceived Usefulness</p>
+          <p class="form-note" style="margin-bottom:1rem">1 = Strongly disagree &nbsp;&bull;&nbsp; 5 = Strongly agree</p>
+          <div class="likert-scale-labels">
+            <span class="likert-scale-label">1</span>
+            <span class="likert-scale-label">2</span>
+            <span class="likert-scale-label">3</span>
+            <span class="likert-scale-label">4</span>
+            <span class="likert-scale-label">5</span>
+          </div>
+          <div id="tamPuSection"></div>
+
+          <p class="form-section-heading">Perceived Ease of Use</p>
+          <div class="likert-scale-labels">
+            <span class="likert-scale-label">1</span>
+            <span class="likert-scale-label">2</span>
+            <span class="likert-scale-label">3</span>
+            <span class="likert-scale-label">4</span>
+            <span class="likert-scale-label">5</span>
+          </div>
+          <div id="tamPeouSection"></div>
+
+          <p class="form-section-heading">Attitude Toward Use</p>
+          <div class="likert-scale-labels">
+            <span class="likert-scale-label">1</span>
+            <span class="likert-scale-label">2</span>
+            <span class="likert-scale-label">3</span>
+            <span class="likert-scale-label">4</span>
+            <span class="likert-scale-label">5</span>
+          </div>
+          <div id="tamAttSection"></div>
+
+          <p class="form-section-heading">Behavioural Intention</p>
+          <div class="likert-scale-labels">
+            <span class="likert-scale-label">1</span>
+            <span class="likert-scale-label">2</span>
+            <span class="likert-scale-label">3</span>
+            <span class="likert-scale-label">4</span>
+            <span class="likert-scale-label">5</span>
+          </div>
+          <div id="tamBiSection"></div>
+
+          <p class="form-section-heading">Overall Adoption</p>
+          <div class="form-row">
+            <label class="form-label">After your testing experience, how likely are you to use Metis when the reported issues are fixed? <span class="req">*</span></label>
+            <div class="adoption-rating" id="adoptionRating">
+              <label class="adoption-option"><input type="radio" name="adoption_likelihood" value="1" required /><span>1<small>Very unlikely</small></span></label>
+              <label class="adoption-option"><input type="radio" name="adoption_likelihood" value="2" /><span>2</span></label>
+              <label class="adoption-option"><input type="radio" name="adoption_likelihood" value="3" /><span>3<small>Neutral</small></span></label>
+              <label class="adoption-option"><input type="radio" name="adoption_likelihood" value="4" /><span>4</span></label>
+              <label class="adoption-option"><input type="radio" name="adoption_likelihood" value="5" /><span>5<small>Very likely</small></span></label>
+            </div>
+          </div>
+          <div class="form-row">
+            <label class="form-label" for="ov_improve">What would need to be improved before you could confidently use Metis? <span class="req">*</span></label>
+            <textarea class="form-input form-textarea" id="ov_improve" rows="3" required placeholder="e.g. NCA output needs clearer labels, IPMA took too long&hellip;"></textarea>
+          </div>
+          <div class="form-row">
+            <label class="form-label" for="ov_feature">What feature would make Metis more valuable to you? <span class="req">*</span></label>
+            <textarea class="form-input form-textarea" id="ov_feature" rows="3" required placeholder="e.g. A comparison table between model variants&hellip;"></textarea>
+          </div>
+
+          <p class="form-section-heading">Final Note</p>
+          <p class="wall-note-hint">Share a thought, a short reaction, or anything else the Metis team should understand before the next beta build.</p>
+
+          <div class="form-row">
+            <label class="form-label" for="wall_name">Display name <span class="req">*</span></label>
+            <input class="form-input" type="text" id="wall_name" name="wall_name" required maxlength="60"
+              placeholder="Anonymous" autocomplete="nickname" />
+          </div>
+          <div class="form-row">
+            <label class="form-label" for="wall_body">Your note <span class="req">*</span></label>
+            <textarea class="form-input form-textarea" id="wall_body" name="wall_body" required maxlength="280" rows="3"
+              placeholder="One thing I want the Metis team to know is&hellip;" data-charcount="wallCharCount"></textarea>
+            <div class="form-charcount"><span id="wallCharCount">0</span>/280</div>
+          </div>
+          <label class="form-check-row" for="fb_privacy">
+            <input class="form-check-input" type="checkbox" id="fb_privacy" required />
+            <span class="form-check-copy">I agree that Metis may process my feedback and contact details according to the <a href="privacy.html" target="_blank" rel="noopener">Metis Privacy Policy</a>.</span>
+          </label>
+          <div class="form-security-block">
+            <div class="turnstile-shell">
+              <div class="turnstile-slot" id="feedbackTurnstile" data-form-id="feedbackForm"></div>
+            </div>
+            <p class="form-security-note">Protected by Cloudflare Turnstile.</p>
+          </div>
+
+          <div class="form-msg" id="step3Msg" aria-live="polite"></div>
+
+          <div class="wizard-nav">
+            <div class="wizard-nav-left">
+              <button class="ghost-btn" type="button" id="step3Back">&larr; Back</button>
+            </div>
+            <button class="btn-primary form-submit" type="button" id="submitBtn">
+              <span class="btn-label">Submit Feedback</span>
+              <span class="btn-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Success screen -->
+        <div class="wizard-success" id="wizardSuccess">
+          <div class="wizard-success-icon">
+            <i class="ph-fill ph-check-circle" style="color:var(--accent)"></i>
+          </div>
+          <h2>Thank you!</h2>
+          <p>Your feedback has been submitted. We will review it as we improve the beta.</p>
+          <a class="btn-primary" href="index.html" style="display:inline-flex;margin-top:1rem">Back to Metis &rarr;</a>
+        </div>
+
+      </div>
+    </section>
+  </main>
+
+  <script>
+  (function () {
+    const API_BASE = (() => {
+      const configuredBase = String(window.METIS_SITE_CONFIG?.apiBase || '').trim();
+      if (configuredBase) return configuredBase.replace(/\/+$/, '');
+      return window.location.origin.replace(/\/+$/, '');
+    })();
+    const TURNSTILE_SITE_KEY = String(window.METIS_SITE_CONFIG?.turnstileSiteKey || '').trim();
+
+    // Likert question definitions
+    const DRAW_QUESTIONS = [
+      { key: 'q1',  text: 'It was easy to create constructs in the canvas.' },
+      { key: 'q2',  text: 'It was easy to connect paths between constructs.' },
+      { key: 'q3',  text: 'It was easy to create a mediating relationship in the model.' },
+      { key: 'q4',  text: 'It was easy to create a moderating relationship in the model.' },
+      { key: 'q5',  text: 'I could clearly understand the difference between creating a normal path, a mediating path, and a moderating path.' },
+      { key: 'q6',  text: 'It was easy to select, move, edit, or delete constructs and paths.' },
+      { key: 'q7',  text: 'The draw mode felt smooth and responsive.' },
+      { key: 'q8',  text: 'The model-building process was clear.' },
+      { key: 'q9',  text: 'I felt confused while using the draw mode.' },
+      { key: 'q10', text: 'The canvas design makes PLS-SEM model building easier.' },
+    ];
+    const NAV_QUESTIONS = [
+      { key: 'q1', text: 'The main action button, such as Calculate, was easy to find.' },
+      { key: 'q2', text: 'I understood when I was ready to click Calculate.' },
+      { key: 'q3', text: 'The app made it clear what I needed to do before running the analysis.' },
+      { key: 'q4', text: 'The tabs and buttons were easy to understand.' },
+      { key: 'q5', text: 'I could easily move from model building to analysis results.' },
+      { key: 'q6', text: 'I always knew what the next step was.' },
+      { key: 'q7', text: 'Important actions were placed where I expected them to be.' },
+    ];
+    const ANALYSIS_QUESTIONS = [
+      { key: 'q1', text: 'It was easy to run PLS-SEM analysis in Metis.' },
+      { key: 'q2', text: 'It was easy to run bootstrapping in Metis.' },
+      { key: 'q3', text: 'It was easy to run PLSpredict in Metis.' },
+      { key: 'q4', text: 'It was easy to run NCA in Metis.' },
+      { key: 'q5', text: 'It was easy to run IPMA in Metis.' },
+      { key: 'q6', text: 'The results tables were clear and understandable.' },
+      { key: 'q7', text: 'The outputs were presented in a way that supports academic reporting.' },
+      { key: 'q8', text: 'I could understand what to do after viewing the results.' },
+      { key: 'q9', text: 'The app gave enough feedback while analyses were running.' },
+    ];
+    const TAM_PU = [
+      { key: 'pu1', text: 'Metis would improve the way I run PLS-SEM analysis.' },
+      { key: 'pu2', text: 'Metis would make it easier for me to conduct PLS-SEM-related research.' },
+      { key: 'pu3', text: 'Metis would save time compared with my current workflow.' },
+      { key: 'pu4', text: 'Metis would be useful for researchers or students who face software access barriers.' },
+    ];
+    const TAM_PEOU = [
+      { key: 'peou1', text: 'Learning to use Metis would be easy for me.' },
+      { key: 'peou2', text: 'I found Metis easy to navigate.' },
+      { key: 'peou3', text: 'I think I could become skilful at using Metis quickly.' },
+      { key: 'peou4', text: 'The interaction with Metis was clear and understandable.' },
+    ];
+    const TAM_ATT = [
+      { key: 'att1', text: 'I think using Metis for PLS-SEM analysis is a good idea.' },
+      { key: 'att2', text: 'I like the idea of using Metis for research analysis.' },
+      { key: 'att3', text: 'I would feel positive about using Metis once the reported issues are fixed.' },
+    ];
+    const TAM_BI = [
+      { key: 'bi1', text: 'Once the major issues are fixed, I would use Metis for my own work.' },
+      { key: 'bi2', text: 'I would recommend Metis to students or researchers who need a PLS-SEM tool.' },
+      { key: 'bi3', text: 'I would consider using Metis for teaching, supervision, workshops, or research training.' },
+      { key: 'bi4', text: 'I would be willing to test future versions of Metis.' },
+    ];
+
+    // Render Likert sections
+    function renderLikert(containerId, questions, prefix) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      container.innerHTML = questions.map((q) => `
+        <div class="likert-row">
+          <span class="likert-statement">${q.text}</span>
+          <div class="likert-options">
+            ${[1,2,3,4,5].map((n) => `
+              <label class="likert-option">
+                <input type="radio" name="${prefix}_${q.key}" value="${n}" required />
+                <span>${n}</span>
+              </label>`).join('')}
+          </div>
+        </div>`).join('');
+    }
+
+    renderLikert('drawModeSection',  DRAW_QUESTIONS,    'dm');
+    renderLikert('navSection',       NAV_QUESTIONS,     'nav');
+    renderLikert('analysisSection',  ANALYSIS_QUESTIONS,'an');
+    renderLikert('tamPuSection',     TAM_PU,            'tam');
+    renderLikert('tamPeouSection',   TAM_PEOU,          'tam');
+    renderLikert('tamAttSection',    TAM_ATT,           'tam');
+    renderLikert('tamBiSection',     TAM_BI,            'tam');
+
+    // Wizard state
+    let currentStep = 1;
+    let screenshotUrl = '';
+    let turnstileToken = '';
+
+    function goToStep(step) {
+      document.getElementById(`step${currentStep}`).classList.remove('is-active');
+      currentStep = step;
+      document.getElementById(`step${currentStep}`).classList.add('is-active');
+      updateProgress();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function updateProgress() {
+      document.querySelectorAll('[data-step-pill]').forEach((pill) => {
+        const n = Number(pill.getAttribute('data-step-pill'));
+        pill.classList.toggle('is-active', n === currentStep);
+        pill.classList.toggle('is-done', n < currentStep);
+        const dot = pill.querySelector('.wizard-step-dot');
+        if (dot) dot.textContent = n < currentStep ? 'OK' : String(n);
+      });
+    }
+
+    function showMsg(elId, text, isError) {
+      const el = document.getElementById(elId);
+      if (!el) return;
+      el.textContent = text;
+      el.className = 'form-msg ' + (isError ? 'form-msg--error' : 'form-msg--success');
+    }
+
+    function clearMsg(elId) {
+      const el = document.getElementById(elId);
+      if (el) { el.textContent = ''; el.className = 'form-msg'; }
+    }
+
+    // Step 1 validation
+    document.getElementById('step1Next').addEventListener('click', () => {
+      clearMsg('wizardMsg');
+      const fields = ['fb_name','fb_email','fb_windows','fb_ram','fb_version','fb_dataset','fb_sample','fb_constructs','fb_indicators'];
+      for (const id of fields) {
+        const el = document.getElementById(id);
+        if (!el || !el.value.trim()) {
+          showMsg('wizardMsg', 'Please fill in all fields before continuing.', true);
+          el && el.focus();
+          return;
+        }
+      }
+      const emailEl = document.getElementById('fb_email');
+      if (emailEl && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailEl.value.trim())) {
+        showMsg('wizardMsg', 'Please enter a valid email address.', true);
+        emailEl.focus();
+        return;
+      }
+      const checked = document.querySelectorAll('input[name="features_tested"]:checked');
+      if (checked.length === 0) {
+        showMsg('wizardMsg', 'Please select at least one feature you tested.', true);
+        return;
+      }
+      // Pre-fill final note display name
+      const nameEl = document.getElementById('fb_name');
+      const wallNameEl = document.getElementById('wall_name');
+      if (nameEl && wallNameEl && !wallNameEl.value) {
+        wallNameEl.value = nameEl.value;
+      }
+      goToStep(2);
+    });
+
+    // Step 2 validation
+    document.getElementById('step2Back').addEventListener('click', () => goToStep(1));
+
+    document.getElementById('step2Next').addEventListener('click', () => {
+      clearMsg('wizardMsg');
+      // Check all Likert radios in step 2
+      const allLikerts = [...DRAW_QUESTIONS.map(q => `dm_${q.key}`), ...NAV_QUESTIONS.map(q => `nav_${q.key}`), ...ANALYSIS_QUESTIONS.map(q => `an_${q.key}`)];
+      for (const name of allLikerts) {
+        if (!document.querySelector(`input[name="${name}"]:checked`)) {
+          showMsg('wizardMsg', 'Please answer all rating questions before continuing.', true);
+          return;
+        }
+      }
+      // Open-ended texts
+      const openIds = ['dm_open','nav_open','an_best','an_confusing','an_comparison','an_bugs'];
+      for (const id of openIds) {
+        const el = document.getElementById(id);
+        if (!el || !el.value.trim()) {
+          showMsg('wizardMsg', 'Please fill in all text fields before continuing.', true);
+          el && el.focus();
+          return;
+        }
+      }
+      goToStep(3);
+    });
+
+    // Step 3 validation and submit
+    document.getElementById('step3Back').addEventListener('click', () => goToStep(2));
+
+    document.getElementById('submitBtn').addEventListener('click', async () => {
+      clearMsg('step3Msg');
+
+      // Validate TAM Likerts
+      const allTam = [...TAM_PU, ...TAM_PEOU, ...TAM_ATT, ...TAM_BI].map(q => `tam_${q.key}`);
+      for (const name of allTam) {
+        if (!document.querySelector(`input[name="${name}"]:checked`)) {
+          showMsg('step3Msg', 'Please answer all rating questions before submitting.', true);
+          return;
+        }
+      }
+      if (!document.querySelector('input[name="adoption_likelihood"]:checked')) {
+        showMsg('step3Msg', 'Please answer the adoption likelihood question.', true);
+        return;
+      }
+      const textRequired = ['ov_improve','ov_feature','wall_body'];
+      for (const id of textRequired) {
+        const el = document.getElementById(id);
+        if (!el || !el.value.trim()) {
+          showMsg('step3Msg', 'Please fill in all required text fields.', true);
+          el && el.focus();
+          return;
+        }
+      }
+      if (!document.getElementById('wall_name').value.trim()) {
+        showMsg('step3Msg', 'Please enter a display name for your final note.', true);
+        document.getElementById('wall_name').focus();
+        return;
+      }
+      if (!document.getElementById('fb_privacy').checked) {
+        showMsg('step3Msg', 'Please agree to the Metis Privacy Policy before submitting.', true);
+        document.getElementById('fb_privacy').focus();
+        return;
+      }
+      if (!turnstileToken) {
+        showMsg('step3Msg', 'Please complete the security check before submitting.', true);
+        return;
+      }
+
+      // Build payload objects
+      const getVal = (id) => (document.getElementById(id) || {}).value || '';
+      const getLikert = (prefix, questions) => {
+        const obj = {};
+        questions.forEach((q) => {
+          const el = document.querySelector(`input[name="${prefix}_${q.key}"]:checked`);
+          obj[q.key] = el ? Number(el.value) : null;
+        });
+        return obj;
+      };
+
+      const dm = getLikert('dm', DRAW_QUESTIONS);
+      dm.open1 = getVal('dm_open');
+      const nav = getLikert('nav', NAV_QUESTIONS);
+      nav.open1 = getVal('nav_open');
+      const an = getLikert('an', ANALYSIS_QUESTIONS);
+      an.best_feature = getVal('an_best');
+      an.confusing_feature = getVal('an_confusing');
+      an.comparison = getVal('an_comparison');
+      an.bugs = getVal('an_bugs');
+
+      const tamObj = {};
+      [...TAM_PU, ...TAM_PEOU, ...TAM_ATT, ...TAM_BI].forEach((q) => {
+        const el = document.querySelector(`input[name="tam_${q.key}"]:checked`);
+        tamObj[q.key] = el ? Number(el.value) : null;
+      });
+
+      const adoptionEl = document.querySelector('input[name="adoption_likelihood"]:checked');
+      const overall = {
+        adoption_likelihood: adoptionEl ? Number(adoptionEl.value) : null,
+        needs_improvement: getVal('ov_improve'),
+        most_valuable_feature: getVal('ov_feature'),
+        final_note_name: getVal('wall_name'),
+        final_note: getVal('wall_body'),
+      };
+
+      const features = [...document.querySelectorAll('input[name="features_tested"]:checked')].map((cb) => cb.value);
+
+      const feedbackPayload = {
+        name: getVal('fb_name'),
+        email: getVal('fb_email'),
+        windows_version: getVal('fb_windows'),
+        ram: getVal('fb_ram'),
+        app_version: getVal('fb_version'),
+        dataset_type: getVal('fb_dataset'),
+        sample_size: getVal('fb_sample'),
+        num_constructs: getVal('fb_constructs'),
+        num_indicators: getVal('fb_indicators'),
+        features_tested: features,
+        draw_mode: JSON.stringify(dm),
+        navigation: JSON.stringify(nav),
+        analysis: JSON.stringify(an),
+        tam: JSON.stringify(tamObj),
+        overall: JSON.stringify(overall),
+        screenshot_url: getVal('fb_screenshot_url') || screenshotUrl,
+        privacyAccepted: 'yes',
+        privacyPolicyVersion: '1.0',
+        sourcePage: window.location.pathname,
+        sourceTitle: document.title,
+        'cf-turnstile-response': turnstileToken,
+      };
+
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.classList.add('is-loading');
+
+      try {
+        const fbRes = await fetch(`${API_BASE}/api/feedback`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          cache: 'no-store',
+          body: JSON.stringify(feedbackPayload),
+        });
+        const fbData = await fbRes.json();
+
+        if (!fbData.success) {
+          showMsg('step3Msg', fbData.error || 'Feedback submission failed. Please try again.', true);
+          btn.disabled = false;
+          btn.classList.remove('is-loading');
+          return;
+        }
+
+        document.getElementById('step3').classList.remove('is-active');
+        document.getElementById('wizardSuccess').classList.add('is-active');
+        document.getElementById('wizardProgress').style.display = 'none';
+      } catch {
+        showMsg('step3Msg', 'Network error. Please check your connection and try again.', true);
+        btn.disabled = false;
+        btn.classList.remove('is-loading');
+      }
+    });
+
+    // Character counter
+    document.querySelectorAll('[data-charcount]').forEach((textarea) => {
+      const countId = textarea.getAttribute('data-charcount');
+      const counter = document.getElementById(countId);
+      if (!counter) return;
+      const update = () => { counter.textContent = String(textarea.value.length); };
+      textarea.addEventListener('input', update);
+      update();
+    });
+
+    // Turnstile
+    function renderFeedbackTurnstile() {
+      const slot = document.getElementById('feedbackTurnstile');
+      if (!slot || !window.turnstile || !TURNSTILE_SITE_KEY || slot.dataset.rendered === 'true') return;
+      slot.dataset.rendered = 'true';
+      window.turnstile.render(slot, {
+        sitekey: TURNSTILE_SITE_KEY,
+        theme: document.body.classList.contains('light') ? 'light' : 'dark',
+        callback: (token) => { turnstileToken = token; },
+        'expired-callback': () => { turnstileToken = ''; },
+        'error-callback': () => { turnstileToken = ''; },
+      });
+    }
+
+    const turnstileTimer = window.setInterval(() => {
+      renderFeedbackTurnstile();
+      if (document.getElementById('feedbackTurnstile')?.dataset.rendered === 'true') {
+        window.clearInterval(turnstileTimer);
+      }
+    }, 200);
+    window.setTimeout(() => window.clearInterval(turnstileTimer), 8000);
+
+  })();
+  </script>
+
+</body>
+</html>
