@@ -20,6 +20,8 @@ test('createConfig maps hosted runtime values and custom Supabase env names', ()
     SMTP_USER: 'mailer@example.com',
     SMTP_PASS: 'smtp-pass',
     SMTP_FROM_NAME: 'metis Team',
+    RESEND_API_KEY: 're_test_key',
+    RESEND_API_BASE_URL: 'https://api.resend.test/',
     LITE_SHARE_URL: 'https://example.com/lite',
     BUNDLE_SHARE_URL: 'https://example.com/bundle',
     padi: 'https://project.supabase.co',
@@ -46,6 +48,8 @@ test('createConfig maps hosted runtime values and custom Supabase env names', ()
   assert.equal(config.smtpPass, 'smtp-pass');
   assert.equal(config.smtpFromName, 'metis Team');
   assert.equal(config.smtpFromEmail, 'mailer@example.com');
+  assert.equal(config.resendApiKey, 're_test_key');
+  assert.equal(config.resendEndpoint, 'https://api.resend.test');
   assert.equal(config.supportEmail, 'mailer@example.com');
   assert.equal(config.liteShareUrl, 'https://example.com/lite');
   assert.equal(config.bundleShareUrl, 'https://example.com/bundle');
@@ -78,9 +82,21 @@ test('createConfig falls back to current backend defaults', () => {
   assert.equal(config.smtpSecure, true);
   assert.equal(config.smtpFromName, 'metis Team');
   assert.equal(config.smtpFromEmail, '');
+  assert.equal(config.resendApiKey, '');
+  assert.equal(config.resendEndpoint, 'https://api.resend.com');
   assert.equal(config.supportEmail, '');
   assert.equal(config.supabase.schema, 'public');
   assert.equal(config.supabase.isConfigured, false);
   assert.equal(config.turnstile.secretKey, '');
   assert.equal(config.turnstile.isConfigured, false);
+});
+
+test('createConfig accepts a Resend key in SMTP_PASS when SMTP host is unset', () => {
+  const config = createConfig({
+    SMTP_FROM_EMAIL: 'team@example.com',
+    SMTP_PASS: 're_legacy_http_key',
+  });
+
+  assert.equal(config.resendApiKey, 're_legacy_http_key');
+  assert.equal(config.smtpFromEmail, 'team@example.com');
 });

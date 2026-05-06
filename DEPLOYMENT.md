@@ -63,4 +63,4 @@ git push origin deploy/backend
 
 - Connect the Railway service to `deploy/backend`
 - Set the service root to `backend/`
-- Add `padi`, `tsotso`, `amenya`, `Tarkitey`, `SUPABASE_DB_SCHEMA`, `TURNSTILE_SECRET_KEY`, SMTP vars, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, and `HEALTH_TOKEN`
+- Add `padi`, `tsotso`, `amenya`, `Tarkitey`, `SUPABASE_DB_SCHEMA`, `TURNSTILE_SECRET_KEY`, `RESEND_API_KEY`, sender/support email vars, `LITE_SHARE_URL`, `BUNDLE_SHARE_URL`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, and `HEALTH_TOKEN`

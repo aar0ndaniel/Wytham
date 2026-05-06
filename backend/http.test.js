@@ -164,6 +164,7 @@ async function startApp(t, options = {}) {
 
   const app = createApp({
     config,
+    fetchImpl: options.fetchImpl,
     sendSignupEmail: options.sendSignupEmail,
     store,
     verifyTurnstile: options.verifyTurnstile,
@@ -340,6 +341,64 @@ test('POST /api/donate rejects an invalid Turnstile token before writing donatio
   assert.equal(store.state.donations.length, 0);
 });
 
+test('GET /download/:token redirects to the selected file URL and records access', async (t) => {
+  const token = 'd'.repeat(48);
+  const { baseUrl, store } = await startApp(t, {
+    config: {
+      bundleShareUrl: 'https://onedrive.example.com/bundle-installer.exe',
+      liteShareUrl: 'https://onedrive.example.com/lite-installer.exe',
+    },
+    store: createMemoryStore({
+      signups: [
+        {
+          token,
+          name: 'Ada Lovelace',
+          email: 'ada@example.com',
+          institution: 'KNUST',
+          country: 'Ghana',
+          role: 'Researcher',
+          edition: 'bundle',
+          created_at: '2026-04-16T18:00:00.000Z',
+          updated_at: '2026-04-16T18:00:00.000Z',
+          beta_visits: 0,
+          last_beta_visit_at: '',
+          email_status: 'sent',
+          email_error: '',
+          email_sent_at: '2026-04-16T20:15:00.000Z',
+        },
+      ],
+    }),
+  });
+
+  const response = await fetch(`${baseUrl}/download/${token}`, {
+    redirect: 'manual',
+  });
+
+  assert.equal(response.status, 302);
+  assert.equal(response.headers.get('location'), 'https://onedrive.example.com/bundle-installer.exe');
+  assert.equal(store.state.signups[0].beta_visits, 1);
+  assert.match(store.state.signups[0].last_beta_visit_at, /^20\d\d-\d\d-\d\dT/);
+});
+
+test('admin email preview uses tokenized backend access URL instead of raw share URL', async (t) => {
+  const { baseUrl } = await startApp(t, {
+    config: {
+      liteShareUrl: 'https://onedrive.example.com/lite-installer.exe',
+    },
+  });
+
+  const cookie = await login(baseUrl);
+  const response = await fetch(`${baseUrl}/admin/preview/email`, {
+    headers: { cookie },
+  });
+  const html = await response.text();
+
+  assert.equal(response.status, 200);
+  assert.match(html, /Open access page/);
+  assert.match(html, /https:\/\/metis\.emend\.it\.com\/beta\/preview/);
+  assert.doesNotMatch(html, /onedrive\.example\.com\/lite-installer/);
+});
+
 test('POST /api/comment stores only public wall fields after Turnstile verification', async (t) => {
   const { baseUrl, store } = await startApp(t, {
     verifyTurnstile: async ({ token, action }) => ({
@@ -456,6 +515,77 @@ test('POST /admin/signups/:token/send sends a pending signup manually and marks 
   assert.equal(store.state.signups[0].email_status, 'sent');
   assert.equal(store.state.signups[0].email_error, '');
   assert.equal(store.state.signups[0].email_sent_at, '2026-04-16T20:15:00.000Z');
+});
+
+test('POST /admin/signups/:token/send sends through Resend HTTP when configured', async (t) => {
+  const token = 'e'.repeat(48);
+  const requests = [];
+  const { baseUrl, store } = await startApp(t, {
+    config: {
+      resendApiKey: 're_test_key',
+      resendEndpoint: 'https://api.resend.test',
+      smtpFromEmail: 'team@metis.emend.it.com',
+      smtpFromName: 'metis Team',
+    },
+    fetchImpl: async (url, init) => {
+      requests.push({
+        body: JSON.parse(init.body),
+        headers: init.headers,
+        method: init.method,
+        url,
+      });
+      return new Response(JSON.stringify({ id: 'email_123' }), { status: 200 });
+    },
+    store: createMemoryStore({
+      signups: [
+        {
+          token,
+          name: 'Ada Lovelace',
+          email: 'ada@gmail.com',
+          institution: 'KNUST',
+          country: 'Ghana',
+          role: 'Researcher',
+          edition: 'lite',
+          created_at: '2026-04-16T18:00:00.000Z',
+          updated_at: '2026-04-16T18:00:00.000Z',
+          beta_visits: 0,
+          last_beta_visit_at: '',
+          email_status: 'pending',
+          email_error: '',
+          email_sent_at: '',
+        },
+      ],
+    }),
+  });
+
+  const cookie = await login(baseUrl);
+  const dashboard = await fetch(`${baseUrl}/admin`, {
+    headers: { cookie },
+  });
+  const html = await dashboard.text();
+  const csrfToken = extractCsrfToken(html, `/admin/signups/${token}/send`);
+
+  const response = await fetch(`${baseUrl}/admin/signups/${token}/send`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/x-www-form-urlencoded',
+      cookie,
+    },
+    body: new URLSearchParams({ csrfToken }),
+    redirect: 'manual',
+  });
+
+  assert.equal(response.status, 302);
+  assert.equal(response.headers.get('location'), '/admin?notice=Email%20sent');
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].url, 'https://api.resend.test/emails');
+  assert.equal(requests[0].method, 'POST');
+  assert.equal(requests[0].headers.Authorization, 'Bearer re_test_key');
+  assert.equal(requests[0].headers['User-Agent'], 'metis-beta-backend/0.1.0');
+  assert.equal(requests[0].body.from, '"metis Team" <team@metis.emend.it.com>');
+  assert.deepEqual(requests[0].body.to, ['ada@gmail.com']);
+  assert.match(requests[0].body.html, /https:\/\/metis\.emend\.it\.com\/beta\/eeee/);
+  assert.equal(store.state.signups[0].email_status, 'sent');
 });
 
 test('POST /admin/signups/send skips sent rows and marks pending rows failed when SMTP is missing', async (t) => {

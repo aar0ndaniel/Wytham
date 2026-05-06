@@ -16,7 +16,7 @@ For deployment branches, env mapping, and infrastructure notes, use [../DEPLOYME
 - falls back to the local SQLite adapter when Supabase admin env vars are missing
 - keeps new signups pending until an admin manually sends the beta email
 - creates a private beta page for each signup
-- routes Lite and Bundle users to the correct OneDrive folder
+- routes Lite and Bundle users through a private tokenized backend download link before redirecting to OneDrive
 - provides the admin dashboard on the same server under `/admin`
 
 ## Setup
@@ -26,7 +26,7 @@ For deployment branches, env mapping, and infrastructure notes, use [../DEPLOYME
    - `PUBLIC_BASE_URL`
    - `ADMIN_PASSWORD`
    - `HEALTH_TOKEN`
-   - `SMTP_*`
+   - `RESEND_API_KEY` plus sender values, or `SMTP_*` if you intentionally use SMTP
    - `SUPPORT_EMAIL`
    - hosted store env vars if you want Supabase-backed mode:
      - `padi`
@@ -65,7 +65,7 @@ From `/admin` you can now:
 - send multiple selected rows with `Send selected`
 - skip rows already marked `sent`
 
-If SMTP is missing, a manual send marks the row as:
+If email delivery is missing, a manual send marks the row as failed:
 
 ```json
 { "status": "failed", "error": "SMTP not configured.", "sentAt": "" }
@@ -73,19 +73,25 @@ If SMTP is missing, a manual send marks the row as:
 
 ## Email Sender
 
-Use a dedicated mailbox for this, not your personal daily email. Good options:
+Use a dedicated sender for this, not your personal daily email. The preferred production path is Resend HTTP:
 
-- a dedicated Gmail account with an App Password
-- a dedicated Outlook account with app credentials
+- `RESEND_API_KEY`
+- `SMTP_FROM_EMAIL` or `RESEND_FROM_EMAIL`
+- `SMTP_FROM_NAME` or `RESEND_FROM_NAME`
+- `SUPPORT_EMAIL`
 
-The sender fills `../signup-beta-email-template.html` and attaches `../app-logo.png` inline in the email.
+SMTP remains as a fallback for environments that allow outbound SMTP ports. The sender fills `../signup-beta-email-template.html`; Resend HTTP uses the public logo URL, and SMTP attaches the local logo inline.
+
+If Resend accepts a message but Gmail does not show it while institutional mail does, treat that as a deliverability issue rather than an SMTP port issue. Check Resend logs/events and confirm the sender domain passes SPF, DKIM, and DMARC.
 
 ## Downloads
 
-This backend does not serve installers directly. Each beta page points users to the correct OneDrive folder:
+This backend does not serve installers directly. Put each installer in OneDrive, create a direct file sharing URL, and configure:
 
 - Lite: `LITE_SHARE_URL`
 - Bundle: `BUNDLE_SHARE_URL`
+
+The email button points to `/download/:token`, not directly to OneDrive. The backend validates the tester token, records access, and redirects to the correct OneDrive file URL.
 
 ## Security Notes
 
