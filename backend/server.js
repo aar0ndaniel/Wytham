@@ -670,7 +670,7 @@ app.use((req, res, next) => {
 });
 
 app.get('/', (_req, res) => {
-  res.sendFile(path.join(ROOT_DIR, 'index.html'));
+  res.type('html').send(simplePage('metis Backend', 'This service powers the metis API and admin dashboard.'));
 });
 
 registerErrorHandler(app);
@@ -4577,7 +4577,7 @@ function createApp(options = {}) {
   });
 
   hostedApp.get('/', (_req, res) => {
-    res.sendFile(path.join(ROOT_DIR, 'index.html'));
+    res.type('html').send(simplePage('metis Backend', 'This service powers the metis API and admin dashboard.'));
   });
 
   registerErrorHandler(hostedApp);

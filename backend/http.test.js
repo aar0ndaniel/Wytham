@@ -341,6 +341,18 @@ test('POST /api/donate rejects an invalid Turnstile token before writing donatio
   assert.equal(store.state.donations.length, 0);
 });
 
+test('GET / shows backend status instead of the landing page', async (t) => {
+  const { baseUrl } = await startApp(t);
+
+  const response = await fetch(`${baseUrl}/`);
+  const html = await response.text();
+
+  assert.equal(response.status, 200);
+  assert.match(html, /metis Backend/);
+  assert.match(html, /metis API and admin dashboard/);
+  assert.doesNotMatch(html, /metis public beta access/i);
+});
+
 test('GET /download/:token redirects to the selected file URL and records access', async (t) => {
   const token = 'd'.repeat(48);
   const { baseUrl, store } = await startApp(t, {
