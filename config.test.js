@@ -103,3 +103,16 @@ test('createConfig accepts a Resend key in SMTP_PASS when SMTP host is unset', (
   assert.equal(config.resendApiKey, 're_legacy_http_key');
   assert.equal(config.smtpFromEmail, 'team@example.com');
 });
+
+test('createConfig prefers Resend HTTP when smtp.resend.com is configured with a Resend key', () => {
+  const config = createConfig({
+    SMTP_HOST: 'smtp.resend.com',
+    SMTP_USER: 'resend',
+    SMTP_PASS: 're_railway_resend_key',
+    SMTP_FROM_EMAIL: 'team@example.com',
+  });
+
+  assert.equal(config.resendApiKey, 're_railway_resend_key');
+  assert.equal(config.smtpHost, 'smtp.resend.com');
+  assert.equal(config.smtpFromEmail, 'team@example.com');
+});
