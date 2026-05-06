@@ -136,12 +136,15 @@ test('createStore shapes signup and admin queries around the supplied client', (
     user_agent: 'node-test',
     created_at: '2026-04-16T12:00:00.000Z',
     updated_at: '2026-04-16T12:00:00.000Z',
+    last_beta_visit_at: '',
+    email_sent_at: '',
   };
 
   store.insertSignup(signup);
   store.updateSignupByEmail('ada@example.com', {
     role: 'Lead Researcher',
     updated_at: '2026-04-16T12:30:00.000Z',
+    email_sent_at: '',
   });
   store.markSignupEmailStatus('signup-token', {
     status: 'failed',
@@ -159,14 +162,14 @@ test('createStore shapes signup and admin queries around the supplied client', (
 
   assert.equal(queries[0].table, 'signups');
   assert.deepEqual(queries[0].steps, [
-    { method: 'insert', args: [signup] },
+    { method: 'insert', args: [{ ...signup, last_beta_visit_at: null, email_sent_at: null }] },
     { method: 'select', args: ['*'] },
     { method: 'single', args: [] },
   ]);
 
   assert.equal(queries[1].table, 'signups');
   assert.deepEqual(queries[1].steps, [
-    { method: 'update', args: [{ role: 'Lead Researcher', updated_at: '2026-04-16T12:30:00.000Z' }] },
+    { method: 'update', args: [{ role: 'Lead Researcher', updated_at: '2026-04-16T12:30:00.000Z', email_sent_at: null }] },
     { method: 'eq', args: ['email', 'ada@example.com'] },
     { method: 'select', args: ['*'] },
     { method: 'single', args: [] },
