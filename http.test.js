@@ -539,6 +539,62 @@ test('POST /admin/signups/:token/send sends a pending signup manually and marks 
   assert.equal(store.state.signups[0].email_sent_at, '2026-04-16T20:15:00.000Z');
 });
 
+test('POST /admin/signups/:token/send resends to an already sent signup', async (t) => {
+  const token = 'd'.repeat(48);
+  const sentEmails = [];
+  const { baseUrl, store } = await startApp(t, {
+    sendSignupEmail: async (signup) => {
+      sentEmails.push(signup.email);
+      return { status: 'sent', error: '', sentAt: '2026-04-17T09:00:00.000Z' };
+    },
+    store: createMemoryStore({
+      signups: [
+        {
+          token,
+          name: 'Grace Hopper',
+          email: 'grace@example.com',
+          institution: 'Navy',
+          country: 'US',
+          role: 'Scientist',
+          edition: 'bundle',
+          created_at: '2026-04-16T18:00:00.000Z',
+          updated_at: '2026-04-16T18:00:00.000Z',
+          beta_visits: 1,
+          last_beta_visit_at: '2026-04-16T18:30:00.000Z',
+          email_status: 'sent',
+          email_error: '',
+          email_sent_at: '2026-04-16T19:00:00.000Z',
+        },
+      ],
+    }),
+  });
+
+  const cookie = await login(baseUrl);
+  const dashboard = await fetch(`${baseUrl}/admin`, {
+    headers: { cookie },
+  });
+  const html = await dashboard.text();
+  assert.match(html, />Resend</i);
+  const csrfToken = extractCsrfToken(html, `/admin/signups/${token}/send`);
+
+  const response = await fetch(`${baseUrl}/admin/signups/${token}/send`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/x-www-form-urlencoded',
+      cookie,
+    },
+    body: new URLSearchParams({ csrfToken }),
+    redirect: 'manual',
+  });
+
+  assert.equal(response.status, 302);
+  assert.equal(response.headers.get('location'), '/admin?notice=Email%20sent');
+  assert.deepEqual(sentEmails, ['grace@example.com']);
+  assert.equal(store.state.signups[0].email_status, 'sent');
+  assert.equal(store.state.signups[0].email_error, '');
+  assert.equal(store.state.signups[0].email_sent_at, '2026-04-17T09:00:00.000Z');
+});
+
 test('POST /admin/signups/:token/send sends through Resend HTTP when configured', async (t) => {
   const token = 'e'.repeat(48);
   const requests = [];
@@ -610,7 +666,7 @@ test('POST /admin/signups/:token/send sends through Resend HTTP when configured'
   assert.equal(store.state.signups[0].email_status, 'sent');
 });
 
-test('POST /admin/signups/send skips sent rows and marks pending rows failed when SMTP is missing', async (t) => {
+test('POST /admin/signups/send attempts selected pending and sent rows', async (t) => {
   const pendingToken = 'b'.repeat(48);
   const sentToken = 'c'.repeat(48);
   const { baseUrl, store } = await startApp(t, {
@@ -673,10 +729,11 @@ test('POST /admin/signups/send skips sent rows and marks pending rows failed whe
   });
 
   assert.equal(response.status, 302);
-  assert.equal(response.headers.get('location'), '/admin?notice=0%20sent%2C%201%20failed%2C%201%20skipped');
+  assert.equal(response.headers.get('location'), '/admin?notice=0%20sent%2C%202%20failed');
   assert.equal(store.state.signups[0].email_status, 'failed');
   assert.equal(store.state.signups[0].email_error, 'SMTP not configured.');
   assert.equal(store.state.signups[0].email_sent_at, '');
-  assert.equal(store.state.signups[1].email_status, 'sent');
-  assert.equal(store.state.signups[1].email_sent_at, '2026-04-16T17:05:00.000Z');
+  assert.equal(store.state.signups[1].email_status, 'failed');
+  assert.equal(store.state.signups[1].email_error, 'SMTP not configured.');
+  assert.equal(store.state.signups[1].email_sent_at, '');
 });

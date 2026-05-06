@@ -74,10 +74,11 @@ function run() {
   assert.match(dashboardHtml, /A quieter view of signups, support notes, and export/i);
   assert.doesNotMatch(dashboardHtml, /var\(--blue|var\(--warm|Beta dashboard/i);
   assert.doesNotMatch(dashboardHtml, /This account panel stays intentionally small|Protected admin route|Protected destructive actions|Session controls|Wrap up cleanly|Use logout when you are done/i);
-  assert.match(dashboardHtml, /Send selected/i);
+  assert.match(dashboardHtml, /Send \/ resend selected/i);
   assert.match(dashboardHtml, /action="\/admin\/signups\/a{48}\/send"/i);
-  assert.doesNotMatch(dashboardHtml, /action="\/admin\/signups\/b{48}\/send"/i);
-  assert.match(dashboardHtml, /Already sent/i);
+  assert.match(dashboardHtml, /action="\/admin\/signups\/b{48}\/send"/i);
+  assert.match(dashboardHtml, />Resend</i);
+  assert.match(dashboardHtml, />Sent</i);
   console.log('admin-ui.test.js: PASS');
 }
 

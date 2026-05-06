@@ -1917,11 +1917,13 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
     ? recent
         .map((item) => {
           const status = trim(item.email_status).toLowerCase();
-          const sendAction = status === 'sent'
-            ? `<span class="pill pill-success">Already sent</span>`
-            : `<form method="post" action="/admin/signups/${encodeURIComponent(item.token)}/send" data-confirm="Send the metis beta email to ${escapeHtml(jsString(item.email))}?">
+          const sendLabel = status === 'sent' ? 'Resend' : 'Send';
+          const sendConfirm = status === 'sent'
+            ? `Resend the metis beta email to ${item.email}?`
+            : `Send the metis beta email to ${item.email}?`;
+          const sendAction = `<form method="post" action="/admin/signups/${encodeURIComponent(item.token)}/send" data-confirm="${escapeHtml(jsString(sendConfirm))}">
                 <input type="hidden" name="csrfToken" value="${escapeHtml(formToken(`${item.token}:send`))}" />
-                <button type="submit" class="ghost-btn">Send</button>
+                <button type="submit" class="ghost-btn">${escapeHtml(sendLabel)}</button>
               </form>`;
 
           return `<tr>
@@ -2516,7 +2518,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
             <form method="post" action="/admin/signups/send" data-batch-form data-confirm-selected="Send the metis beta email to the selected signups?">
               <input type="hidden" name="csrfToken" value="${escapeHtml(batchSendToken)}" />
               <input type="hidden" name="tokens" value="" data-selected-tokens />
-              <button type="submit" class="ghost-btn" data-batch-delete disabled>Send selected</button>
+              <button type="submit" class="ghost-btn" data-batch-delete disabled>Send / resend selected</button>
             </form>
           </div>
         </div>
@@ -4389,9 +4391,6 @@ function createApp(options = {}) {
       if (!signup) {
         return res.redirect('/admin?notice=Signup%20not%20found');
       }
-      if (trim(signup.email_status).toLowerCase() === 'sent') {
-        return res.redirect('/admin?notice=Signup%20already%20sent');
-      }
 
       const emailResult = normalizeEmailResult(await sendEmail(signup));
       await readStoreResult(store.markSignupEmailStatus(signup.token, emailResult));
@@ -4418,15 +4417,10 @@ function createApp(options = {}) {
 
       let sentCount = 0;
       let failedCount = 0;
-      let skippedCount = 0;
 
       for (const token of tokens) {
         const signup = await readStoreResult(store.findSignupByToken(token));
         if (!signup) {
-          continue;
-        }
-        if (trim(signup.email_status).toLowerCase() === 'sent') {
-          skippedCount += 1;
           continue;
         }
 
@@ -4443,9 +4437,6 @@ function createApp(options = {}) {
       let notice = `${sentCount} sent`;
       if (failedCount) {
         notice += `, ${failedCount} failed`;
-      }
-      if (skippedCount) {
-        notice += `, ${skippedCount} skipped`;
       }
 
       return res.redirect(`/admin?notice=${encodeURIComponent(notice)}`);
