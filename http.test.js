@@ -353,6 +353,50 @@ test('GET / shows backend status instead of the landing page', async (t) => {
   assert.doesNotMatch(html, /metis public beta access/i);
 });
 
+test('GET /health with token reports non-secret runtime diagnostics', async (t) => {
+  const { baseUrl } = await startApp(t, {
+    config: {
+      healthToken: 'health-secret',
+      supabase: {
+        isConfigured: false,
+        schema: 'public',
+      },
+    },
+    store: createMemoryStore({
+      signups: [
+        {
+          token: 'h'.repeat(48),
+          name: 'Health Check',
+          email: 'health@example.com',
+          institution: 'KNUST',
+          country: 'Ghana',
+          role: 'Researcher',
+          edition: 'lite',
+          created_at: '2026-05-06T10:00:00.000Z',
+          updated_at: '2026-05-06T10:00:00.000Z',
+          beta_visits: 0,
+          last_beta_visit_at: '',
+          email_status: 'pending',
+          email_error: '',
+          email_sent_at: '',
+        },
+      ],
+    }),
+  });
+
+  const response = await fetch(`${baseUrl}/health?token=health-secret`);
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    ok: true,
+    emailConfigured: false,
+    storeMode: 'custom',
+    supabaseConfigured: false,
+    supabaseSchema: 'public',
+    totalSignups: 1,
+  });
+});
+
 test('GET /download/:token redirects to the selected file URL and records access', async (t) => {
   const token = 'd'.repeat(48);
   const { baseUrl, store } = await startApp(t, {

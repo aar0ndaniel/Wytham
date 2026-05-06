@@ -3851,6 +3851,22 @@ function createRuntimeStore(currentConfig = config) {
   return createLegacySqliteStore();
 }
 
+function runtimeStoreMode(currentConfig = config, hasCustomStore = false) {
+  if (hasCustomStore) {
+    return 'custom';
+  }
+  return currentConfig.supabase && currentConfig.supabase.isConfigured ? 'supabase' : 'sqlite';
+}
+
+function runtimeDiagnostics(currentConfig = config, storeMode = runtimeStoreMode(currentConfig)) {
+  return {
+    emailConfigured: emailReady(currentConfig),
+    storeMode,
+    supabaseConfigured: Boolean(currentConfig.supabase && currentConfig.supabase.isConfigured),
+    supabaseSchema: currentConfig.supabase?.schema || 'public',
+  };
+}
+
 async function readStoreResult(resultLike) {
   const result = await resultLike;
   if (result && typeof result === 'object' && Object.prototype.hasOwnProperty.call(result, 'error')) {
@@ -3904,6 +3920,7 @@ async function listDonationSummaryRowsFromStore(store) {
 function createApp(options = {}) {
   const currentConfig = options.config || config;
   const store = options.store || createRuntimeStore(currentConfig);
+  const storeMode = options.storeMode || runtimeStoreMode(currentConfig, Boolean(options.store));
   const currentMailer = options.mailer !== undefined ? options.mailer : createMailer(currentConfig);
   const sendEmail = typeof options.sendSignupEmail === 'function'
     ? options.sendSignupEmail
@@ -4009,7 +4026,7 @@ function createApp(options = {}) {
         const counts = summarizeSignups(await listSignupSummaryRowsFromStore(store));
         return res.json({
           ok: true,
-          emailConfigured: emailReady(currentConfig),
+          ...runtimeDiagnostics(currentConfig, storeMode),
           totalSignups: counts.total || 0,
         });
       }
@@ -4526,11 +4543,16 @@ function startServer(options = {}) {
 
   const currentConfig = options.config || config;
   const appToStart = options.app || createApp(options);
+  const storeMode = options.storeMode || runtimeStoreMode(currentConfig, Boolean(options.store));
   const server = appToStart.listen(currentConfig.port, currentConfig.host, () => {
     console.log(`metis beta backend listening on http://${currentConfig.host}:${currentConfig.port}`);
     console.log(`Public base URL: ${currentConfig.publicBaseUrl}`);
+    console.log(`Store mode: ${storeMode}${currentConfig.supabase?.schema ? ` schema=${currentConfig.supabase.schema}` : ''}`);
     if (currentConfig.publicBaseUrl.includes('127.0.0.1') || currentConfig.publicBaseUrl.includes('localhost')) {
       console.warn('[warn] PUBLIC_BASE_URL is localhost — portal links in emails will not reach external users. Set it to your public deployment URL.');
+    }
+    if (storeMode === 'sqlite') {
+      console.warn('[warn] Supabase store is not configured — hosted signups are using local SQLite and may not persist across deploys/restarts.');
     }
     if (!emailReady(currentConfig)) {
       console.warn('[warn] Email sending is not configured — admin sends will fail until RESEND_API_KEY plus sender email, or SMTP_* vars, are set.');
