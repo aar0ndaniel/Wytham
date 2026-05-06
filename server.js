@@ -25,10 +25,14 @@ if (!fs.existsSync(PRIMARY_DB_PATH) && fs.existsSync(LEGACY_DB_PATH)) {
 const DB_PATH = PRIMARY_DB_PATH;
 const EMAIL_TEMPLATE_PATH = path.join(BACKEND_DIR, 'signup-beta-email-template.html');
 const LOGO_PATH = path.join(BACKEND_DIR, 'metis-logo-light-nav.png');
+const EMAIL_LOGO_PATH = path.join(BACKEND_DIR, 'metis-logo-dark.png');
+const EMAIL_LOGO_FILENAME = 'metis-logo-dark.png';
+const EMAIL_LOGO_CID = 'metis-logo';
 const ADMIN_SCRIPT_PATH = path.join(BACKEND_DIR, 'admin.js');
 const MATTER_FONT_PATH = path.join(BACKEND_DIR, 'matter.woff2');
 const PUBLIC_ROOT_FILES = new Set([
   '/metis-logo-light-nav.png',
+  '/metis-logo-dark.png',
 ]);
 
 loadEnv(path.join(BACKEND_DIR, '.env'));
@@ -501,7 +505,7 @@ adminApp.get('/admin/logo', (req, res) => {
     return res.status(403).type('html').send(simplePage('Local Access Only', 'The admin dashboard is only available on this laptop.'));
   }
   res.setHeader('Cache-Control', 'no-store');
-  res.sendFile(LOGO_PATH);
+  res.sendFile(EMAIL_LOGO_PATH);
 });
 
 adminApp.get('/admin/assets/admin.js', (req, res) => {
@@ -780,6 +784,7 @@ async function sendSignupEmailViaResend(signup, subject, html, text, currentConf
       subject,
       html,
       text,
+      attachments: resendInlineLogoAttachments(),
       reply_to: currentConfig.supportEmail || fromEmail,
       tags: [
         { name: 'edition', value: signup.edition === 'bundle' ? 'bundle' : 'lite' },
@@ -813,11 +818,24 @@ async function sendSignupEmailViaResend(signup, subject, html, text, currentConf
   }
 }
 
+function resendInlineLogoAttachments() {
+  if (!fs.existsSync(EMAIL_LOGO_PATH)) {
+    return [];
+  }
+
+  return [
+    {
+      content: fs.readFileSync(EMAIL_LOGO_PATH).toString('base64'),
+      filename: EMAIL_LOGO_FILENAME,
+      contentId: EMAIL_LOGO_CID,
+    },
+  ];
+}
+
 async function sendSignupEmail(signup, options = {}) {
   const currentConfig = options.config || config;
   const currentMailer = options.mailer !== undefined ? options.mailer : mailer;
-  const logoUrl = `${String(currentConfig.publicBaseUrl || '').replace(/\/+$/, '')}/metis-logo-light-nav.png`;
-  const html = renderEmailTemplate(signup, logoUrl, currentConfig);
+  const html = renderEmailTemplate(signup, `cid:${EMAIL_LOGO_CID}`, currentConfig);
   const text = renderEmailText(signup, currentConfig);
   const subject = `Metis beta testing: ${signup.edition === 'lite' ? 'Lite' : 'Bundle'} version ready`;
 
@@ -831,7 +849,7 @@ async function sendSignupEmail(signup, options = {}) {
     return { status: 'failed', error: 'SMTP not configured.', sentAt: '' };
   }
 
-  const smtpHtml = renderEmailTemplate(signup, 'cid:metis-app-icon', currentConfig);
+  const smtpHtml = renderEmailTemplate(signup, `cid:${EMAIL_LOGO_CID}`, currentConfig);
   try {
     await withTimeout(currentMailer.sendMail({
       from: `"${currentConfig.smtpFromName}" <${currentConfig.smtpFromEmail}>`,
@@ -840,8 +858,8 @@ async function sendSignupEmail(signup, options = {}) {
       subject,
       html: smtpHtml,
       text,
-      attachments: fs.existsSync(LOGO_PATH)
-        ? [{ filename: 'metis-logo-light-nav.png', path: LOGO_PATH, cid: 'metis-app-icon' }]
+      attachments: fs.existsSync(EMAIL_LOGO_PATH)
+        ? [{ filename: EMAIL_LOGO_FILENAME, path: EMAIL_LOGO_PATH, cid: EMAIL_LOGO_CID }]
         : [],
     }), emailSendTimeoutMs(currentConfig), smtpTimeoutMessage(emailSendTimeoutMs(currentConfig)));
     return { status: 'sent', error: '', sentAt: new Date().toISOString() };
@@ -4473,7 +4491,7 @@ function createApp(options = {}) {
 
   hostedApp.get('/admin/logo', (_req, res) => {
     res.setHeader('Cache-Control', 'no-store');
-    res.sendFile(LOGO_PATH);
+    res.sendFile(EMAIL_LOGO_PATH);
   });
 
   hostedApp.get('/admin/assets/admin.js', (_req, res) => {
