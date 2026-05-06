@@ -9,16 +9,12 @@
 # Environment files
 .env
 .env.*
-!.env.vercel.example
-backend/.env
-backend/.env.*
-!backend/.env.example
 
-# Runtime data
-backend/node_modules/
-backend/data/
-backend/server-output.log
+# Dependencies and runtime data
+node_modules/
 data/
+server-output.log
+backend/
 
 # Design/editor artifacts
 *.pen

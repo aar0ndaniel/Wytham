@@ -7,8 +7,6 @@ This backend now supports the hosted single-port shape used by Railway-style dep
 - beta emails are sent manually from the admin dashboard
 - the hosted path uses the store abstraction instead of direct route-level SQLite queries
 
-For deployment branches, env mapping, and infrastructure notes, use [../DEPLOYMENT.md](../DEPLOYMENT.md).
-
 ## What it does
 
 - receives beta signup submissions from the landing page
@@ -21,8 +19,7 @@ For deployment branches, env mapping, and infrastructure notes, use [../DEPLOYME
 
 ## Setup
 
-1. Copy `.env.example` to `.env`
-2. Update these values:
+1. Create a local `.env` file or set these values in Railway:
    - `PUBLIC_BASE_URL`
    - `ADMIN_PASSWORD`
    - `HEALTH_TOKEN`
@@ -32,7 +29,7 @@ For deployment branches, env mapping, and infrastructure notes, use [../DEPLOYME
      - `padi`
      - `Tarkitey`
      - optional: `SUPABASE_DB_SCHEMA`
-3. Run:
+2. Run:
 
 ```bash
 npm install
@@ -41,6 +38,18 @@ npm start
 
 The public app listens on `127.0.0.1:8787` by default.
 The hosted admin dashboard is served from the same process at `/admin`.
+
+## Railway
+
+Deploy the backend service from the flattened backend branch:
+
+- Repository: `aar0ndaniel/Wytham`
+- Branch: `backend`
+- Root directory: leave blank or use `.`
+- Start command: `node server.js`
+- Healthcheck path: `/health`
+
+Do not set the Railway root directory to `backend`; this branch already has the backend files at the repository root.
 
 ## Admin Dashboard
 
@@ -80,7 +89,7 @@ Use a dedicated sender for this, not your personal daily email. The preferred pr
 - `SMTP_FROM_NAME` or `RESEND_FROM_NAME`
 - `SUPPORT_EMAIL`
 
-SMTP remains as a fallback for environments that allow outbound SMTP ports. The sender fills `../signup-beta-email-template.html`; Resend HTTP uses the public logo URL, and SMTP attaches the local logo inline.
+SMTP remains as a fallback for environments that allow outbound SMTP ports. The sender fills `signup-beta-email-template.html`; Resend HTTP uses the public logo URL, and SMTP attaches the local logo inline.
 
 If Resend accepts a message but Gmail does not show it while institutional mail does, treat that as a deliverability issue rather than an SMTP port issue. Check Resend logs/events and confirm the sender domain passes SPF, DKIM, and DMARC.
 
@@ -91,7 +100,7 @@ This backend does not serve installers directly. Put each installer in OneDrive,
 - Lite: `LITE_SHARE_URL`
 - Bundle: `BUNDLE_SHARE_URL`
 
-The email button points to `/download/:token`, not directly to OneDrive. The backend validates the tester token, records access, and redirects to the correct OneDrive file URL.
+The email button points to `/beta/:token`, not directly to OneDrive. The beta page validates the tester token, records access, and its download button redirects through `/download/:token` to the correct OneDrive file URL.
 
 ## Security Notes
 

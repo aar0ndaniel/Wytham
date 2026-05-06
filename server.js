@@ -16,7 +16,6 @@ const {
 const { createAdminSupabaseClient } = require('./lib/supabase');
 
 const BACKEND_DIR = __dirname;
-const ASSETS_DIR = path.join(BACKEND_DIR, 'assets');
 const DATA_DIR = path.join(BACKEND_DIR, 'data');
 const PRIMARY_DB_PATH = path.join(DATA_DIR, 'metis-beta.db');
 const LEGACY_DB_PATH = path.join(DATA_DIR, 'semora-beta.db');
@@ -24,12 +23,13 @@ if (!fs.existsSync(PRIMARY_DB_PATH) && fs.existsSync(LEGACY_DB_PATH)) {
   fs.copyFileSync(LEGACY_DB_PATH, PRIMARY_DB_PATH);
 }
 const DB_PATH = PRIMARY_DB_PATH;
-const EMAIL_TEMPLATE_PATH = path.join(ASSETS_DIR, 'signup-beta-email-template.html');
-const LOGO_PATH = path.join(ASSETS_DIR, 'metis-logo-light-nav.png');
+const EMAIL_TEMPLATE_PATH = path.join(BACKEND_DIR, 'signup-beta-email-template.html');
+const LOGO_PATH = path.join(BACKEND_DIR, 'metis-logo-light-nav.png');
 const ADMIN_SCRIPT_PATH = path.join(BACKEND_DIR, 'admin.js');
-const MATTER_FONT_PATH = path.join(ASSETS_DIR, 'matter.woff2');
-const PUBLIC_ROOT_FILES = new Set();
-const PUBLIC_PATH_PREFIXES = [];
+const MATTER_FONT_PATH = path.join(BACKEND_DIR, 'matter.woff2');
+const PUBLIC_ROOT_FILES = new Set([
+  '/metis-logo-light-nav.png',
+]);
 
 loadEnv(path.join(BACKEND_DIR, '.env'));
 
@@ -39,6 +39,7 @@ const RATE_POLICIES = Object.freeze({
   signup: { limit: 5, windowMs: 10 * 60 * 1000 },
   donate: { limit: 5, windowMs: 10 * 60 * 1000 },
   beta: { limit: 60, windowMs: 10 * 60 * 1000 },
+  comment: { limit: 4, windowMs: 10 * 60 * 1000 },
   'admin-login': { limit: 10, windowMs: 10 * 60 * 1000 },
 });
 const RATE_SWEEP_INTERVAL_MS = 60 * 1000;
@@ -105,6 +106,25 @@ const donateSchema = z
     }
   });
 
+const commentSchema = z
+  .object({
+    name: z.string().optional().default(''),
+    body: z.string({ error: 'Please write a short note.' }),
+    hp_field: z.string().optional().default(''),
+    sourcePage: z.string().optional().default(''),
+  })
+  .transform((input) => ({
+    name: clean(input.name, 60),
+    body: clean(input.body, 280),
+    hp_field: clean(input.hp_field, 200),
+    source_page: clean(input.sourcePage, 120),
+  }))
+  .superRefine((input, ctx) => {
+    if (!input.body || input.body.length < 4) {
+      ctx.addIssue({ code: 'custom', message: 'Please write a short note (at least 4 characters).', path: ['body'] });
+    }
+  });
+
 const adminLoginSchema = z.object({
   username: z
     .string({ error: 'Please enter your username.' })
@@ -149,8 +169,15 @@ db.exec(`
     user_agent TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL DEFAULT '',
+    body TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
   CREATE INDEX IF NOT EXISTS idx_signups_created_at ON signups(created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_signups_edition ON signups(edition);
+  CREATE INDEX IF NOT EXISTS idx_comments_created_at ON comments(created_at DESC);
 `);
 
 const statements = {
@@ -243,6 +270,17 @@ const statements = {
     FROM signups
     ORDER BY created_at DESC
   `),
+  insertComment: db.prepare(`
+    INSERT INTO comments (
+      name, body, created_at
+    ) VALUES (?, ?, ?)
+  `),
+  recentComments: db.prepare(`
+    SELECT id, name, body, created_at
+    FROM comments
+    ORDER BY created_at DESC
+    LIMIT ?
+  `),
 };
 
 const mailer = createMailer(config);
@@ -268,7 +306,7 @@ app.get('/health', (req, res) => {
   if (config.healthToken && safeEqualStrings(requestedToken, config.healthToken)) {
     return res.json({
       ok: true,
-      emailConfigured: smtpReady(),
+      emailConfigured: emailReady(),
       totalSignups: statements.counts.get().total || 0,
     });
   }
@@ -428,6 +466,7 @@ app.get('/download/:token', (req, res) => {
     return res.status(503).type('html').send(simplePage('Download Unavailable', 'The download location is not configured yet. Please contact the metis team.'));
   }
 
+  statements.markVisit.run(new Date().toISOString(), signup.token);
   res.setHeader('Cache-Control', 'no-store');
   res.redirect(302, shareUrl);
 });
@@ -603,13 +642,13 @@ function startServers() {
     console.log(`metis beta backend listening on http://${config.host}:${config.port}`);
     console.log(`Public base URL: ${config.publicBaseUrl}`);
     if (config.publicBaseUrl.includes('127.0.0.1') || config.publicBaseUrl.includes('localhost')) {
-      console.warn('[warn] PUBLIC_BASE_URL is localhost — portal links in emails will not reach external users. Set it to your ngrok URL in backend/.env');
+      console.warn('[warn] PUBLIC_BASE_URL is localhost — portal links in emails will not reach external users. Set it to your ngrok URL in .env');
     }
-    if (!smtpReady()) {
-      console.warn('[warn] SMTP not configured — signup emails will not be sent. Add SMTP_HOST, SMTP_USER, SMTP_PASS to backend/.env');
+    if (!emailReady()) {
+      console.warn('[warn] Email sending is not configured — add RESEND_API_KEY plus sender email, or SMTP_* vars, to .env');
     }
     if (config.adminPassword === 'change-this-password') {
-      console.warn('[warn] ADMIN_PASSWORD is still the default — change it in backend/.env before sharing the server URL');
+      console.warn('[warn] ADMIN_PASSWORD is still the default — change it in .env before sharing the server URL');
     }
   });
 
@@ -652,7 +691,7 @@ function sampleSignup(edition) {
 function renderEmailTemplate(signup, logoSrc, currentConfig = config) {
   const template = fs.readFileSync(EMAIL_TEMPLATE_PATH, 'utf8');
   const editionLabel = signup.edition === 'lite' ? 'Lite' : 'Bundle';
-  const shareUrl = shareUrlForEdition(signup.edition, currentConfig);
+  const portalUrl = betaUrl(signup.token, currentConfig);
   const packageNote =
     signup.edition === 'lite'
       ? 'Lite is the smaller option and works best if R is already installed on your computer.'
@@ -668,38 +707,67 @@ function renderEmailTemplate(signup, logoSrc, currentConfig = config) {
     role: signup.role || 'Not provided',
     package_label: `${editionLabel} beta`,
     package_note: packageNote,
-    download_portal_url: shareUrl,
+    download_portal_url: portalUrl,
     support_email: currentConfig.supportEmail || currentConfig.smtpFromEmail || '',
   };
 
   return template.replace(/\{\{([a-z_]+)\}\}/gi, (_match, key) => escapeHtml(values[key] || ''));
 }
 
-async function sendSignupEmailViaHttp(signup, subject, html, currentConfig = config) {
-  const apiKey = String(currentConfig.smtpPass || '').trim();
-  if (!apiKey || !currentConfig.smtpFromEmail) {
-    return { status: 'failed', error: 'SMTP not configured.', sentAt: '' };
+function renderEmailText(signup, currentConfig = config) {
+  const editionLabel = signup.edition === 'lite' ? 'Lite' : 'Bundle';
+  const portalUrl = betaUrl(signup.token, currentConfig);
+  const supportEmail = currentConfig.supportEmail || currentConfig.smtpFromEmail || '';
+
+  return [
+    `Hi ${firstName(signup.name)},`,
+    '',
+    `Your metis ${editionLabel} beta access is ready.`,
+    `Open your beta access page: ${portalUrl}`,
+    '',
+    'The access page will guide you to the correct installer for the version you selected.',
+    '',
+    'If you need help, reply to this email or contact support:',
+    supportEmail || 'Not configured',
+    '',
+    'metis Team',
+  ].join('\n');
+}
+
+async function sendSignupEmailViaResend(signup, subject, html, text, currentConfig = config, options = {}) {
+  const apiKey = trim(currentConfig.resendApiKey);
+  const fromEmail = trim(currentConfig.smtpFromEmail);
+  if (!apiKey || !fromEmail) {
+    return { status: 'failed', error: 'Resend HTTP not configured.', sentAt: '' };
   }
 
+  const endpoint = `${trim(currentConfig.resendEndpoint) || 'https://api.resend.com'}/emails`;
+  const fetchImpl = options.fetchImpl || fetch;
+
   try {
-    const response = await fetch('https://api.resend.com/emails', {
+    const response = await fetchImpl(endpoint, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
+        'User-Agent': 'metis-beta-backend/0.1.0',
       },
       body: JSON.stringify({
-        from: `"${currentConfig.smtpFromName}" <${currentConfig.smtpFromEmail}>`,
+        from: `"${currentConfig.smtpFromName}" <${fromEmail}>`,
         to: [signup.email],
         subject,
         html,
-        reply_to: currentConfig.supportEmail || currentConfig.smtpFromEmail,
+        text,
+        reply_to: currentConfig.supportEmail || fromEmail,
+        tags: [
+          { name: 'edition', value: signup.edition === 'bundle' ? 'bundle' : 'lite' },
+        ],
       }),
     });
 
     if (!response.ok) {
       const bodyText = await response.text();
-      return { status: 'failed', error: cut(bodyText || `Resend HTTP ${response.status}`, 300), sentAt: '' };
+      return { status: 'failed', error: cut(formatResendError(bodyText, response.status), 300), sentAt: '' };
     }
 
     return { status: 'sent', error: '', sentAt: new Date().toISOString() };
@@ -711,13 +779,15 @@ async function sendSignupEmailViaHttp(signup, subject, html, currentConfig = con
 async function sendSignupEmail(signup, options = {}) {
   const currentConfig = options.config || config;
   const currentMailer = options.mailer !== undefined ? options.mailer : mailer;
-
   const logoUrl = `${String(currentConfig.publicBaseUrl || '').replace(/\/+$/, '')}/metis-logo-light-nav.png`;
   const html = renderEmailTemplate(signup, logoUrl, currentConfig);
+  const text = renderEmailText(signup, currentConfig);
   const subject = `Your metis ${signup.edition === 'lite' ? 'Lite' : 'Bundle'} beta access`;
 
-  if (String(currentConfig.smtpPass || '').trim()) {
-    return sendSignupEmailViaHttp(signup, subject, html, currentConfig);
+  if (trim(currentConfig.resendApiKey)) {
+    return sendSignupEmailViaResend(signup, subject, html, text, currentConfig, {
+      fetchImpl: options.fetchImpl,
+    });
   }
 
   if (!currentMailer || !currentConfig.smtpFromEmail) {
@@ -732,6 +802,7 @@ async function sendSignupEmail(signup, options = {}) {
       replyTo: currentConfig.supportEmail || currentConfig.smtpFromEmail,
       subject,
       html: smtpHtml,
+      text,
       attachments: fs.existsSync(LOGO_PATH)
         ? [{ filename: 'metis-logo-light-nav.png', path: LOGO_PATH, cid: 'metis-app-icon' }]
         : [],
@@ -739,6 +810,22 @@ async function sendSignupEmail(signup, options = {}) {
     return { status: 'sent', error: '', sentAt: new Date().toISOString() };
   } catch (error) {
     return { status: 'failed', error: cut(error.message, 300), sentAt: '' };
+  }
+}
+
+function formatResendError(bodyText, status) {
+  const fallback = `Resend HTTP ${status}`;
+  const raw = trim(bodyText);
+  if (!raw) {
+    return fallback;
+  }
+
+  try {
+    const payload = JSON.parse(raw);
+    const message = trim(payload.message || payload.error || payload.name);
+    return message ? `${fallback}: ${message}` : `${fallback}: ${raw}`;
+  } catch (_error) {
+    return `${fallback}: ${raw}`;
   }
 }
 
@@ -773,8 +860,9 @@ function renderBetaPage(signup, currentConfig = config) {
       <div class="eyebrow">metis public beta access</div>
       <h1>${escapeHtml(firstName(signup.name))}, your ${escapeHtml(editionLabel)} beta access is ready.</h1>
       <p>${escapeHtml(note)}</p>
-      <p>Thank you for joining the metis public beta. Use the button below to open your ${escapeHtml(editionLabel.toLowerCase())} access page and download the build you selected.</p>
-      <a class="btn" href="${escapeHtml(downloadUrl(signup.token, currentConfig))}" target="_blank" rel="noopener noreferrer">Open ${escapeHtml(editionLabel)} access page</a>
+      <p>Thank you for joining the metis public beta. Use the button below to download the ${escapeHtml(editionLabel.toLowerCase())} build you selected.</p>
+      <p>If the download is interrupted, use this same button again. Your browser or download manager may be able to continue from where it stopped.</p>
+      <a class="btn" href="${escapeHtml(downloadUrl(signup.token, currentConfig))}" target="_blank" rel="noopener noreferrer">Download ${escapeHtml(editionLabel)} beta</a>
       <div class="meta">
         <strong>Email:</strong> ${escapeHtml(signup.email)}<br />
         <strong>Edition:</strong> ${escapeHtml(editionLabel)} beta<br />
@@ -1830,7 +1918,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
         .map((item) => {
           const status = trim(item.email_status).toLowerCase();
           const sendAction = status === 'sent'
-            ? `<form method="post" action="/admin/signups/${encodeURIComponent(item.token)}/resend" data-confirm="Resend the metis beta email to ${escapeHtml(jsString(item.email))}?"><input type="hidden" name="csrfToken" value="${escapeHtml(formToken(`${item.token}:resend`))}" /><button type="submit" class="ghost-btn">Resend</button></form>`
+            ? `<span class="pill pill-success">Already sent</span>`
             : `<form method="post" action="/admin/signups/${encodeURIComponent(item.token)}/send" data-confirm="Send the metis beta email to ${escapeHtml(jsString(item.email))}?">
                 <input type="hidden" name="csrfToken" value="${escapeHtml(formToken(`${item.token}:send`))}" />
                 <button type="submit" class="ghost-btn">Send</button>
@@ -2899,6 +2987,14 @@ function smtpReady(currentConfig = config) {
   return Boolean(currentConfig.smtpHost && currentConfig.smtpPort && currentConfig.smtpUser && currentConfig.smtpPass && currentConfig.smtpFromEmail);
 }
 
+function resendReady(currentConfig = config) {
+  return Boolean(trim(currentConfig.resendApiKey) && trim(currentConfig.smtpFromEmail));
+}
+
+function emailReady(currentConfig = config) {
+  return resendReady(currentConfig) || smtpReady(currentConfig);
+}
+
 async function verifyTurnstileToken(token, options = {}) {
   const currentConfig = options.config || config;
   const fetchImpl = options.fetchImpl || fetch;
@@ -3441,13 +3537,13 @@ function isSensitivePublicPath(requestedPath) {
 }
 
 function isAllowedPublicPath(requestedPath) {
-  return PUBLIC_ROOT_FILES.has(requestedPath) || PUBLIC_PATH_PREFIXES.some((prefix) => requestedPath.startsWith(prefix));
+  return PUBLIC_ROOT_FILES.has(requestedPath);
 }
 
 function resolvePublicPath(requestedPath) {
   const targetPath = path.resolve(BACKEND_DIR, `.${requestedPath}`);
   if (!targetPath.startsWith(BACKEND_DIR + path.sep) && targetPath !== BACKEND_DIR) {
-    throw new Error('Resolved public path escaped the root directory.');
+    throw new Error('Resolved public path escaped the backend directory.');
   }
   return targetPath;
 }
@@ -3722,6 +3818,26 @@ function createLegacySqliteStore() {
 
       return { data: statements.byEmail.get(email) || null, error: null };
     },
+
+    async insertComment(comment) {
+      const result = statements.insertComment.run(
+        comment.name || '',
+        comment.body,
+        comment.created_at
+      );
+      const row = {
+        id: Number(result.lastInsertRowid) || null,
+        name: comment.name || '',
+        body: comment.body,
+        created_at: comment.created_at,
+      };
+      return { data: row, error: null };
+    },
+
+    async listRecentComments(limit = 200) {
+      const rows = statements.recentComments.all(Number(limit) || 200) || [];
+      return { data: rows, error: null };
+    },
   };
 }
 
@@ -3789,7 +3905,7 @@ function createApp(options = {}) {
   const currentMailer = options.mailer !== undefined ? options.mailer : createMailer(currentConfig);
   const sendEmail = typeof options.sendSignupEmail === 'function'
     ? options.sendSignupEmail
-    : (signup) => sendSignupEmail(signup, { config: currentConfig, mailer: currentMailer });
+    : (signup) => sendSignupEmail(signup, { config: currentConfig, fetchImpl: options.fetchImpl, mailer: currentMailer });
   const verifyTurnstile = typeof options.verifyTurnstile === 'function'
     ? options.verifyTurnstile
     : ({ token, ip }) => verifyTurnstileToken(token, { config: currentConfig, ip });
@@ -3891,7 +4007,7 @@ function createApp(options = {}) {
         const counts = summarizeSignups(await listSignupSummaryRowsFromStore(store));
         return res.json({
           ok: true,
-          emailConfigured: smtpReady(currentConfig),
+          emailConfigured: emailReady(currentConfig),
           totalSignups: counts.total || 0,
         });
       }
@@ -3959,10 +4075,10 @@ function createApp(options = {}) {
         created_at: existing?.created_at || now,
         updated_at: now,
         beta_visits: Number(existing?.beta_visits) || 0,
-        last_beta_visit_at: existing?.last_beta_visit_at || null,
+        last_beta_visit_at: existing?.last_beta_visit_at || '',
         email_status: 'pending',
         email_error: '',
-        email_sent_at: null,
+        email_sent_at: '',
       };
 
       if (existing) {
@@ -4039,6 +4155,79 @@ function createApp(options = {}) {
     }
   });
 
+  hostedApp.get('/api/comments', async (req, res, next) => {
+    try {
+      if (!originAllowed(req, currentConfig.allowedOrigins)) {
+        return res.status(403).json({ success: false, error: 'Origin not allowed.' });
+      }
+      res.setHeader('Cache-Control', 'public, max-age=20');
+      const limit = Math.max(1, Math.min(200, Number(req.query.limit) || 200));
+      const rows = (await readStoreResult(store.listRecentComments(limit))) || [];
+      const sanitized = rows.map((row) => ({
+        id: row.id,
+        name: clean(row.name || '', 60),
+        body: clean(row.body || '', 280),
+        created_at: row.created_at,
+      }));
+      return res.json({ success: true, comments: sanitized });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  hostedApp.post('/api/comment', async (req, res, next) => {
+    try {
+      if (!originAllowed(req, currentConfig.allowedOrigins)) {
+        return res.status(403).json({ success: false, error: 'Origin not allowed.' });
+      }
+
+      res.setHeader('Cache-Control', 'no-store');
+      const ip = clientIp(req);
+      const verification = await verifyTurnstile({
+        action: 'comment',
+        ip,
+        req,
+        token: req.body?.['cf-turnstile-response'] || req.body?.turnstileToken,
+      });
+      if (!verification || !verification.success) {
+        return res.status(verification?.statusCode || 403).json({
+          success: false,
+          error: verification?.error || 'Verification failed. Please try again.',
+        });
+      }
+      if (!allowRate(ip, 'comment')) {
+        return res.status(429).json({ success: false, error: 'You have pinned a few notes already. Please come back in a bit.' });
+      }
+
+      const parsed = commentSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          success: false,
+          error: firstValidationMessage(parsed.error, 'Please write a short note and try again.'),
+        });
+      }
+
+      const body = parsed.data;
+      if (body.hp_field) {
+        tripRateLimit(ip, 'comment');
+        return res.json({ success: true, message: 'Pinned!' });
+      }
+
+      const displayName = body.name && body.name.trim() ? body.name.trim() : 'Anonymous';
+      await readStoreResult(
+        store.insertComment({
+          name: displayName,
+          body: body.body,
+          created_at: new Date().toISOString(),
+        })
+      );
+
+      return res.json({ success: true, message: 'Pinned to the wall.' });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
   hostedApp.get('/beta/:token', async (req, res, next) => {
     try {
       if (!validToken(req.params.token)) {
@@ -4084,6 +4273,13 @@ function createApp(options = {}) {
       if (!isSafeExternalUrl(shareUrl)) {
         return res.status(503).type('html').send(simplePage('Download Unavailable', 'The download location is not configured yet. Please contact the metis team.'));
       }
+
+      await readStoreResult(
+        store.markSignupVisit(signup.token, {
+          betaVisits: (Number(signup.beta_visits) || 0) + 1,
+          visitedAt: new Date().toISOString(),
+        })
+      );
 
       res.setHeader('Cache-Control', 'no-store');
       return res.redirect(302, shareUrl);
@@ -4201,30 +4397,6 @@ function createApp(options = {}) {
       await readStoreResult(store.markSignupEmailStatus(signup.token, emailResult));
       const notice = emailResult.status === 'sent'
         ? 'Email sent'
-        : `Email failed: ${emailResult.error || 'Unknown error.'}`;
-      return res.redirect(`/admin?notice=${encodeURIComponent(notice)}`);
-    } catch (error) {
-      return next(error);
-    }
-  });
-
-  hostedApp.post('/admin/signups/:token/resend', requireHostedAdmin, async (req, res, next) => {
-    try {
-      const signupToken = trim(req.params.token);
-      const csrfToken = trim(req.body?.csrfToken);
-      if (!validToken(signupToken) || !safeEqualStrings(csrfToken, formToken(`${signupToken}:resend`))) {
-        return res.status(403).type('html').send(simplePage('Action Blocked', 'This resend request could not be verified.'));
-      }
-
-      const signup = await readStoreResult(store.findSignupByToken(signupToken));
-      if (!signup) {
-        return res.redirect('/admin?notice=Signup%20not%20found');
-      }
-
-      const emailResult = normalizeEmailResult(await sendEmail(signup));
-      await readStoreResult(store.markSignupEmailStatus(signup.token, emailResult));
-      const notice = emailResult.status === 'sent'
-        ? 'Email resent'
         : `Email failed: ${emailResult.error || 'Unknown error.'}`;
       return res.redirect(`/admin?notice=${encodeURIComponent(notice)}`);
     } catch (error) {
@@ -4369,8 +4541,8 @@ function startServer(options = {}) {
     if (currentConfig.publicBaseUrl.includes('127.0.0.1') || currentConfig.publicBaseUrl.includes('localhost')) {
       console.warn('[warn] PUBLIC_BASE_URL is localhost — portal links in emails will not reach external users. Set it to your public deployment URL.');
     }
-    if (!smtpReady(currentConfig)) {
-      console.warn('[warn] SMTP not configured — admin sends will fail until SMTP_* vars are set.');
+    if (!emailReady(currentConfig)) {
+      console.warn('[warn] Email sending is not configured — admin sends will fail until RESEND_API_KEY plus sender email, or SMTP_* vars, are set.');
     }
     if (currentConfig.adminPassword === 'change-this-password') {
       console.warn('[warn] ADMIN_PASSWORD is still the default — change it before exposing the admin login.');
