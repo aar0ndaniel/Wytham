@@ -743,36 +743,51 @@ async function sendSignupEmailViaResend(signup, subject, html, text, currentConf
 
   const endpoint = `${trim(currentConfig.resendEndpoint) || 'https://api.resend.com'}/emails`;
   const fetchImpl = options.fetchImpl || fetch;
+  const timeoutMs = emailSendTimeoutMs(currentConfig);
+  const timeout = createAbortTimeout(timeoutMs);
+  const requestOptions = {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'User-Agent': 'metis-beta-backend/0.1.0',
+    },
+    body: JSON.stringify({
+      from: `"${currentConfig.smtpFromName}" <${fromEmail}>`,
+      to: [signup.email],
+      subject,
+      html,
+      text,
+      reply_to: currentConfig.supportEmail || fromEmail,
+      tags: [
+        { name: 'edition', value: signup.edition === 'bundle' ? 'bundle' : 'lite' },
+      ],
+    }),
+  };
+  if (timeout.signal) {
+    requestOptions.signal = timeout.signal;
+  }
 
   try {
-    const response = await fetchImpl(endpoint, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'User-Agent': 'metis-beta-backend/0.1.0',
-      },
-      body: JSON.stringify({
-        from: `"${currentConfig.smtpFromName}" <${fromEmail}>`,
-        to: [signup.email],
-        subject,
-        html,
-        text,
-        reply_to: currentConfig.supportEmail || fromEmail,
-        tags: [
-          { name: 'edition', value: signup.edition === 'bundle' ? 'bundle' : 'lite' },
-        ],
-      }),
-    });
+    const response = await withTimeout(
+      fetchImpl(endpoint, requestOptions),
+      timeoutMs,
+      resendTimeoutMessage(timeoutMs)
+    );
 
     if (!response.ok) {
-      const bodyText = await response.text();
+      const bodyText = await withTimeout(response.text(), timeoutMs, resendTimeoutMessage(timeoutMs));
       return { status: 'failed', error: cut(formatResendError(bodyText, response.status), 300), sentAt: '' };
     }
 
     return { status: 'sent', error: '', sentAt: new Date().toISOString() };
   } catch (error) {
-    return { status: 'failed', error: cut(error?.message || 'Resend HTTP request failed.', 300), sentAt: '' };
+    const message = isAbortError(error)
+      ? resendTimeoutMessage(timeoutMs)
+      : error?.message || 'Resend HTTP request failed.';
+    return { status: 'failed', error: cut(message, 300), sentAt: '' };
+  } finally {
+    timeout.clear();
   }
 }
 
@@ -796,7 +811,7 @@ async function sendSignupEmail(signup, options = {}) {
 
   const smtpHtml = renderEmailTemplate(signup, 'cid:metis-app-icon', currentConfig);
   try {
-    await currentMailer.sendMail({
+    await withTimeout(currentMailer.sendMail({
       from: `"${currentConfig.smtpFromName}" <${currentConfig.smtpFromEmail}>`,
       to: signup.email,
       replyTo: currentConfig.supportEmail || currentConfig.smtpFromEmail,
@@ -806,7 +821,7 @@ async function sendSignupEmail(signup, options = {}) {
       attachments: fs.existsSync(LOGO_PATH)
         ? [{ filename: 'metis-logo-light-nav.png', path: LOGO_PATH, cid: 'metis-app-icon' }]
         : [],
-    });
+    }), emailSendTimeoutMs(currentConfig), smtpTimeoutMessage(emailSendTimeoutMs(currentConfig)));
     return { status: 'sent', error: '', sentAt: new Date().toISOString() };
   } catch (error) {
     return { status: 'failed', error: cut(error.message, 300), sentAt: '' };
@@ -2995,6 +3010,65 @@ function resendReady(currentConfig = config) {
 
 function emailReady(currentConfig = config) {
   return resendReady(currentConfig) || smtpReady(currentConfig);
+}
+
+function emailSendTimeoutMs(currentConfig = config) {
+  const timeoutMs = Number(currentConfig.emailSendTimeoutMs);
+  return Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 15000;
+}
+
+function createAbortTimeout(timeoutMs) {
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0 || typeof AbortController === 'undefined') {
+    return { signal: null, clear() {} };
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  if (typeof timer.unref === 'function') {
+    timer.unref();
+  }
+  return {
+    signal: controller.signal,
+    clear() {
+      clearTimeout(timer);
+    },
+  };
+}
+
+async function withTimeout(promise, timeoutMs, message) {
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    return promise;
+  }
+
+  let timer;
+  const timeoutPromise = new Promise((_resolve, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), timeoutMs);
+    if (typeof timer.unref === 'function') {
+      timer.unref();
+    }
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function isAbortError(error) {
+  return error?.name === 'AbortError' || /aborted/i.test(String(error?.message || ''));
+}
+
+function resendTimeoutMessage(timeoutMs) {
+  return `Resend HTTP request timed out after ${formatDuration(timeoutMs)}.`;
+}
+
+function smtpTimeoutMessage(timeoutMs) {
+  return `SMTP send timed out after ${formatDuration(timeoutMs)}.`;
+}
+
+function formatDuration(ms) {
+  return ms >= 1000 ? `${Math.ceil(ms / 1000)}s` : `${Math.ceil(ms)}ms`;
 }
 
 async function verifyTurnstileToken(token, options = {}) {

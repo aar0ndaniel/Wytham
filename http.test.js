@@ -149,6 +149,7 @@ async function startApp(t, options = {}) {
     publicBaseUrl: 'https://metis.emend.it.com',
     smtpFromEmail: '',
     smtpFromName: 'metis Team',
+    emailSendTimeoutMs: 15000,
     smtpHost: '',
     smtpPass: '',
     smtpPort: 465,
@@ -708,6 +709,70 @@ test('POST /admin/signups/:token/send sends through Resend HTTP when configured'
   assert.deepEqual(requests[0].body.to, ['ada@gmail.com']);
   assert.match(requests[0].body.html, /https:\/\/metis\.emend\.it\.com\/beta\/eeee/);
   assert.equal(store.state.signups[0].email_status, 'sent');
+});
+
+test('POST /admin/signups/:token/send fails fast when Resend HTTP hangs', async (t) => {
+  const token = 'f'.repeat(48);
+  const { baseUrl, store } = await startApp(t, {
+    config: {
+      emailSendTimeoutMs: 5,
+      resendApiKey: 're_test_key',
+      resendEndpoint: 'https://api.resend.test',
+      smtpFromEmail: 'team@metis.emend.it.com',
+      smtpFromName: 'metis Team',
+    },
+    fetchImpl: async (_url, init) =>
+      new Promise((_resolve, reject) => {
+        init.signal.addEventListener('abort', () => {
+          const error = new Error('The operation was aborted.');
+          error.name = 'AbortError';
+          reject(error);
+        });
+      }),
+    store: createMemoryStore({
+      signups: [
+        {
+          token,
+          name: 'Slow Mail',
+          email: 'slow@example.com',
+          institution: 'KNUST',
+          country: 'Ghana',
+          role: 'Researcher',
+          edition: 'lite',
+          created_at: '2026-04-16T18:00:00.000Z',
+          updated_at: '2026-04-16T18:00:00.000Z',
+          beta_visits: 0,
+          last_beta_visit_at: '',
+          email_status: 'pending',
+          email_error: '',
+          email_sent_at: '',
+        },
+      ],
+    }),
+  });
+
+  const cookie = await login(baseUrl);
+  const dashboard = await fetch(`${baseUrl}/admin`, {
+    headers: { cookie },
+  });
+  const html = await dashboard.text();
+  const csrfToken = extractCsrfToken(html, `/admin/signups/${token}/send`);
+
+  const response = await fetch(`${baseUrl}/admin/signups/${token}/send`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/x-www-form-urlencoded',
+      cookie,
+    },
+    body: new URLSearchParams({ csrfToken }),
+    redirect: 'manual',
+  });
+
+  assert.equal(response.status, 302);
+  assert.match(response.headers.get('location'), /Email%20failed/i);
+  assert.equal(store.state.signups[0].email_status, 'failed');
+  assert.equal(store.state.signups[0].email_error, 'Resend HTTP request timed out after 5ms.');
+  assert.equal(store.state.signups[0].email_sent_at, '');
 });
 
 test('POST /admin/signups/send attempts selected pending and sent rows', async (t) => {

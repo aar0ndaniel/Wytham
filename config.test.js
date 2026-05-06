@@ -20,6 +20,7 @@ test('createConfig maps hosted runtime values and custom Supabase env names', ()
     SMTP_USER: 'mailer@example.com',
     SMTP_PASS: 'smtp-pass',
     SMTP_FROM_NAME: 'metis Team',
+    EMAIL_SEND_TIMEOUT_MS: '9000',
     RESEND_API_KEY: 're_test_key',
     RESEND_API_BASE_URL: 'https://api.resend.test/',
     LITE_SHARE_URL: 'https://example.com/lite',
@@ -48,6 +49,7 @@ test('createConfig maps hosted runtime values and custom Supabase env names', ()
   assert.equal(config.smtpPass, 'smtp-pass');
   assert.equal(config.smtpFromName, 'metis Team');
   assert.equal(config.smtpFromEmail, 'mailer@example.com');
+  assert.equal(config.emailSendTimeoutMs, 9000);
   assert.equal(config.resendApiKey, 're_test_key');
   assert.equal(config.resendEndpoint, 'https://api.resend.test');
   assert.equal(config.supportEmail, 'mailer@example.com');
@@ -82,6 +84,7 @@ test('createConfig falls back to current backend defaults', () => {
   assert.equal(config.smtpSecure, true);
   assert.equal(config.smtpFromName, 'metis Team');
   assert.equal(config.smtpFromEmail, '');
+  assert.equal(config.emailSendTimeoutMs, 15000);
   assert.equal(config.resendApiKey, '');
   assert.equal(config.resendEndpoint, 'https://api.resend.com');
   assert.equal(config.supportEmail, '');
