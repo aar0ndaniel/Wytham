@@ -45,6 +45,7 @@ create table if not exists public.comments (
 );
 
 create index if not exists idx_signups_created_at_desc on public.signups (created_at desc);
+create index if not exists idx_signups_updated_at_desc on public.signups (updated_at desc);
 create index if not exists idx_signups_edition on public.signups (edition);
 create index if not exists idx_signups_email_status on public.signups (email_status);
 create index if not exists idx_signups_last_beta_visit_at on public.signups (last_beta_visit_at desc);

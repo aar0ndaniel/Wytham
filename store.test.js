@@ -190,9 +190,9 @@ test('createStore shapes signup and admin queries around the supplied client', (
   assert.deepEqual(queries[3].steps, [
     {
       method: 'select',
-      args: ['token,name,email,institution,country,role,edition,created_at,email_status,beta_visits,last_beta_visit_at'],
+      args: ['token,name,email,institution,country,role,edition,created_at,updated_at,email_status,beta_visits,last_beta_visit_at'],
     },
-    { method: 'order', args: ['created_at', { ascending: false }] },
+    { method: 'order', args: ['updated_at', { ascending: false }] },
     { method: 'limit', args: [25] },
   ]);
 

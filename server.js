@@ -227,9 +227,9 @@ const statements = {
     FROM signups
   `),
   recent: db.prepare(`
-    SELECT token, name, email, institution, country, role, edition, created_at, email_status, beta_visits, last_beta_visit_at
+    SELECT token, name, email, institution, country, role, edition, created_at, updated_at, email_status, beta_visits, last_beta_visit_at
     FROM signups
-    ORDER BY created_at DESC
+    ORDER BY updated_at DESC
     LIMIT 50
   `),
   topInstitutions: db.prepare(`
@@ -1949,7 +1949,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
           <td>${renderStatusBadge(item.email_status)}</td>
           <td class="num">${item.beta_visits || 0}</td>
           <td>${item.last_beta_visit_at ? escapeHtml(formatDate(item.last_beta_visit_at)) : 'Not yet'}</td>
-          <td>${escapeHtml(formatDate(item.created_at))}</td>
+          <td>${escapeHtml(formatDate(item.updated_at || item.created_at))}</td>
           <td class="actions-cell">
             <div class="row-actions">
               ${sendAction}
@@ -2525,7 +2525,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
           <div>
             <div class="label">Signups</div>
             <h2>Recent signups</h2>
-            <p class="section-copy">Latest requests across the beta list.</p>
+            <p class="section-copy">Latest saved or updated requests across the beta list.</p>
           </div>
           <div class="selection-tools">
             <label><input class="select-all" type="checkbox" data-select-all aria-label="Select all visible signups" /> <span>Select all</span></label>
@@ -2548,7 +2548,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
                 <th>Email status</th>
                 <th>Visits</th>
                 <th>Last open</th>
-                <th>Signed up</th>
+                <th>Last saved</th>
                 <th>Action</th>
               </tr>
             </thead>
@@ -3708,9 +3708,9 @@ function createLegacySqliteStore() {
     WHERE token = ?
   `);
   const recentSignupsStatement = db.prepare(`
-    SELECT token, name, email, institution, country, role, edition, created_at, email_status, beta_visits, last_beta_visit_at
+    SELECT token, name, email, institution, country, role, edition, created_at, updated_at, email_status, beta_visits, last_beta_visit_at
     FROM signups
-    ORDER BY created_at DESC
+    ORDER BY updated_at DESC
     LIMIT ?
   `);
   const recentDonationsStatement = db.prepare(`
