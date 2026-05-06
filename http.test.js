@@ -457,7 +457,8 @@ test('admin email preview uses tokenized backend access URL instead of raw share
   assert.match(html, /Your Lite version is now ready for testing/);
   assert.match(html, /Access your download/);
   assert.match(html, /https:\/\/metis\.emend\.it\.com\/beta\/preview/);
-  assert.match(html, /src=&quot;\/admin\/logo&quot;/);
+  assert.doesNotMatch(html, /&lt;img\b/i);
+  assert.doesNotMatch(html, /\/admin\/logo/);
   assert.doesNotMatch(html, /metis-logo-light-nav\.png/);
   assert.doesNotMatch(html, /onedrive\.example\.com\/lite-installer/);
 });
@@ -716,13 +717,11 @@ test('POST /admin/signups/:token/send sends through Resend HTTP when configured'
   assert.match(requests[0].body.subject, /Metis beta testing/i);
   assert.match(requests[0].body.html, /https:\/\/metis\.emend\.it\.com\/beta\/eeee/);
   assert.match(requests[0].body.html, /Your Lite version is now ready for testing/);
-  assert.match(requests[0].body.html, /src="cid:metis-logo"/);
+  assert.doesNotMatch(requests[0].body.html, /<img\b/i);
+  assert.doesNotMatch(requests[0].body.html, /cid:metis-logo/);
   assert.doesNotMatch(requests[0].body.html, /metis-logo-light-nav\.png/);
   assert.match(requests[0].body.text, /To submit your feedback, open Metis and click the Feedback tab/);
-  assert.equal(requests[0].body.attachments.length, 1);
-  assert.equal(requests[0].body.attachments[0].filename, 'metis-logo-dark.png');
-  assert.equal(requests[0].body.attachments[0].contentId, 'metis-logo');
-  assert.match(requests[0].body.attachments[0].content, /^[A-Za-z0-9+/=]+$/);
+  assert.equal(Object.hasOwn(requests[0].body, 'attachments'), false);
   assert.equal(store.state.signups[0].email_status, 'sent');
 });
 
