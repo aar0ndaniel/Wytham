@@ -706,9 +706,12 @@ function renderEmailTemplate(signup, logoSrc, currentConfig = config) {
     country: signup.country || 'Not provided',
     role: signup.role || 'Not provided',
     package_label: `${editionLabel} beta`,
+    version_label: editionLabel,
     package_note: packageNote,
     download_portal_url: portalUrl,
-    support_email: currentConfig.supportEmail || currentConfig.smtpFromEmail || '',
+    privacy_url: 'https://metis.emend.it.com/privacy.html',
+    terms_url: 'https://metis.emend.it.com/terms.html',
+    support_email: currentConfig.supportEmail || currentConfig.smtpFromEmail || 'metis@emend.it.com',
   };
 
   return template.replace(/\{\{([a-z_]+)\}\}/gi, (_match, key) => escapeHtml(values[key] || ''));
@@ -722,15 +725,34 @@ function renderEmailText(signup, currentConfig = config) {
   return [
     `Hi ${firstName(signup.name)},`,
     '',
-    `Your metis ${editionLabel} beta access is ready.`,
-    `Open your beta access page: ${portalUrl}`,
+    'Thank you for registering to test Metis.',
     '',
-    'The access page will guide you to the correct installer for the version you selected.',
+    `Your ${editionLabel} version is now ready for testing. At this stage, Metis is available for Windows only, so please test it on a Windows laptop or desktop.`,
     '',
-    'If you need help, reply to this email or contact support:',
-    supportEmail || 'Not configured',
+    'Metis is being developed as a lightweight desktop tool for PLS-SEM, Necessary Condition Analysis, IPMA, and PLSpredict. The goal is to make advanced statistical modelling more accessible for researchers and students who face software barriers, licence restrictions, or coding challenges.',
     '',
-    'metis Team',
+    'A quick beta note',
+    'This is still a beta build. You may come across bugs, unclear workflows, freezes, confusing screens, or results that need checking. That is exactly why your feedback is important.',
+    '',
+    `Access your download: ${portalUrl}`,
+    '',
+    'When testing, focus on the full experience: installation, first use, draw mode, model building, PLS-SEM analysis, Bootstrapping, PLSpredict, NCA, IPMA, result comparison, usability, navigation, and any unexpected behaviour.',
+    '',
+    'To submit your feedback, open Metis and click the Feedback tab. It will take you directly to the feedback page, where you can report issues, share suggestions, and answer a few short questions about your experience.',
+    '',
+    'Your feedback will help us improve Metis before the full release. Thank you once again for being part of this early testing stage.',
+    '',
+    'Best regards,',
+    'metis team',
+    '',
+    'If the button above does not work, copy and paste this link into your browser:',
+    portalUrl,
+    '',
+    'You are receiving this email because you registered interest in testing Metis.',
+    'Privacy Policy: https://metis.emend.it.com/privacy.html',
+    'Beta Terms: https://metis.emend.it.com/terms.html',
+    '',
+    `To request correction or deletion of your details, reply to this email or contact ${supportEmail || 'metis@emend.it.com'}.`,
   ].join('\n');
 }
 
@@ -797,7 +819,7 @@ async function sendSignupEmail(signup, options = {}) {
   const logoUrl = `${String(currentConfig.publicBaseUrl || '').replace(/\/+$/, '')}/metis-logo-light-nav.png`;
   const html = renderEmailTemplate(signup, logoUrl, currentConfig);
   const text = renderEmailText(signup, currentConfig);
-  const subject = `Your metis ${signup.edition === 'lite' ? 'Lite' : 'Bundle'} beta access`;
+  const subject = `Metis beta testing: ${signup.edition === 'lite' ? 'Lite' : 'Bundle'} version ready`;
 
   if (trim(currentConfig.resendApiKey)) {
     return sendSignupEmailViaResend(signup, subject, html, text, currentConfig, {

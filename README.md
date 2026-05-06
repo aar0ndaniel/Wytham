@@ -89,7 +89,7 @@ Use a dedicated sender for this, not your personal daily email. The preferred pr
 - `SMTP_FROM_NAME` or `RESEND_FROM_NAME`
 - `SUPPORT_EMAIL`
 
-SMTP remains as a fallback for environments that allow outbound SMTP ports. The sender fills `signup-beta-email-template.html`; Resend HTTP uses the public logo URL, and SMTP attaches the local logo inline.
+SMTP remains as a fallback for environments that allow outbound SMTP ports. The sender fills `signup-beta-email-template.html`; the production email uses a text Metis wordmark so email clients do not depend on loading an external logo image.
 
 If Resend accepts a message but Gmail does not show it while institutional mail does, treat that as a deliverability issue rather than an SMTP port issue. Check Resend logs/events and confirm the sender domain passes SPF, DKIM, and DMARC.
 
