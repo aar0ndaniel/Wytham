@@ -399,6 +399,16 @@ test('admin email preview uses tokenized backend access URL instead of raw share
   assert.doesNotMatch(html, /onedrive\.example\.com\/lite-installer/);
 });
 
+test('GET /metis-logo-light-nav.png serves the email logo image', async (t) => {
+  const { baseUrl } = await startApp(t);
+
+  const response = await fetch(`${baseUrl}/metis-logo-light-nav.png`);
+
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get('content-type') || '', /image\/png/);
+  assert.ok((await response.arrayBuffer()).byteLength > 1000);
+});
+
 test('POST /api/comment stores only public wall fields after Turnstile verification', async (t) => {
   const { baseUrl, store } = await startApp(t, {
     verifyTurnstile: async ({ token, action }) => ({

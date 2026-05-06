@@ -17,6 +17,7 @@ const { createAdminSupabaseClient } = require('./lib/supabase');
 
 const BACKEND_DIR = __dirname;
 const ROOT_DIR = path.resolve(__dirname, '..');
+const RUNTIME_ASSET_DIR = fs.existsSync(path.join(ROOT_DIR, 'signup-beta-email-template.html')) ? ROOT_DIR : BACKEND_DIR;
 const DATA_DIR = path.join(BACKEND_DIR, 'data');
 const PRIMARY_DB_PATH = path.join(DATA_DIR, 'metis-beta.db');
 const LEGACY_DB_PATH = path.join(DATA_DIR, 'semora-beta.db');
@@ -24,10 +25,16 @@ if (!fs.existsSync(PRIMARY_DB_PATH) && fs.existsSync(LEGACY_DB_PATH)) {
   fs.copyFileSync(LEGACY_DB_PATH, PRIMARY_DB_PATH);
 }
 const DB_PATH = PRIMARY_DB_PATH;
-const EMAIL_TEMPLATE_PATH = path.join(ROOT_DIR, 'signup-beta-email-template.html');
-const LOGO_PATH = path.join(ROOT_DIR, 'metis-logo-light-nav.png');
+const EMAIL_TEMPLATE_PATH = path.join(RUNTIME_ASSET_DIR, 'signup-beta-email-template.html');
+const LOGO_PATH = firstExistingPath([
+  path.join(ROOT_DIR, 'metis-logo-light-nav.png'),
+  path.join(BACKEND_DIR, 'metis-logo-light-nav.png'),
+]);
 const ADMIN_SCRIPT_PATH = path.join(BACKEND_DIR, 'admin.js');
-const MATTER_FONT_PATH = path.join(ROOT_DIR, 'matter.woff2');
+const MATTER_FONT_PATH = firstExistingPath([
+  path.join(ROOT_DIR, 'matter.woff2'),
+  path.join(BACKEND_DIR, 'matter.woff2'),
+]);
 const PUBLIC_ROOT_FILES = new Set([
   '/index.html',
   '/contact.html',
@@ -3110,6 +3117,10 @@ function createMailer(currentConfig = config) {
   });
 }
 
+function firstExistingPath(candidates) {
+  return candidates.find((candidate) => fs.existsSync(candidate)) || candidates[0];
+}
+
 function clientIp(req) {
   const remoteAddr = normalizeIp(req.socket.remoteAddress) || 'unknown';
   // Only trust proxy headers from a local tunnel/agent process. Use the right-most
@@ -3573,11 +3584,24 @@ function isAllowedPublicPath(requestedPath) {
 }
 
 function resolvePublicPath(requestedPath) {
-  const targetPath = path.resolve(ROOT_DIR, `.${requestedPath}`);
-  if (!targetPath.startsWith(ROOT_DIR + path.sep) && targetPath !== ROOT_DIR) {
-    throw new Error('Resolved public path escaped the root directory.');
+  const candidates = [
+    path.resolve(ROOT_DIR, `.${requestedPath}`),
+    path.resolve(BACKEND_DIR, `.${requestedPath}`),
+  ];
+
+  for (const targetPath of candidates) {
+    const baseDir = targetPath.startsWith(BACKEND_DIR + path.sep) || targetPath === BACKEND_DIR
+      ? BACKEND_DIR
+      : ROOT_DIR;
+    if (!targetPath.startsWith(baseDir + path.sep) && targetPath !== baseDir) {
+      continue;
+    }
+    if (fs.existsSync(targetPath)) {
+      return targetPath;
+    }
   }
-  return targetPath;
+
+  return candidates[0];
 }
 
 function escapeHtml(value) {
