@@ -96,6 +96,14 @@ function createMemoryStore(initial = {}) {
       return { data: state.signups.map(cloneSignup), error: null };
     },
 
+    async listDonationsForExport() {
+      return { data: state.donations.map((donation) => ({ ...donation })), error: null };
+    },
+
+    async listFeedbackForExport() {
+      return { data: state.feedback.map((feedback) => ({ ...feedback })), error: null };
+    },
+
     async markSignupEmailStatus(token, nextStatus) {
       const signup = state.signups.find((item) => item.token === token);
       if (!signup) {
@@ -604,7 +612,10 @@ test('POST /api/feedback stores tester feedback for admin review', async (t) => 
     },
     body: JSON.stringify({
       app_version: '0.1.7',
-      analysis: JSON.stringify({ bugs: 'The app freezes after clicking Calculate.' }),
+      analysis: JSON.stringify({
+        best_feature: 'Fast PLS output.',
+        bugs: 'The app freezes after clicking Calculate.',
+      }),
       dataset_type: 'Survey data',
       draw_mode: JSON.stringify({ q1: 4 }),
       email: 'tester@example.com',
@@ -613,14 +624,36 @@ test('POST /api/feedback stores tester feedback for admin review', async (t) => 
       navigation: JSON.stringify({ q1: 5 }),
       num_constructs: '5',
       num_indicators: '24',
-      overall: JSON.stringify({ needs_improvement: 'Stop freezing after Calculate.' }),
+      overall: JSON.stringify({
+        adoption_likelihood: 5,
+        final_note: 'Metis already feels useful enough to share on the wall.',
+        final_note_name: 'Wall Tester',
+        most_valuable_feature: 'The comparison report.',
+        needs_improvement: 'Stop freezing after Calculate.',
+      }),
       privacyAccepted: 'yes',
       privacyPolicyVersion: '1.0',
       ram: '16 GB',
       sample_size: '250',
       sourcePage: '/feedback.html',
       sourceTitle: 'Feedback',
-      tam: JSON.stringify({ pu1: 5 }),
+      tam: JSON.stringify({
+        att1: 5,
+        att2: 5,
+        att3: 4,
+        bi1: 5,
+        bi2: 4,
+        bi3: 5,
+        bi4: 4,
+        peou1: 3,
+        peou2: 4,
+        peou3: 4,
+        peou4: 3,
+        pu1: 5,
+        pu2: 4,
+        pu3: 5,
+        pu4: 4,
+      }),
       windows_version: 'Windows 11',
       'cf-turnstile-response': 'valid-feedback-token',
     }),
@@ -635,6 +668,9 @@ test('POST /api/feedback stores tester feedback for admin review', async (t) => 
   assert.equal(store.state.feedback[0].app_version, '0.1.7');
   assert.deepEqual(store.state.feedback[0].features_tested, ['PLS-SEM analysis', 'Draw mode / model building']);
   assert.match(store.state.feedback[0].created_at, /^\d{4}-\d{2}-\d{2}T/);
+  assert.equal(store.state.comments.length, 1);
+  assert.equal(store.state.comments[0].name, 'Wall Tester');
+  assert.equal(store.state.comments[0].body, 'Metis already feels useful enough to share on the wall.');
 
   const loginResponse = await fetch(`${baseUrl}/admin/login`, {
     method: 'POST',
@@ -657,7 +693,109 @@ test('POST /api/feedback stores tester feedback for admin review', async (t) => 
   assert.match(html, /Beta feedback/i);
   assert.match(html, /Beta Tester/i);
   assert.match(html, /The app freezes after clicking Calculate/i);
+  assert.match(html, /Adoption 5\/5/i);
+  assert.match(html, /BI 4\.5\/5/i);
+  assert.match(html, /Use intent/i);
+  assert.doesNotMatch(html, /\s\|\s/);
   assert.doesNotMatch(html, /Recent wall notes/i);
+});
+
+test('admin CSV export follows the active admin panel data shape', async (t) => {
+  const { baseUrl } = await startApp(t, {
+    store: createMemoryStore({
+      donations: [
+        {
+          amount: '$25',
+          country: 'Ghana',
+          created_at: '2026-04-12T10:00:00.000Z',
+          email: 'donor@example.com',
+          message: 'Happy to support.',
+          name: 'Donor One',
+        },
+      ],
+      feedback: [
+        {
+          app_version: '0.1.7',
+          analysis: { bugs: 'Freeze after Calculate.' },
+          created_at: '2026-04-14T10:00:00.000Z',
+          dataset_type: 'Survey data',
+          draw_mode: { q1: 4 },
+          email: 'tester@example.com',
+          features_tested: ['PLS-SEM analysis'],
+          name: 'Beta Tester',
+          navigation: { q1: 5 },
+          num_constructs: '5',
+          num_indicators: '24',
+          overall: {
+            adoption_likelihood: 5,
+            final_note: 'I would use it.',
+            most_valuable_feature: 'Comparison report',
+          },
+          privacy_accepted_at: '2026-04-14T10:00:00.000Z',
+          privacy_policy_version: '1.0',
+          ram: '16 GB',
+          sample_size: '250',
+          screenshot_url: '',
+          source_page: '/feedback.html',
+          source_title: 'Feedback',
+          tam: {
+            att1: 5,
+            att2: 5,
+            att3: 4,
+            bi1: 5,
+            bi2: 4,
+            bi3: 5,
+            bi4: 4,
+            peou1: 3,
+            peou2: 4,
+            peou3: 4,
+            peou4: 3,
+            pu1: 5,
+            pu2: 4,
+            pu3: 5,
+            pu4: 4,
+          },
+          windows_version: 'Windows 11',
+        },
+      ],
+      signups: [
+        {
+          beta_visits: 2,
+          country: 'Ghana',
+          created_at: '2026-04-10T10:00:00.000Z',
+          edition: 'bundle',
+          email: 'ada@example.com',
+          email_status: 'sent',
+          institution: 'KNUST',
+          name: 'Ada Lovelace',
+          role: 'Researcher',
+          token: 'a'.repeat(48),
+          updated_at: '2026-04-11T10:00:00.000Z',
+        },
+      ],
+    }),
+  });
+  const cookie = await login(baseUrl);
+
+  const signupsResponse = await fetch(`${baseUrl}/admin/export/signups.csv`, { headers: { cookie } });
+  assert.equal(signupsResponse.status, 200);
+  assert.match(signupsResponse.headers.get('content-type'), /text\/csv/i);
+  const signupsCsv = await signupsResponse.text();
+  assert.match(signupsCsv, /^name,email,institution,country,role,edition,created_at,email_status,beta_visits/m);
+  assert.match(signupsCsv, /"Ada Lovelace","ada@example.com"/);
+
+  const donationsResponse = await fetch(`${baseUrl}/admin/export/donations.csv`, { headers: { cookie } });
+  assert.equal(donationsResponse.status, 200);
+  const donationsCsv = await donationsResponse.text();
+  assert.match(donationsCsv, /^name,email,country,amount,message,created_at/m);
+  assert.match(donationsCsv, /"Donor One","donor@example.com","Ghana","\$25","Happy to support\."/);
+
+  const feedbackResponse = await fetch(`${baseUrl}/admin/export/feedback.csv`, { headers: { cookie } });
+  assert.equal(feedbackResponse.status, 200);
+  const feedbackCsv = await feedbackResponse.text();
+  assert.match(feedbackCsv, /^name,email,windows_version,ram,app_version,dataset_type,sample_size,num_constructs,num_indicators,features_tested,draw_mode,navigation,analysis,tam,overall,adoption_likelihood,tam_pu_avg,tam_peou_avg,tam_att_avg,tam_bi_avg,tam_avg,screenshot_url,privacy_policy_version,privacy_accepted_at,source_page,source_title,created_at/m);
+  assert.match(feedbackCsv, /"Beta Tester","tester@example.com","Windows 11"/);
+  assert.match(feedbackCsv, /"5","4\.5","3\.5","4\.7","4\.5"/);
 });
 
 test('POST /admin/signups/:token/send sends a pending signup manually and marks it sent', async (t) => {

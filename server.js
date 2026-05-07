@@ -45,6 +45,43 @@ const RATE_POLICIES = Object.freeze({
 });
 const RATE_SWEEP_INTERVAL_MS = 60 * 1000;
 const PRIVACY_POLICY_VERSION = '1.0';
+const SIGNUP_EXPORT_HEADERS = ['name', 'email', 'institution', 'country', 'role', 'edition', 'created_at', 'email_status', 'beta_visits'];
+const DONATION_EXPORT_HEADERS = ['name', 'email', 'country', 'amount', 'message', 'created_at'];
+const FEEDBACK_EXPORT_HEADERS = [
+  'name',
+  'email',
+  'windows_version',
+  'ram',
+  'app_version',
+  'dataset_type',
+  'sample_size',
+  'num_constructs',
+  'num_indicators',
+  'features_tested',
+  'draw_mode',
+  'navigation',
+  'analysis',
+  'tam',
+  'overall',
+  'adoption_likelihood',
+  'tam_pu_avg',
+  'tam_peou_avg',
+  'tam_att_avg',
+  'tam_bi_avg',
+  'tam_avg',
+  'screenshot_url',
+  'privacy_policy_version',
+  'privacy_accepted_at',
+  'source_page',
+  'source_title',
+  'created_at',
+];
+const TAM_GROUPS = [
+  { key: 'pu', label: 'PU', keys: ['pu1', 'pu2', 'pu3', 'pu4'] },
+  { key: 'peou', label: 'PEOU', keys: ['peou1', 'peou2', 'peou3', 'peou4'] },
+  { key: 'att', label: 'ATT', keys: ['att1', 'att2', 'att3'] },
+  { key: 'bi', label: 'BI', keys: ['bi1', 'bi2', 'bi3', 'bi4'] },
+];
 
 const signupSchema = z
   .object({
@@ -380,6 +417,11 @@ const statements = {
     FROM signups
     ORDER BY created_at DESC
   `),
+  allDonationsForExport: db.prepare(`
+    SELECT name, email, country, amount, message, created_at
+    FROM donations
+    ORDER BY created_at DESC
+  `),
   insertComment: db.prepare(`
     INSERT INTO comments (
       name, body, created_at
@@ -415,6 +457,15 @@ const statements = {
     FROM feedback
     ORDER BY created_at DESC
     LIMIT ?
+  `),
+  allFeedbackForExport: db.prepare(`
+    SELECT id, name, email, windows_version, ram, app_version, dataset_type,
+      sample_size, num_constructs, num_indicators, features_tested,
+      draw_mode, navigation, analysis, tam, overall, screenshot_url,
+      privacy_policy_version, privacy_accepted_at,
+      source_page, source_title, created_at
+    FROM feedback
+    ORDER BY created_at DESC
   `),
 };
 
@@ -618,6 +669,11 @@ app.post('/api/feedback', (req, res) => {
     now
   );
 
+  const wallComment = feedbackWallCommentFromPayload(body, now);
+  if (wallComment) {
+    statements.insertComment.run(wallComment.name, wallComment.body, wallComment.created_at);
+  }
+
   return res.json({ success: true, message: 'Feedback received. We will review it as we improve the beta.' });
 });
 
@@ -679,16 +735,19 @@ adminApp.get('/admin', requireLocalAdmin, (req, res) => {
 });
 
 adminApp.get('/admin/export.csv', requireLocalAdmin, (_req, res) => {
-  const rows = statements.allForExport.all();
-  const headers = ['name', 'email', 'institution', 'country', 'role', 'edition', 'created_at', 'email_status', 'beta_visits'];
-  const csvBody = [
-    headers.join(','),
-    ...rows.map((row) => headers.map((key) => csvCell(row[key])).join(',')),
-  ].join('\n');
-  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', 'attachment; filename="metis-signups.csv"');
-  res.setHeader('Cache-Control', 'no-store');
-  res.send(csvBody);
+  sendSignupsCsv(res, statements.allForExport.all());
+});
+
+adminApp.get('/admin/export/signups.csv', requireLocalAdmin, (_req, res) => {
+  sendSignupsCsv(res, statements.allForExport.all());
+});
+
+adminApp.get('/admin/export/donations.csv', requireLocalAdmin, (_req, res) => {
+  sendDonationsCsv(res, statements.allDonationsForExport.all());
+});
+
+adminApp.get('/admin/export/feedback.csv', requireLocalAdmin, (_req, res) => {
+  sendFeedbackCsv(res, statements.allFeedbackForExport.all());
 });
 
 adminApp.get('/admin/logo', (req, res) => {
@@ -2161,6 +2220,52 @@ function normalizeFeedbackFeatures(value) {
   return [];
 }
 
+function renderFeedbackScorePill(label, value, titleLabel = label) {
+  const score = formatFeedbackScore(value);
+  if (!score) {
+    return '';
+  }
+  const title = `${titleLabel} ${score}/5`;
+  return `<span class="score-pill" aria-label="${escapeHtml(title)}" title="${escapeHtml(title)}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(score)}/5</strong></span>`;
+}
+
+function renderFeedbackScoreSummary(tam, overall) {
+  const scores = feedbackTamScores(tam);
+  const overallData = safeJsonForAdmin(overall);
+  const pills = [
+    renderFeedbackScorePill('Adoption', scoreNumber(overallData.adoption_likelihood)),
+    ...TAM_GROUPS.map((group) => renderFeedbackScorePill(group.label, scores[group.key], group.key === 'bi' ? 'Use intent BI' : group.label)),
+  ].filter(Boolean);
+
+  if (!pills.length) {
+    return '—';
+  }
+
+  return `<div class="score-summary"><span class="feedback-note-label">Use intent and TAM</span><div class="score-grid">${pills.join('')}</div></div>`;
+}
+
+function renderFeedbackNotes(analysis, overall) {
+  const items = [
+    ['Best feature', analysis.best_feature],
+    ['Comparison', analysis.comparison],
+    ['Confusing', analysis.confusing_feature],
+    ['Bugs', analysis.bugs],
+    ['Improve', overall.needs_improvement],
+    ['Most valuable', overall.most_valuable_feature],
+    ['Final note', overall.final_note],
+  ]
+    .map(([label, value]) => [label, clean(value, 240)])
+    .filter(([, value]) => Boolean(value));
+
+  if (!items.length) {
+    return '—';
+  }
+
+  return `<div class="feedback-notes">${items
+    .map(([label, value]) => `<div class="feedback-note"><span class="feedback-note-label">${escapeHtml(label)}</span><p>${escapeHtml(value)}</p></div>`)
+    .join('')}</div>`;
+}
+
 function renderAdminPage(counts, donationCounts, recent, recentDonations, institutions, dailySignups, notice, options = {}) {
   const formToken = typeof options.formToken === 'function' ? options.formToken : adminFormToken;
   const batchSendToken = formToken('batch-send');
@@ -2226,25 +2331,23 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
           const features = normalizeFeedbackFeatures(item.features_tested);
           const analysis = safeJsonForAdmin(item.analysis);
           const overall = safeJsonForAdmin(item.overall);
+          const tam = safeJsonForAdmin(item.tam);
           const screenshotUrl = isSafeExternalUrl(item.screenshot_url) ? item.screenshot_url : '';
-          const notes = [
-            analysis.bugs ? `Bugs: ${analysis.bugs}` : '',
-            analysis.confusing_feature ? `Confusing: ${analysis.confusing_feature}` : '',
-            overall.needs_improvement ? `Improve: ${overall.needs_improvement}` : '',
-            overall.final_note ? `Note: ${overall.final_note}` : '',
-          ].filter(Boolean).join(' | ');
+          const scoreSummary = renderFeedbackScoreSummary(tam, overall);
+          const notes = renderFeedbackNotes(analysis, overall);
           return `<tr>
           <td><div class="identity-cell"><strong>${escapeHtml(item.name || 'Anonymous')}</strong><span>${escapeHtml(item.email || 'No email')}</span></div></td>
           <td>${escapeHtml(item.app_version || '—')}</td>
           <td>${escapeHtml(item.windows_version || '—')}</td>
           <td>${features.length ? features.slice(0, 4).map((feature) => `<span class="pill pill-blue">${escapeHtml(feature)}</span>`).join(' ') : '—'}</td>
-          <td>${escapeHtml(cut(notes || '—', 220))}${screenshotUrl ? `<br><a class="table-link" href="${escapeHtml(screenshotUrl)}" target="_blank" rel="noopener">Screenshot link</a>` : ''}</td>
+          <td>${scoreSummary}</td>
+          <td>${notes}${screenshotUrl ? `<br><a class="table-link" href="${escapeHtml(screenshotUrl)}" target="_blank" rel="noopener">Screenshot link</a>` : ''}</td>
           <td>${escapeHtml(formatDate(item.created_at))}</td>
           <td>${item.email ? `<a class="ghost-btn" href="mailto:${encodeURIComponent(item.email)}?subject=${encodeURIComponent('Re: Metis beta feedback')}">Reply</a>` : '—'}</td>
         </tr>`;
         })
         .join('')
-    : '<tr><td colspan="7">No feedback yet.</td></tr>';
+    : '<tr><td colspan="8">No feedback yet.</td></tr>';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -2668,6 +2771,42 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
     .pill-success { color: #d8e2c9; background: var(--success-soft); border-color: rgba(170,182,138,.34); }
     .pill-danger { color: #f1c6c6; background: var(--danger-soft); border-color: rgba(217,133,133,.34); }
     .pill-muted { color: rgba(200,193,174,.78); background: rgba(255,255,255,.04); }
+    .score-summary,
+    .feedback-notes { display: grid; gap: 9px; min-width: 220px; }
+    .score-grid { display: flex; flex-wrap: wrap; gap: 7px; }
+    .score-pill {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 6px;
+      min-height: 30px;
+      padding: 0 10px;
+      border-radius: 999px;
+      color: #d8e2c9;
+      background: rgba(170,182,138,.1);
+      border: 1px solid rgba(170,182,138,.28);
+      white-space: nowrap;
+    }
+    .score-pill span,
+    .feedback-note-label {
+      color: rgba(200,193,174,.68);
+      font-size: 10px;
+      font-family: 'IBM Plex Mono', monospace;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+    .score-pill strong { font-size: 13px; font-weight: 600; color: var(--text); }
+    .feedback-note {
+      padding: 10px 12px;
+      border: 1px solid rgba(245,241,231,.07);
+      border-radius: 12px;
+      background: rgba(255,255,255,.025);
+    }
+    .feedback-note p {
+      margin: 5px 0 0;
+      color: var(--text);
+      line-height: 1.5;
+      font-size: 13px;
+    }
     .danger-ghost { color: #f3cece; border-color: rgba(217,133,133,.32); background: rgba(217,133,133,.1); }
     .danger-solid { color: #fff0f0; border-color: rgba(217,133,133,.32); background: rgba(120,37,37,.82); }
     .account-layout {
@@ -2743,7 +2882,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
       <button type="button" class="side-btn" data-panel-target="donations-panel" aria-label="Show donations" title="Donations">${adminIcon('donations')}<span class="side-btn-label">Donations</span></button>
       <button type="button" class="side-btn" data-panel-target="feedback-panel" aria-label="Show feedback" title="Feedback">${adminIcon('feedback')}<span class="side-btn-label">Feedback</span></button>
       <button type="button" class="side-btn" data-panel-target="account-panel" aria-label="Account" title="Account">${adminIcon('account')}<span class="side-btn-label">Account</span></button>
-      <a class="side-btn" href="/admin/export.csv" aria-label="Export signups CSV" title="Export CSV">${adminIcon('export')}<span class="side-btn-label">Export CSV</span></a>
+      <a class="side-btn" href="/admin/export/signups.csv" data-export-link aria-label="Export signups CSV" title="Export signups CSV">${adminIcon('export')}<span class="side-btn-label" data-export-text>Export signups CSV</span></a>
       <a class="side-btn" href="/admin/preview/email" aria-label="Preview email" title="Preview email">${adminIcon('preview')}<span class="side-btn-label">Email preview</span></a>
     </nav>
     <div class="nav-footer">
@@ -2764,12 +2903,12 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
       </div>
       <div class="quick-actions">
         <a class="ghost-btn" href="/admin/preview/email">Preview email</a>
-        <a class="primary-btn" href="/admin/export.csv">Export CSV</a>
+        <a class="primary-btn" href="/admin/export/signups.csv" data-export-link aria-label="Export signups CSV" title="Export signups CSV"><span data-export-text>Export signups CSV</span></a>
       </div>
     </section>
     ${noticeBanner}
 
-    <section id="signups-panel" class="panel is-active" data-panel>
+    <section id="signups-panel" class="panel is-active" data-panel data-export-href="/admin/export/signups.csv" data-export-label="Export signups CSV">
       <section class="section-card summary-strip" aria-label="Signup summary">
         <div class="summary-item">
           <div class="label">Total</div>
@@ -2831,7 +2970,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
       </section>
     </section>
 
-    <section id="donations-panel" class="panel" data-panel>
+    <section id="donations-panel" class="panel" data-panel data-export-href="/admin/export/donations.csv" data-export-label="Export donations CSV">
       <section class="card section-card">
         <div class="section-head">
           <div>
@@ -2857,7 +2996,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
       </section>
     </section>
 
-    <section id="feedback-panel" class="panel" data-panel>
+    <section id="feedback-panel" class="panel" data-panel data-export-href="/admin/export/feedback.csv" data-export-label="Export feedback CSV">
       <section class="card section-card">
         <div class="section-head">
           <div>
@@ -2874,6 +3013,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
                 <th>App</th>
                 <th>Windows</th>
                 <th>Features</th>
+                <th>Adoption / TAM</th>
                 <th>Notes</th>
                 <th>Submitted</th>
                 <th>Action</th>
@@ -2885,7 +3025,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
       </section>
     </section>
 
-    <section id="account-panel" class="panel" data-panel>
+    <section id="account-panel" class="panel" data-panel data-export-href="/admin/export/signups.csv" data-export-label="Export signups CSV">
       ${renderAdminAccountPanel({ adminUsername: options.adminUsername })}
     </section>
   </div>
@@ -3970,6 +4110,128 @@ function csvCell(value) {
   return '"' + safe.replace(/"/g, '""') + '"';
 }
 
+function sendCsv(res, filename, headers, rows) {
+  const csvBody = [
+    headers.join(','),
+    ...(rows || []).map((row) => headers.map((key) => csvCell(row[key])).join(',')),
+  ].join('\n');
+
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.setHeader('Cache-Control', 'no-store');
+  return res.send(csvBody);
+}
+
+function sendSignupsCsv(res, rows) {
+  return sendCsv(res, 'metis-signups.csv', SIGNUP_EXPORT_HEADERS, rows || []);
+}
+
+function sendDonationsCsv(res, rows) {
+  return sendCsv(res, 'metis-donations.csv', DONATION_EXPORT_HEADERS, rows || []);
+}
+
+function sendFeedbackCsv(res, rows) {
+  return sendCsv(res, 'metis-feedback.csv', FEEDBACK_EXPORT_HEADERS, (rows || []).map(feedbackExportRow));
+}
+
+function feedbackExportRow(row) {
+  const analysis = safeJsonForAdmin(row.analysis);
+  const drawMode = safeJsonForAdmin(row.draw_mode);
+  const navigation = safeJsonForAdmin(row.navigation);
+  const overall = safeJsonForAdmin(row.overall);
+  const tam = safeJsonForAdmin(row.tam);
+  const scores = feedbackTamScores(tam);
+  return {
+    name: row.name || '',
+    email: row.email || '',
+    windows_version: row.windows_version || '',
+    ram: row.ram || '',
+    app_version: row.app_version || '',
+    dataset_type: row.dataset_type || '',
+    sample_size: row.sample_size || '',
+    num_constructs: row.num_constructs || '',
+    num_indicators: row.num_indicators || '',
+    features_tested: normalizeFeedbackFeatures(row.features_tested).join('; '),
+    draw_mode: jsonForCsv(drawMode),
+    navigation: jsonForCsv(navigation),
+    analysis: jsonForCsv(analysis),
+    tam: jsonForCsv(tam),
+    overall: jsonForCsv(overall),
+    adoption_likelihood: formatFeedbackScore(scoreNumber(overall.adoption_likelihood)),
+    tam_pu_avg: formatFeedbackScore(scores.pu),
+    tam_peou_avg: formatFeedbackScore(scores.peou),
+    tam_att_avg: formatFeedbackScore(scores.att),
+    tam_bi_avg: formatFeedbackScore(scores.bi),
+    tam_avg: formatFeedbackScore(scores.tam),
+    screenshot_url: row.screenshot_url || '',
+    privacy_policy_version: row.privacy_policy_version || '',
+    privacy_accepted_at: row.privacy_accepted_at || '',
+    source_page: row.source_page || '',
+    source_title: row.source_title || '',
+    created_at: row.created_at || '',
+  };
+}
+
+function jsonForCsv(value) {
+  const object = normalizeJsonObject(value);
+  return Object.keys(object).length ? JSON.stringify(object) : '';
+}
+
+function scoreNumber(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function averageFeedbackScores(values) {
+  const scores = values.map(scoreNumber).filter((value) => value != null);
+  if (!scores.length) {
+    return null;
+  }
+  return scores.reduce((sum, value) => sum + value, 0) / scores.length;
+}
+
+function feedbackTamScores(value) {
+  const tam = safeJsonForAdmin(value);
+  const allScores = [];
+  const result = {};
+  for (const group of TAM_GROUPS) {
+    const values = group.keys.map((key) => scoreNumber(tam[key])).filter((score) => score != null);
+    if (values.length) {
+      result[group.key] = averageFeedbackScores(values);
+      allScores.push(...values);
+    } else {
+      result[group.key] = null;
+    }
+  }
+  result.tam = averageFeedbackScores(allScores);
+  return result;
+}
+
+function formatFeedbackScore(value) {
+  if (value == null) {
+    return '';
+  }
+  const rounded = Math.round(Number(value) * 10) / 10;
+  if (!Number.isFinite(rounded)) {
+    return '';
+  }
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
+function feedbackWallCommentFromPayload(body, createdAt) {
+  const overall = normalizeJsonObject(body?.overall);
+  const note = clean(overall.final_note || overall.wall_body || '', 280);
+  if (note.length < 4) {
+    return null;
+  }
+
+  return {
+    name: clean(overall.final_note_name || overall.wall_name || body?.name || 'Anonymous', 60) || 'Anonymous',
+    body: note,
+    created_at: createdAt,
+  };
+}
+
 function validToken(value) {
   return /^[a-f0-9]{48}$/i.test(String(value || ''));
 }
@@ -4074,6 +4336,22 @@ function createLegacySqliteStore() {
     ORDER BY created_at DESC
     LIMIT ?
   `);
+  const donationExportStatement = db.prepare(`
+    SELECT name, email, country, amount, message, created_at
+    FROM donations
+    ORDER BY created_at DESC
+    LIMIT ?
+  `);
+  const feedbackExportStatement = db.prepare(`
+    SELECT id, name, email, windows_version, ram, app_version, dataset_type,
+      sample_size, num_constructs, num_indicators, features_tested,
+      draw_mode, navigation, analysis, tam, overall, screenshot_url,
+      privacy_policy_version, privacy_accepted_at,
+      source_page, source_title, created_at
+    FROM feedback
+    ORDER BY created_at DESC
+    LIMIT ?
+  `);
 
   return {
     async deleteSignupByToken(token) {
@@ -4153,6 +4431,14 @@ function createLegacySqliteStore() {
 
     async listSignupsForExport(limit = 1000) {
       return { data: exportStatement.all(limit), error: null };
+    },
+
+    async listDonationsForExport(limit = 1000) {
+      return { data: donationExportStatement.all(limit), error: null };
+    },
+
+    async listFeedbackForExport(limit = 5000) {
+      return { data: feedbackExportStatement.all(limit), error: null };
     },
 
     async markSignupEmailStatus(token, { error = '', sentAt = '', status } = {}) {
@@ -4757,6 +5043,11 @@ function createApp(options = {}) {
         })
       );
 
+      const wallComment = feedbackWallCommentFromPayload(body, now);
+      if (wallComment && typeof store.insertComment === 'function') {
+        await readStoreResult(store.insertComment(wallComment));
+      }
+
       return res.json({ success: true, message: 'Feedback received. We will review it as we improve the beta.' });
     } catch (error) {
       return next(error);
@@ -4881,16 +5172,34 @@ function createApp(options = {}) {
   hostedApp.get('/admin/export.csv', requireHostedAdmin, async (_req, res, next) => {
     try {
       const rows = (await readStoreResult(store.listSignupsForExport ? store.listSignupsForExport(1000) : [])) || [];
-      const headers = ['name', 'email', 'institution', 'country', 'role', 'edition', 'created_at', 'email_status', 'beta_visits'];
-      const csvBody = [
-        headers.join(','),
-        ...rows.map((row) => headers.map((key) => csvCell(row[key])).join(',')),
-      ].join('\n');
+      return sendSignupsCsv(res, rows);
+    } catch (error) {
+      return next(error);
+    }
+  });
 
-      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-      res.setHeader('Content-Disposition', 'attachment; filename="metis-signups.csv"');
-      res.setHeader('Cache-Control', 'no-store');
-      return res.send(csvBody);
+  hostedApp.get('/admin/export/signups.csv', requireHostedAdmin, async (_req, res, next) => {
+    try {
+      const rows = (await readStoreResult(store.listSignupsForExport ? store.listSignupsForExport(1000) : [])) || [];
+      return sendSignupsCsv(res, rows);
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  hostedApp.get('/admin/export/donations.csv', requireHostedAdmin, async (_req, res, next) => {
+    try {
+      const rows = (await readStoreResult(store.listDonationsForExport ? store.listDonationsForExport(1000) : [])) || [];
+      return sendDonationsCsv(res, rows);
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  hostedApp.get('/admin/export/feedback.csv', requireHostedAdmin, async (_req, res, next) => {
+    try {
+      const rows = (await readStoreResult(store.listFeedbackForExport ? store.listFeedbackForExport(5000) : [])) || [];
+      return sendFeedbackCsv(res, rows);
     } catch (error) {
       return next(error);
     }

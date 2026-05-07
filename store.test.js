@@ -324,6 +324,44 @@ test('createStore supports beta feedback intake and admin review queries', () =>
   ]);
 });
 
+test('createStore exposes CSV export queries for each admin panel', () => {
+  const queries = [];
+  const client = {
+    from(table) {
+      const query = new QueryRecorder(table);
+      queries.push(query);
+      return query;
+    },
+  };
+  const store = createStore(client);
+
+  store.listSignupsForExport(10);
+  store.listDonationsForExport(20);
+  store.listFeedbackForExport(30);
+
+  assert.equal(queries[0].table, 'signups');
+  assert.deepEqual(queries[0].steps, [
+    { method: 'select', args: ['name,email,institution,country,role,edition,created_at,email_status,beta_visits'] },
+    { method: 'order', args: ['created_at', { ascending: false }] },
+    { method: 'limit', args: [10] },
+  ]);
+  assert.equal(queries[1].table, 'donations');
+  assert.deepEqual(queries[1].steps, [
+    { method: 'select', args: ['name,email,country,amount,message,created_at'] },
+    { method: 'order', args: ['created_at', { ascending: false }] },
+    { method: 'limit', args: [20] },
+  ]);
+  assert.equal(queries[2].table, 'feedback');
+  assert.deepEqual(queries[2].steps, [
+    {
+      method: 'select',
+      args: ['id,name,email,windows_version,ram,app_version,dataset_type,sample_size,num_constructs,num_indicators,features_tested,draw_mode,navigation,analysis,tam,overall,screenshot_url,privacy_policy_version,privacy_accepted_at,source_page,source_title,created_at'],
+    },
+    { method: 'order', args: ['created_at', { ascending: false }] },
+    { method: 'limit', args: [30] },
+  ]);
+});
+
 test('summary helpers preserve the current admin dashboard metrics', () => {
   const signupSummary = summarizeSignups([
     { edition: 'lite', beta_visits: 2 },

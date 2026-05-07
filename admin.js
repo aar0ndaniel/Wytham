@@ -2,12 +2,29 @@ document.addEventListener('DOMContentLoaded', () => {
   const panelStorageKey = 'metis-admin-active-panel';
   const buttons = Array.from(document.querySelectorAll('[data-panel-target]'));
   const panels = Array.from(document.querySelectorAll('[data-panel]'));
+  const exportLinks = Array.from(document.querySelectorAll('[data-export-link]'));
   const rowSelects = Array.from(document.querySelectorAll('[data-row-select]'));
   const selectAll = document.querySelector('[data-select-all]');
   const selectionCount = document.querySelector('[data-selection-count]');
   const batchForm = document.querySelector('[data-batch-form]');
   const selectedTokensInput = document.querySelector('[data-selected-tokens]');
   const batchDeleteButton = document.querySelector('[data-batch-delete]');
+
+  const syncExportLinks = (targetId) => {
+    const panel = panels.find((item) => item.id === targetId) || panels.find((item) => item.classList.contains('is-active'));
+    const href = panel?.getAttribute('data-export-href') || '/admin/export/signups.csv';
+    const label = panel?.getAttribute('data-export-label') || 'Export signups CSV';
+
+    exportLinks.forEach((link) => {
+      link.setAttribute('href', href);
+      link.setAttribute('aria-label', label);
+      link.setAttribute('title', label);
+      const textTarget = link.querySelector('[data-export-text]');
+      if (textTarget) {
+        textTarget.textContent = label;
+      }
+    });
+  };
 
   const setActivePanel = (targetId) => {
     if (!targetId) return;
@@ -19,6 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
     panels.forEach((panel) => {
       panel.classList.toggle('is-active', panel.id === targetId);
     });
+    syncExportLinks(targetId);
     window.sessionStorage.setItem(panelStorageKey, targetId);
   };
 
@@ -79,6 +97,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const savedPanel = window.sessionStorage.getItem(panelStorageKey);
   if (savedPanel && panels.some((panel) => panel.id === savedPanel)) {
     setActivePanel(savedPanel);
+  } else {
+    syncExportLinks('signups-panel');
   }
 
   syncBatchSelection();
