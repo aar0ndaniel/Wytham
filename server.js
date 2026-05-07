@@ -47,7 +47,7 @@ const RATE_SWEEP_INTERVAL_MS = 60 * 1000;
 const PRIVACY_POLICY_VERSION = '1.0';
 const SIGNUP_EXPORT_HEADERS = ['name', 'email', 'institution', 'country', 'role', 'edition', 'created_at', 'email_status', 'beta_visits'];
 const DONATION_EXPORT_HEADERS = ['name', 'email', 'country', 'amount', 'message', 'created_at'];
-const FEEDBACK_EXPORT_HEADERS = [
+const FEEDBACK_BASE_EXPORT_COLUMNS = [
   'name',
   'email',
   'windows_version',
@@ -58,29 +58,130 @@ const FEEDBACK_EXPORT_HEADERS = [
   'num_constructs',
   'num_indicators',
   'features_tested',
-  'draw_mode',
-  'navigation',
-  'analysis',
-  'tam',
-  'overall',
-  'adoption_likelihood',
-  'tam_pu_avg',
-  'tam_peou_avg',
-  'tam_att_avg',
-  'tam_bi_avg',
-  'tam_avg',
+].map((key) => ({ key, header: key }));
+const FEEDBACK_TRAILING_EXPORT_COLUMNS = [
   'screenshot_url',
   'privacy_policy_version',
   'privacy_accepted_at',
   'source_page',
   'source_title',
   'created_at',
+].map((key) => ({ key, header: key }));
+const FEEDBACK_QUESTION_GROUPS = [
+  {
+    section: 'Draw Mode & Model Building',
+    source: 'draw_mode',
+    questions: [
+      { key: 'q1', text: 'It was easy to create constructs in the canvas.' },
+      { key: 'q2', text: 'It was easy to connect paths between constructs.' },
+      { key: 'q3', text: 'It was easy to create a mediating relationship in the model.' },
+      { key: 'q4', text: 'It was easy to create a moderating relationship in the model.' },
+      { key: 'q5', text: 'I could clearly understand the difference between creating a normal path, a mediating path, and a moderating path.' },
+      { key: 'q6', text: 'It was easy to select, move, edit, or delete constructs and paths.' },
+      { key: 'q7', text: 'The draw mode felt smooth and responsive.' },
+      { key: 'q8', text: 'The model-building process was clear.' },
+      { key: 'q9', text: 'I felt confused while using the draw mode.' },
+      { key: 'q10', text: 'The canvas design makes PLS-SEM model building easier.' },
+      { key: 'open1', text: 'Which part of the draw mode was easiest to figure out?' },
+    ],
+  },
+  {
+    section: 'Navigation & Key Actions',
+    source: 'navigation',
+    questions: [
+      { key: 'q1', text: 'The main action button, such as Calculate, was easy to find.' },
+      { key: 'q2', text: 'I understood when I was ready to click Calculate.' },
+      { key: 'q3', text: 'The app made it clear what I needed to do before running the analysis.' },
+      { key: 'q4', text: 'The tabs and buttons were easy to understand.' },
+      { key: 'q5', text: 'I could easily move from model building to analysis results.' },
+      { key: 'q6', text: 'I always knew what the next step was.' },
+      { key: 'q7', text: 'Important actions were placed where I expected them to be.' },
+      { key: 'open1', text: 'Was there any button, tab, or action that was difficult to find?' },
+    ],
+  },
+  {
+    section: 'Analysis & Output',
+    source: 'analysis',
+    questions: [
+      { key: 'q1', text: 'It was easy to run PLS-SEM analysis in Metis.' },
+      { key: 'q2', text: 'It was easy to run bootstrapping in Metis.' },
+      { key: 'q3', text: 'It was easy to run PLSpredict in Metis.' },
+      { key: 'q4', text: 'It was easy to run NCA in Metis.' },
+      { key: 'q5', text: 'It was easy to run IPMA in Metis.' },
+      { key: 'q6', text: 'The results tables were clear and understandable.' },
+      { key: 'q7', text: 'The outputs were presented in a way that supports academic reporting.' },
+      { key: 'q8', text: 'I could understand what to do after viewing the results.' },
+      { key: 'q9', text: 'The app gave enough feedback while analyses were running.' },
+      { key: 'best_feature', text: 'Which feature worked best for you?' },
+      { key: 'confusing_feature', text: 'Which feature was most confusing?' },
+      { key: 'comparison', text: 'Did you compare Metis results with SmartPLS, seminr, or another tool? If yes, what differences did you notice?' },
+      { key: 'bugs', text: 'Did anything crash, freeze, or behave unexpectedly?' },
+    ],
+  },
+  {
+    section: 'Perceived Usefulness',
+    source: 'tam',
+    questions: [
+      { key: 'pu1', text: 'Metis would improve the way I run PLS-SEM analysis.' },
+      { key: 'pu2', text: 'Metis would make it easier for me to conduct PLS-SEM-related research.' },
+      { key: 'pu3', text: 'Metis would save time compared with my current workflow.' },
+      { key: 'pu4', text: 'Metis would be useful for researchers or students who face software access barriers.' },
+    ],
+  },
+  {
+    section: 'Perceived Ease of Use',
+    source: 'tam',
+    questions: [
+      { key: 'peou1', text: 'Learning to use Metis would be easy for me.' },
+      { key: 'peou2', text: 'I found Metis easy to navigate.' },
+      { key: 'peou3', text: 'I think I could become skilful at using Metis quickly.' },
+      { key: 'peou4', text: 'The interaction with Metis was clear and understandable.' },
+    ],
+  },
+  {
+    section: 'Attitude Toward Use',
+    source: 'tam',
+    questions: [
+      { key: 'att1', text: 'I think using Metis for PLS-SEM analysis is a good idea.' },
+      { key: 'att2', text: 'I like the idea of using Metis for research analysis.' },
+      { key: 'att3', text: 'I would feel positive about using Metis once the reported issues are fixed.' },
+    ],
+  },
+  {
+    section: 'Behavioral Intention',
+    source: 'tam',
+    questions: [
+      { key: 'bi1', text: 'Once the major issues are fixed, I would use Metis for my own work.' },
+      { key: 'bi2', text: 'I would recommend Metis to students or researchers who need a PLS-SEM tool.' },
+      { key: 'bi3', text: 'I would consider using Metis for teaching, supervision, workshops, or research training.' },
+      { key: 'bi4', text: 'I would be willing to test future versions of Metis.' },
+    ],
+  },
+  {
+    section: 'Overall Adoption',
+    source: 'overall',
+    questions: [
+      { key: 'adoption_likelihood', text: 'After your testing experience, how likely are you to use Metis when the reported issues are fixed?' },
+      { key: 'needs_improvement', text: 'What would need to be improved before you could confidently use Metis?' },
+      { key: 'most_valuable_feature', text: 'What feature would make Metis more valuable to you?' },
+      { key: 'final_note_name', text: 'Display name' },
+      { key: 'final_note', text: 'Your note' },
+    ],
+  },
 ];
-const TAM_GROUPS = [
-  { key: 'pu', label: 'PU', keys: ['pu1', 'pu2', 'pu3', 'pu4'] },
-  { key: 'peou', label: 'PEOU', keys: ['peou1', 'peou2', 'peou3', 'peou4'] },
-  { key: 'att', label: 'ATT', keys: ['att1', 'att2', 'att3'] },
-  { key: 'bi', label: 'BI', keys: ['bi1', 'bi2', 'bi3', 'bi4'] },
+const FEEDBACK_QUESTION_COLUMNS = FEEDBACK_QUESTION_GROUPS.flatMap((group) =>
+  group.questions.map((question) => ({
+    key: `${group.source}_${question.key}`,
+    source: group.source,
+    answerKey: question.key,
+    header: question.text,
+    section: group.section,
+  }))
+);
+const FEEDBACK_EXPORT_COLUMNS = [
+  ...FEEDBACK_BASE_EXPORT_COLUMNS,
+  ...FEEDBACK_QUESTION_COLUMNS,
+  ...FEEDBACK_TRAILING_EXPORT_COLUMNS,
 ];
 
 const signupSchema = z
@@ -2220,50 +2321,18 @@ function normalizeFeedbackFeatures(value) {
   return [];
 }
 
-function renderFeedbackScorePill(label, value, titleLabel = label) {
-  const score = formatFeedbackScore(value);
-  if (!score) {
-    return '';
-  }
-  const title = `${titleLabel} ${score}/5`;
-  return `<span class="score-pill" aria-label="${escapeHtml(title)}" title="${escapeHtml(title)}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(score)}/5</strong></span>`;
+function renderFeedbackQuestionHeaders() {
+  return FEEDBACK_QUESTION_COLUMNS.map((column) => (
+    `<th class="question-head" title="${escapeHtml(column.section)}"><span>${escapeHtml(column.header)}</span></th>`
+  )).join('');
 }
 
-function renderFeedbackScoreSummary(tam, overall) {
-  const scores = feedbackTamScores(tam);
-  const overallData = safeJsonForAdmin(overall);
-  const pills = [
-    renderFeedbackScorePill('Adoption', scoreNumber(overallData.adoption_likelihood)),
-    ...TAM_GROUPS.map((group) => renderFeedbackScorePill(group.label, scores[group.key], group.key === 'bi' ? 'Use intent BI' : group.label)),
-  ].filter(Boolean);
-
-  if (!pills.length) {
-    return '—';
-  }
-
-  return `<div class="score-summary"><span class="feedback-note-label">Use intent and TAM</span><div class="score-grid">${pills.join('')}</div></div>`;
-}
-
-function renderFeedbackNotes(analysis, overall) {
-  const items = [
-    ['Best feature', analysis.best_feature],
-    ['Comparison', analysis.comparison],
-    ['Confusing', analysis.confusing_feature],
-    ['Bugs', analysis.bugs],
-    ['Improve', overall.needs_improvement],
-    ['Most valuable', overall.most_valuable_feature],
-    ['Final note', overall.final_note],
-  ]
-    .map(([label, value]) => [label, clean(value, 240)])
-    .filter(([, value]) => Boolean(value));
-
-  if (!items.length) {
-    return '—';
-  }
-
-  return `<div class="feedback-notes">${items
-    .map(([label, value]) => `<div class="feedback-note"><span class="feedback-note-label">${escapeHtml(label)}</span><p>${escapeHtml(value)}</p></div>`)
-    .join('')}</div>`;
+function renderFeedbackQuestionCells(item) {
+  return FEEDBACK_QUESTION_COLUMNS.map((column) => {
+    const value = feedbackQuestionValue(item, column);
+    const displayValue = clean(value, 360);
+    return `<td class="question-cell" title="${escapeHtml(column.section)}">${displayValue ? escapeHtml(displayValue) : '—'}</td>`;
+  }).join('');
 }
 
 function renderAdminPage(counts, donationCounts, recent, recentDonations, institutions, dailySignups, notice, options = {}) {
@@ -2329,25 +2398,19 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
     ? recentFeedback
         .map((item) => {
           const features = normalizeFeedbackFeatures(item.features_tested);
-          const analysis = safeJsonForAdmin(item.analysis);
-          const overall = safeJsonForAdmin(item.overall);
-          const tam = safeJsonForAdmin(item.tam);
-          const screenshotUrl = isSafeExternalUrl(item.screenshot_url) ? item.screenshot_url : '';
-          const scoreSummary = renderFeedbackScoreSummary(tam, overall);
-          const notes = renderFeedbackNotes(analysis, overall);
+          const questionCells = renderFeedbackQuestionCells(item);
           return `<tr>
           <td><div class="identity-cell"><strong>${escapeHtml(item.name || 'Anonymous')}</strong><span>${escapeHtml(item.email || 'No email')}</span></div></td>
           <td>${escapeHtml(item.app_version || '—')}</td>
           <td>${escapeHtml(item.windows_version || '—')}</td>
           <td>${features.length ? features.slice(0, 4).map((feature) => `<span class="pill pill-blue">${escapeHtml(feature)}</span>`).join(' ') : '—'}</td>
-          <td>${scoreSummary}</td>
-          <td>${notes}${screenshotUrl ? `<br><a class="table-link" href="${escapeHtml(screenshotUrl)}" target="_blank" rel="noopener">Screenshot link</a>` : ''}</td>
+          ${questionCells}
           <td>${escapeHtml(formatDate(item.created_at))}</td>
           <td>${item.email ? `<a class="ghost-btn" href="mailto:${encodeURIComponent(item.email)}?subject=${encodeURIComponent('Re: Metis beta feedback')}">Reply</a>` : '—'}</td>
         </tr>`;
         })
         .join('')
-    : '<tr><td colspan="8">No feedback yet.</td></tr>';
+    : `<tr><td colspan="${6 + FEEDBACK_QUESTION_COLUMNS.length}">No feedback yet.</td></tr>`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -2771,41 +2834,27 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
     .pill-success { color: #d8e2c9; background: var(--success-soft); border-color: rgba(170,182,138,.34); }
     .pill-danger { color: #f1c6c6; background: var(--danger-soft); border-color: rgba(217,133,133,.34); }
     .pill-muted { color: rgba(200,193,174,.78); background: rgba(255,255,255,.04); }
-    .score-summary,
-    .feedback-notes { display: grid; gap: 9px; min-width: 220px; }
-    .score-grid { display: flex; flex-wrap: wrap; gap: 7px; }
-    .score-pill {
-      display: inline-flex;
-      align-items: baseline;
-      gap: 6px;
-      min-height: 30px;
-      padding: 0 10px;
-      border-radius: 999px;
-      color: #d8e2c9;
-      background: rgba(170,182,138,.1);
-      border: 1px solid rgba(170,182,138,.28);
-      white-space: nowrap;
+    .question-head {
+      min-width: 220px;
+      max-width: 280px;
+      white-space: normal;
+      vertical-align: bottom;
     }
-    .score-pill span,
-    .feedback-note-label {
-      color: rgba(200,193,174,.68);
-      font-size: 10px;
-      font-family: 'IBM Plex Mono', monospace;
-      letter-spacing: .14em;
-      text-transform: uppercase;
+    .question-head span {
+      display: block;
+      color: rgba(245,241,231,.82);
+      font-family: 'IBM Plex Sans', system-ui, sans-serif;
+      font-size: 12px;
+      line-height: 1.35;
+      letter-spacing: 0;
+      text-transform: none;
     }
-    .score-pill strong { font-size: 13px; font-weight: 600; color: var(--text); }
-    .feedback-note {
-      padding: 10px 12px;
-      border: 1px solid rgba(245,241,231,.07);
-      border-radius: 12px;
-      background: rgba(255,255,255,.025);
-    }
-    .feedback-note p {
-      margin: 5px 0 0;
-      color: var(--text);
+    .question-cell {
+      min-width: 180px;
+      max-width: 320px;
+      color: rgba(245,241,231,.88);
       line-height: 1.5;
-      font-size: 13px;
+      white-space: normal;
     }
     .danger-ghost { color: #f3cece; border-color: rgba(217,133,133,.32); background: rgba(217,133,133,.1); }
     .danger-solid { color: #fff0f0; border-color: rgba(217,133,133,.32); background: rgba(120,37,37,.82); }
@@ -3013,8 +3062,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
                 <th>App</th>
                 <th>Windows</th>
                 <th>Features</th>
-                <th>Adoption / TAM</th>
-                <th>Notes</th>
+                ${renderFeedbackQuestionHeaders()}
                 <th>Submitted</th>
                 <th>Action</th>
               </tr>
@@ -4110,10 +4158,20 @@ function csvCell(value) {
   return '"' + safe.replace(/"/g, '""') + '"';
 }
 
-function sendCsv(res, filename, headers, rows) {
+function normalizeCsvColumns(columns) {
+  return (columns || []).map((column) => (typeof column === 'string' ? { key: column, header: column } : column));
+}
+
+function csvHeaderCell(value) {
+  const header = String(value == null ? '' : value);
+  return /[",\r\n]/.test(header) ? csvCell(header) : header;
+}
+
+function sendCsv(res, filename, columns, rows) {
+  const normalizedColumns = normalizeCsvColumns(columns);
   const csvBody = [
-    headers.join(','),
-    ...(rows || []).map((row) => headers.map((key) => csvCell(row[key])).join(',')),
+    normalizedColumns.map((column) => csvHeaderCell(column.header)).join(','),
+    ...(rows || []).map((row) => normalizedColumns.map((column) => csvCell(row[column.key])).join(',')),
   ].join('\n');
 
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -4131,17 +4189,11 @@ function sendDonationsCsv(res, rows) {
 }
 
 function sendFeedbackCsv(res, rows) {
-  return sendCsv(res, 'metis-feedback.csv', FEEDBACK_EXPORT_HEADERS, (rows || []).map(feedbackExportRow));
+  return sendCsv(res, 'metis-feedback.csv', FEEDBACK_EXPORT_COLUMNS, (rows || []).map(feedbackExportRow));
 }
 
 function feedbackExportRow(row) {
-  const analysis = safeJsonForAdmin(row.analysis);
-  const drawMode = safeJsonForAdmin(row.draw_mode);
-  const navigation = safeJsonForAdmin(row.navigation);
-  const overall = safeJsonForAdmin(row.overall);
-  const tam = safeJsonForAdmin(row.tam);
-  const scores = feedbackTamScores(tam);
-  return {
+  const result = {
     name: row.name || '',
     email: row.email || '',
     windows_version: row.windows_version || '',
@@ -4152,17 +4204,6 @@ function feedbackExportRow(row) {
     num_constructs: row.num_constructs || '',
     num_indicators: row.num_indicators || '',
     features_tested: normalizeFeedbackFeatures(row.features_tested).join('; '),
-    draw_mode: jsonForCsv(drawMode),
-    navigation: jsonForCsv(navigation),
-    analysis: jsonForCsv(analysis),
-    tam: jsonForCsv(tam),
-    overall: jsonForCsv(overall),
-    adoption_likelihood: formatFeedbackScore(scoreNumber(overall.adoption_likelihood)),
-    tam_pu_avg: formatFeedbackScore(scores.pu),
-    tam_peou_avg: formatFeedbackScore(scores.peou),
-    tam_att_avg: formatFeedbackScore(scores.att),
-    tam_bi_avg: formatFeedbackScore(scores.bi),
-    tam_avg: formatFeedbackScore(scores.tam),
     screenshot_url: row.screenshot_url || '',
     privacy_policy_version: row.privacy_policy_version || '',
     privacy_accepted_at: row.privacy_accepted_at || '',
@@ -4170,52 +4211,21 @@ function feedbackExportRow(row) {
     source_title: row.source_title || '',
     created_at: row.created_at || '',
   };
-}
 
-function jsonForCsv(value) {
-  const object = normalizeJsonObject(value);
-  return Object.keys(object).length ? JSON.stringify(object) : '';
-}
-
-function scoreNumber(value) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-}
-
-function averageFeedbackScores(values) {
-  const scores = values.map(scoreNumber).filter((value) => value != null);
-  if (!scores.length) {
-    return null;
+  for (const column of FEEDBACK_QUESTION_COLUMNS) {
+    result[column.key] = feedbackQuestionValue(row, column);
   }
-  return scores.reduce((sum, value) => sum + value, 0) / scores.length;
-}
 
-function feedbackTamScores(value) {
-  const tam = safeJsonForAdmin(value);
-  const allScores = [];
-  const result = {};
-  for (const group of TAM_GROUPS) {
-    const values = group.keys.map((key) => scoreNumber(tam[key])).filter((score) => score != null);
-    if (values.length) {
-      result[group.key] = averageFeedbackScores(values);
-      allScores.push(...values);
-    } else {
-      result[group.key] = null;
-    }
-  }
-  result.tam = averageFeedbackScores(allScores);
   return result;
 }
 
-function formatFeedbackScore(value) {
+function feedbackQuestionValue(row, column) {
+  const source = safeJsonForAdmin(row[column.source]);
+  const value = source[column.answerKey];
   if (value == null) {
     return '';
   }
-  const rounded = Math.round(Number(value) * 10) / 10;
-  if (!Number.isFinite(rounded)) {
-    return '';
-  }
-  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+  return typeof value === 'object' ? JSON.stringify(value) : value;
 }
 
 function feedbackWallCommentFromPayload(body, createdAt) {

@@ -693,9 +693,11 @@ test('POST /api/feedback stores tester feedback for admin review', async (t) => 
   assert.match(html, /Beta feedback/i);
   assert.match(html, /Beta Tester/i);
   assert.match(html, /The app freezes after clicking Calculate/i);
-  assert.match(html, /Adoption 5\/5/i);
-  assert.match(html, /BI 4\.5\/5/i);
-  assert.match(html, /Use intent/i);
+  assert.match(html, /Metis would improve the way I run PLS-SEM analysis\./i);
+  assert.match(html, /Once the major issues are fixed, I would use Metis for my own work\./i);
+  assert.match(html, /After your testing experience, how likely are you to use Metis when the reported issues are fixed\?/i);
+  assert.match(html, /The comparison report/i);
+  assert.doesNotMatch(html, /Adoption \/ TAM/i);
   assert.doesNotMatch(html, /\s\|\s/);
   assert.doesNotMatch(html, /Recent wall notes/i);
 });
@@ -716,20 +718,28 @@ test('admin CSV export follows the active admin panel data shape', async (t) => 
       feedback: [
         {
           app_version: '0.1.7',
-          analysis: { bugs: 'Freeze after Calculate.' },
+          analysis: {
+            best_feature: 'PLS output worked best.',
+            bugs: 'Freeze after Calculate.',
+            confusing_feature: 'PLSpredict output format.',
+            comparison: 'SmartPLS matched within 0.01.',
+            q1: 5,
+          },
           created_at: '2026-04-14T10:00:00.000Z',
           dataset_type: 'Survey data',
-          draw_mode: { q1: 4 },
+          draw_mode: { open1: 'Draw mode was simple.', q1: 4 },
           email: 'tester@example.com',
           features_tested: ['PLS-SEM analysis'],
           name: 'Beta Tester',
-          navigation: { q1: 5 },
+          navigation: { open1: 'The navigation labels were clear.', q1: 5 },
           num_constructs: '5',
           num_indicators: '24',
           overall: {
             adoption_likelihood: 5,
             final_note: 'I would use it.',
+            final_note_name: 'Beta Tester',
             most_valuable_feature: 'Comparison report',
+            needs_improvement: 'IPMA needs clearer labels.',
           },
           privacy_accepted_at: '2026-04-14T10:00:00.000Z',
           privacy_policy_version: '1.0',
@@ -793,9 +803,22 @@ test('admin CSV export follows the active admin panel data shape', async (t) => 
   const feedbackResponse = await fetch(`${baseUrl}/admin/export/feedback.csv`, { headers: { cookie } });
   assert.equal(feedbackResponse.status, 200);
   const feedbackCsv = await feedbackResponse.text();
-  assert.match(feedbackCsv, /^name,email,windows_version,ram,app_version,dataset_type,sample_size,num_constructs,num_indicators,features_tested,draw_mode,navigation,analysis,tam,overall,adoption_likelihood,tam_pu_avg,tam_peou_avg,tam_att_avg,tam_bi_avg,tam_avg,screenshot_url,privacy_policy_version,privacy_accepted_at,source_page,source_title,created_at/m);
+  const feedbackHeader = feedbackCsv.split('\n')[0];
+  assert.doesNotMatch(feedbackHeader, /draw_mode,navigation,analysis,tam,overall,adoption_likelihood,tam_pu_avg/);
+  assert.match(feedbackHeader, /It was easy to create constructs in the canvas\./);
+  assert.match(feedbackHeader, /Which part of the draw mode was easiest to figure out\?/);
+  assert.match(feedbackHeader, /"The main action button, such as Calculate, was easy to find\."/);
+  assert.match(feedbackHeader, /Which feature worked best for you\?/);
+  assert.match(feedbackHeader, /Metis would improve the way I run PLS-SEM analysis\./);
+  assert.match(feedbackHeader, /"Once the major issues are fixed, I would use Metis for my own work\."/);
+  assert.match(feedbackHeader, /"After your testing experience, how likely are you to use Metis when the reported issues are fixed\?"/);
+  assert.match(feedbackHeader, /What feature would make Metis more valuable to you\?/);
   assert.match(feedbackCsv, /"Beta Tester","tester@example.com","Windows 11"/);
-  assert.match(feedbackCsv, /"5","4\.5","3\.5","4\.7","4\.5"/);
+  assert.match(feedbackCsv, /"4"(?:,""){9},"Draw mode was simple\."/);
+  assert.match(feedbackCsv, /"5"(?:,""){6},"The navigation labels were clear\."/);
+  assert.match(feedbackCsv, /"5"(?:,""){8},"PLS output worked best\.","PLSpredict output format\.","SmartPLS matched within 0\.01\.","Freeze after Calculate\."/);
+  assert.match(feedbackCsv, /"5","4","5","4","3","4","4","3","5","5","4","5","4","5","4"/);
+  assert.match(feedbackCsv, /"5","IPMA needs clearer labels\.","Comparison report","Beta Tester","I would use it\."/);
 });
 
 test('POST /admin/signups/:token/send sends a pending signup manually and marks it sent', async (t) => {
