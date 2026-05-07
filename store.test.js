@@ -267,6 +267,63 @@ test('createStore keeps comment writes limited to public wall fields', () => {
   ]);
 });
 
+test('createStore supports beta feedback intake and admin review queries', () => {
+  const queries = [];
+  const client = {
+    from(table) {
+      const query = new QueryRecorder(table);
+      queries.push(query);
+      return query;
+    },
+  };
+  const store = createStore(client);
+  const feedback = {
+    name: 'Beta Tester',
+    email: 'tester@example.com',
+    windows_version: 'Windows 11',
+    ram: '16 GB',
+    app_version: '0.1.7',
+    dataset_type: 'Survey data',
+    sample_size: '250',
+    num_constructs: '5',
+    num_indicators: '24',
+    features_tested: ['PLS-SEM analysis'],
+    draw_mode: { q1: 4 },
+    navigation: { q1: 5 },
+    analysis: { bugs: 'Freeze after Calculate' },
+    tam: { pu1: 5 },
+    overall: { needs_improvement: 'Stability' },
+    screenshot_url: '',
+    privacy_policy_version: '1.0',
+    privacy_accepted_at: '2026-05-04T10:00:00.000Z',
+    created_at: '2026-05-04T10:00:00.000Z',
+  };
+
+  store.insertFeedback(feedback);
+  store.listRecentFeedback(20);
+  store.listFeedbackSummaryRows(200);
+
+  assert.equal(queries[0].table, 'feedback');
+  assert.deepEqual(queries[0].steps, [
+    { method: 'insert', args: [feedback] },
+    { method: 'select', args: ['*'] },
+    { method: 'single', args: [] },
+  ]);
+  assert.equal(queries[1].table, 'feedback');
+  assert.equal(queries[1].steps[0].method, 'select');
+  assert.match(queries[1].steps[0].args[0], /features_tested/);
+  assert.deepEqual(queries[1].steps.slice(1), [
+    { method: 'order', args: ['created_at', { ascending: false }] },
+    { method: 'limit', args: [20] },
+  ]);
+  assert.equal(queries[2].table, 'feedback');
+  assert.deepEqual(queries[2].steps, [
+    { method: 'select', args: ['email,created_at'] },
+    { method: 'order', args: ['created_at', { ascending: false }] },
+    { method: 'limit', args: [200] },
+  ]);
+});
+
 test('summary helpers preserve the current admin dashboard metrics', () => {
   const signupSummary = summarizeSignups([
     { edition: 'lite', beta_visits: 2 },

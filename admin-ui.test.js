@@ -63,13 +63,31 @@ function run() {
       { day: '2026-04-12', total: 3, lite_count: 1, bundle_count: 2 },
       { day: '2026-04-13', total: 1, lite_count: 0, bundle_count: 1 },
     ],
-    'Saved'
+    'Saved',
+    {
+      feedbackCounts: { total: 1, unique_testers: 1 },
+      feedbackList: [
+        {
+          app_version: '0.1.7',
+          analysis: { bugs: 'The app freezes after Calculate.' },
+          created_at: '2026-04-14T10:00:00.000Z',
+          email: 'kwame@example.com',
+          features_tested: ['PLS-SEM analysis'],
+          name: 'Kwame',
+          overall: { needs_improvement: 'Stability' },
+          screenshot_url: '',
+          windows_version: 'Windows 11',
+        },
+      ],
+    }
   );
 
   assert.match(dashboardHtml, /metis admin/i);
   assert.match(dashboardHtml, />Signups</);
   assert.match(dashboardHtml, />Donations</);
+  assert.match(dashboardHtml, />Feedback</);
   assert.match(dashboardHtml, />Account</);
+  assert.doesNotMatch(dashboardHtml, />Wall</);
   assert.doesNotMatch(dashboardHtml, /Semora/i);
   assert.match(dashboardHtml, /A quieter view of signups, support notes, and export/i);
   assert.doesNotMatch(dashboardHtml, /var\(--blue|var\(--warm|Beta dashboard/i);
@@ -79,6 +97,9 @@ function run() {
   assert.match(dashboardHtml, /action="\/admin\/signups\/b{48}\/send"/i);
   assert.match(dashboardHtml, />Resend</i);
   assert.match(dashboardHtml, />Sent</i);
+  assert.match(dashboardHtml, /Beta feedback/i);
+  assert.match(dashboardHtml, /Kwame/i);
+  assert.match(dashboardHtml, /The app freezes after Calculate/i);
   console.log('admin-ui.test.js: PASS');
 }
 

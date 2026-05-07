@@ -8,6 +8,7 @@ function createMemoryStore(initial = {}) {
   const state = {
     comments: Array.isArray(initial.comments) ? initial.comments.map(cloneComment) : [],
     donations: Array.isArray(initial.donations) ? [...initial.donations] : [],
+    feedback: Array.isArray(initial.feedback) ? initial.feedback.map((item) => ({ ...item })) : [],
     signups: Array.isArray(initial.signups) ? initial.signups.map(cloneSignup) : [],
   };
 
@@ -32,6 +33,15 @@ function createMemoryStore(initial = {}) {
       return { data: record, error: null };
     },
 
+    async insertFeedback(feedback) {
+      const record = {
+        id: state.feedback.length + 1,
+        ...feedback,
+      };
+      state.feedback.push(record);
+      return { data: { ...record }, error: null };
+    },
+
     async insertComment(comment) {
       const record = {
         id: state.comments.length + 1,
@@ -53,6 +63,10 @@ function createMemoryStore(initial = {}) {
       return { data: [...state.donations], error: null };
     },
 
+    async listRecentFeedback(limit = 100) {
+      return { data: state.feedback.slice(0, limit).map((item) => ({ ...item })), error: null };
+    },
+
     async listRecentSignups() {
       return { data: state.signups.map(cloneSignup), error: null };
     },
@@ -60,6 +74,13 @@ function createMemoryStore(initial = {}) {
     async listSignupSeriesRows() {
       return {
         data: state.signups.map((signup) => ({ created_at: signup.created_at, edition: signup.edition })),
+        error: null,
+      };
+    },
+
+    async listFeedbackSummaryRows(limit = 5000) {
+      return {
+        data: state.feedback.slice(0, limit).map((item) => ({ email: item.email, created_at: item.created_at })),
         error: null,
       };
     },
@@ -534,6 +555,109 @@ test('POST /api/comment rejects missing Turnstile token before writing comment d
     error: 'Complete the verification challenge and try again.',
   });
   assert.equal(store.state.comments.length, 0);
+});
+
+test('POST /api/comment stores wall notes when Turnstile is not configured', async (t) => {
+  const { baseUrl, store } = await startApp(t, {
+    config: {
+      turnstile: {
+        secretKey: '',
+        isConfigured: false,
+      },
+    },
+  });
+
+  const response = await fetch(`${baseUrl}/api/comment`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      origin: 'https://metis.emend.it.com',
+    },
+    body: JSON.stringify({
+      name: 'Yaw',
+      body: 'No challenge is configured, but the wall should still work.',
+    }),
+  });
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    success: true,
+    message: 'Pinned to the wall.',
+  });
+  assert.equal(store.state.comments.length, 1);
+  assert.equal(store.state.comments[0].body, 'No challenge is configured, but the wall should still work.');
+});
+
+test('POST /api/feedback stores tester feedback for admin review', async (t) => {
+  const { baseUrl, store } = await startApp(t, {
+    verifyTurnstile: async ({ action, token }) => ({
+      success: action === 'feedback' && token === 'valid-feedback-token',
+      error: token === 'valid-feedback-token' ? '' : 'Verification failed. Please try again.',
+    }),
+  });
+
+  const response = await fetch(`${baseUrl}/api/feedback`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      origin: 'https://metis.emend.it.com',
+    },
+    body: JSON.stringify({
+      app_version: '0.1.7',
+      analysis: JSON.stringify({ bugs: 'The app freezes after clicking Calculate.' }),
+      dataset_type: 'Survey data',
+      draw_mode: JSON.stringify({ q1: 4 }),
+      email: 'tester@example.com',
+      features_tested: ['PLS-SEM analysis', 'Draw mode / model building'],
+      name: 'Beta Tester',
+      navigation: JSON.stringify({ q1: 5 }),
+      num_constructs: '5',
+      num_indicators: '24',
+      overall: JSON.stringify({ needs_improvement: 'Stop freezing after Calculate.' }),
+      privacyAccepted: 'yes',
+      privacyPolicyVersion: '1.0',
+      ram: '16 GB',
+      sample_size: '250',
+      sourcePage: '/feedback.html',
+      sourceTitle: 'Feedback',
+      tam: JSON.stringify({ pu1: 5 }),
+      windows_version: 'Windows 11',
+      'cf-turnstile-response': 'valid-feedback-token',
+    }),
+  });
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    success: true,
+    message: 'Feedback received. We will review it as we improve the beta.',
+  });
+  assert.equal(store.state.feedback.length, 1);
+  assert.equal(store.state.feedback[0].app_version, '0.1.7');
+  assert.deepEqual(store.state.feedback[0].features_tested, ['PLS-SEM analysis', 'Draw mode / model building']);
+  assert.match(store.state.feedback[0].created_at, /^\d{4}-\d{2}-\d{2}T/);
+
+  const loginResponse = await fetch(`${baseUrl}/admin/login`, {
+    method: 'POST',
+    redirect: 'manual',
+    headers: {
+      'content-type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({ username: 'ops', password: 'top-secret' }).toString(),
+  });
+  const cookie = loginResponse.headers.get('set-cookie');
+
+  const adminResponse = await fetch(`${baseUrl}/admin`, {
+    headers: {
+      cookie,
+    },
+  });
+
+  assert.equal(adminResponse.status, 200);
+  const html = await adminResponse.text();
+  assert.match(html, /Beta feedback/i);
+  assert.match(html, /Beta Tester/i);
+  assert.match(html, /The app freezes after clicking Calculate/i);
+  assert.doesNotMatch(html, /Recent wall notes/i);
 });
 
 test('POST /admin/signups/:token/send sends a pending signup manually and marks it sent', async (t) => {

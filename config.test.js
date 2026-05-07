@@ -1,7 +1,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 
-const { createConfig } = require('./lib/config');
+const { createConfig, loadEnvFiles } = require('./lib/config');
 
 test('createConfig maps hosted runtime values and custom Supabase env names', () => {
   const config = createConfig({
@@ -115,4 +118,41 @@ test('createConfig prefers Resend HTTP when smtp.resend.com is configured with a
   assert.equal(config.resendApiKey, 're_railway_resend_key');
   assert.equal(config.smtpHost, 'smtp.resend.com');
   assert.equal(config.smtpFromEmail, 'team@example.com');
+});
+
+test('loadEnvFiles loads backend fallback, root env, and local overrides without replacing process values', (t) => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'metis-env-'));
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(tempDir, 'backend'));
+  fs.writeFileSync(
+    path.join(tempDir, 'backend', '.env'),
+    [
+      'PUBLIC_BASE_URL=https://api-fallback.example.com',
+      'ALLOWED_ORIGINS=https://fallback.example.com',
+      'padi=https://fallback.supabase.co',
+    ].join('\n')
+  );
+  fs.writeFileSync(
+    path.join(tempDir, '.env'),
+    [
+      'PUBLIC_BASE_URL=https://api.example.com',
+      'ALLOWED_ORIGINS=https://metis.example.com',
+    ].join('\n')
+  );
+  fs.writeFileSync(
+    path.join(tempDir, '.env.local'),
+    [
+      'ALLOWED_ORIGINS=https://local-metis.example.com',
+      'padi=https://local.supabase.co',
+      'ADMIN_PASSWORD=from-local-file',
+    ].join('\n')
+  );
+
+  const env = { ADMIN_PASSWORD: 'from-real-env' };
+  loadEnvFiles(tempDir, env);
+
+  assert.equal(env.PUBLIC_BASE_URL, 'https://api.example.com');
+  assert.equal(env.ALLOWED_ORIGINS, 'https://local-metis.example.com');
+  assert.equal(env.padi, 'https://local.supabase.co');
+  assert.equal(env.ADMIN_PASSWORD, 'from-real-env');
 });

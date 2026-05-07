@@ -5,7 +5,7 @@ const express = require('express');
 const nodemailer = require('nodemailer');
 const { DatabaseSync } = require('node:sqlite');
 const { z } = require('zod');
-const { createConfig } = require('./lib/config');
+const { createConfig, loadEnvFiles } = require('./lib/config');
 const {
   createStore,
   summarizeDailySignupRows,
@@ -31,7 +31,7 @@ const PUBLIC_ROOT_FILES = new Set([
   '/metis-logo-light-nav.png',
 ]);
 
-loadEnv(path.join(BACKEND_DIR, '.env'));
+loadEnvFiles(BACKEND_DIR, process.env);
 
 const config = createConfig(process.env);
 
@@ -40,9 +40,11 @@ const RATE_POLICIES = Object.freeze({
   donate: { limit: 5, windowMs: 10 * 60 * 1000 },
   beta: { limit: 60, windowMs: 10 * 60 * 1000 },
   comment: { limit: 4, windowMs: 10 * 60 * 1000 },
+  feedback: { limit: 3, windowMs: 10 * 60 * 1000 },
   'admin-login': { limit: 10, windowMs: 10 * 60 * 1000 },
 });
 const RATE_SWEEP_INTERVAL_MS = 60 * 1000;
+const PRIVACY_POLICY_VERSION = '1.0';
 
 const signupSchema = z
   .object({
@@ -125,6 +127,86 @@ const commentSchema = z
     }
   });
 
+const feedbackSchema = z
+  .object({
+    name: z.string({ error: 'Please enter your full name.' }),
+    email: z.string({ error: 'Please enter a valid email address.' }),
+    windows_version: z.string({ error: 'Please select your Windows version.' }),
+    ram: z.string({ error: 'Please select your RAM.' }),
+    app_version: z.string({ error: 'Please enter the app version you tested.' }),
+    dataset_type: z.string({ error: 'Please describe the dataset you tested.' }),
+    sample_size: z.string({ error: 'Please enter the approximate sample size.' }),
+    num_constructs: z.string({ error: 'Please enter the number of constructs.' }),
+    num_indicators: z.string({ error: 'Please enter the number of indicators.' }),
+    features_tested: z.union([z.string(), z.array(z.string())]).optional().default([]),
+    draw_mode: z.any().optional().default({}),
+    navigation: z.any().optional().default({}),
+    analysis: z.any().optional().default({}),
+    tam: z.any().optional().default({}),
+    overall: z.any().optional().default({}),
+    screenshot_url: z.string().optional().default(''),
+    hp_field: z.string().optional().default(''),
+    sourcePage: z.string().optional().default(''),
+    sourceTitle: z.string().optional().default(''),
+    privacyAccepted: z.any().optional(),
+    privacyPolicyVersion: z.string().optional().default(''),
+  })
+  .transform((input) => ({
+    name: clean(input.name, 100),
+    email: cleanEmail(input.email),
+    windows_version: clean(input.windows_version, 50),
+    ram: clean(input.ram, 30),
+    app_version: clean(input.app_version, 50),
+    dataset_type: clean(input.dataset_type, 200),
+    sample_size: clean(input.sample_size, 50),
+    num_constructs: clean(input.num_constructs, 50),
+    num_indicators: clean(input.num_indicators, 50),
+    features_tested: Array.isArray(input.features_tested)
+      ? input.features_tested.map((item) => clean(item, 80)).filter(Boolean).slice(0, 20)
+      : clean(input.features_tested, 1000).split(',').map((item) => clean(item, 80)).filter(Boolean).slice(0, 20),
+    draw_mode: normalizeJsonObject(input.draw_mode),
+    navigation: normalizeJsonObject(input.navigation),
+    analysis: normalizeJsonObject(input.analysis),
+    tam: normalizeJsonObject(input.tam),
+    overall: normalizeJsonObject(input.overall),
+    screenshot_url: clean(input.screenshot_url, 500),
+    hp_field: clean(input.hp_field, 200),
+    source_page: clean(input.sourcePage, 120),
+    source_title: clean(input.sourceTitle, 120),
+    privacy_accepted: checkboxAccepted(input.privacyAccepted),
+    privacy_policy_version: clean(input.privacyPolicyVersion, 20) || PRIVACY_POLICY_VERSION,
+  }))
+  .superRefine((input, ctx) => {
+    if (input.name.length < 2) {
+      ctx.addIssue({ code: 'custom', message: 'Please enter your full name.', path: ['name'] });
+    }
+    if (!validEmail(input.email)) {
+      ctx.addIssue({ code: 'custom', message: 'Please enter a valid email address.', path: ['email'] });
+    }
+    for (const [key, message] of [
+      ['windows_version', 'Please select your Windows version.'],
+      ['ram', 'Please select your RAM.'],
+      ['app_version', 'Please enter the app version you tested.'],
+      ['dataset_type', 'Please describe the dataset you tested.'],
+      ['sample_size', 'Please enter the approximate sample size.'],
+      ['num_constructs', 'Please enter the number of constructs.'],
+      ['num_indicators', 'Please enter the number of indicators.'],
+    ]) {
+      if (!input[key]) {
+        ctx.addIssue({ code: 'custom', message, path: [key] });
+      }
+    }
+    if (!input.features_tested.length) {
+      ctx.addIssue({ code: 'custom', message: 'Please select at least one feature you tested.', path: ['features_tested'] });
+    }
+    if (input.screenshot_url && !isSafeExternalUrl(input.screenshot_url)) {
+      ctx.addIssue({ code: 'custom', message: 'Please use an https screenshot link.', path: ['screenshot_url'] });
+    }
+    if (!input.privacy_accepted || input.privacy_policy_version !== PRIVACY_POLICY_VERSION) {
+      ctx.addIssue({ code: 'custom', message: 'Please agree to the current Metis Privacy Policy.', path: ['privacyAccepted'] });
+    }
+  });
+
 const adminLoginSchema = z.object({
   username: z
     .string({ error: 'Please enter your username.' })
@@ -175,9 +257,37 @@ db.exec(`
     body TEXT NOT NULL,
     created_at TEXT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS feedback (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL DEFAULT '',
+    email TEXT NOT NULL DEFAULT '',
+    windows_version TEXT NOT NULL DEFAULT '',
+    ram TEXT NOT NULL DEFAULT '',
+    app_version TEXT NOT NULL DEFAULT '',
+    dataset_type TEXT NOT NULL DEFAULT '',
+    sample_size TEXT NOT NULL DEFAULT '',
+    num_constructs TEXT NOT NULL DEFAULT '',
+    num_indicators TEXT NOT NULL DEFAULT '',
+    features_tested TEXT NOT NULL DEFAULT '[]',
+    draw_mode TEXT NOT NULL DEFAULT '{}',
+    navigation TEXT NOT NULL DEFAULT '{}',
+    analysis TEXT NOT NULL DEFAULT '{}',
+    tam TEXT NOT NULL DEFAULT '{}',
+    overall TEXT NOT NULL DEFAULT '{}',
+    screenshot_url TEXT NOT NULL DEFAULT '',
+    privacy_policy_version TEXT NOT NULL DEFAULT '',
+    privacy_accepted_at TEXT NOT NULL DEFAULT '',
+    source_page TEXT NOT NULL DEFAULT '',
+    source_title TEXT NOT NULL DEFAULT '',
+    ip_address TEXT NOT NULL DEFAULT '',
+    user_agent TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL
+  );
   CREATE INDEX IF NOT EXISTS idx_signups_created_at ON signups(created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_signups_edition ON signups(edition);
   CREATE INDEX IF NOT EXISTS idx_comments_created_at ON comments(created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_feedback_created_at ON feedback(created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_feedback_email ON feedback(email);
 `);
 
 const statements = {
@@ -278,6 +388,31 @@ const statements = {
   recentComments: db.prepare(`
     SELECT id, name, body, created_at
     FROM comments
+    ORDER BY created_at DESC
+    LIMIT ?
+  `),
+  insertFeedback: db.prepare(`
+    INSERT INTO feedback (
+      name, email, windows_version, ram, app_version, dataset_type,
+      sample_size, num_constructs, num_indicators, features_tested,
+      draw_mode, navigation, analysis, tam, overall, screenshot_url,
+      privacy_policy_version, privacy_accepted_at,
+      source_page, source_title, ip_address, user_agent, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `),
+  recentFeedback: db.prepare(`
+    SELECT id, name, email, windows_version, ram, app_version, dataset_type,
+      sample_size, num_constructs, num_indicators, features_tested,
+      draw_mode, navigation, analysis, tam, overall, screenshot_url,
+      privacy_policy_version, privacy_accepted_at,
+      source_page, source_title, created_at
+    FROM feedback
+    ORDER BY created_at DESC
+    LIMIT ?
+  `),
+  feedbackSummary: db.prepare(`
+    SELECT email, created_at
+    FROM feedback
     ORDER BY created_at DESC
     LIMIT ?
   `),
@@ -431,6 +566,61 @@ app.post('/api/donate', (req, res) => {
   res.json({ success: true, message: 'Thank you for your support! We will be in touch.' });
 });
 
+app.post('/api/feedback', (req, res) => {
+  if (!originAllowed(req, config.allowedOrigins)) {
+    return res.status(403).json({ success: false, error: 'Origin not allowed.' });
+  }
+
+  res.setHeader('Cache-Control', 'no-store');
+  const ip = clientIp(req);
+  if (!allowRate(ip, 'feedback')) {
+    return res.status(429).json({ success: false, error: 'Too many feedback submissions. Please try again later.' });
+  }
+
+  const parsed = feedbackSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      success: false,
+      error: firstValidationMessage(parsed.error, 'Please check your feedback and try again.'),
+    });
+  }
+
+  const body = parsed.data;
+  if (body.hp_field) {
+    tripRateLimit(ip, 'feedback');
+    return res.json({ success: true, message: 'Feedback received.' });
+  }
+
+  const now = new Date().toISOString();
+  statements.insertFeedback.run(
+    body.name,
+    body.email,
+    body.windows_version,
+    body.ram,
+    body.app_version,
+    body.dataset_type,
+    body.sample_size,
+    body.num_constructs,
+    body.num_indicators,
+    JSON.stringify(body.features_tested),
+    safeJsonString(body.draw_mode),
+    safeJsonString(body.navigation),
+    safeJsonString(body.analysis),
+    safeJsonString(body.tam),
+    safeJsonString(body.overall),
+    body.screenshot_url,
+    body.privacy_policy_version,
+    now,
+    body.source_page,
+    body.source_title,
+    ip,
+    cut(req.headers['user-agent'], 300),
+    now
+  );
+
+  return res.json({ success: true, message: 'Feedback received. We will review it as we improve the beta.' });
+});
+
 app.get('/beta/:token', (req, res) => {
   if (!validToken(req.params.token)) {
     return res.status(404).type('html').send(simplePage('Beta Link Not Found', 'This beta access link does not exist or has expired.'));
@@ -478,9 +668,14 @@ adminApp.get('/admin', requireLocalAdmin, (req, res) => {
   const recentDonations = statements.recentDonations.all();
   const institutions = statements.topInstitutions.all();
   const dailySignups = statements.dailySignupSeries.all();
+  const recentFeedback = statements.recentFeedback.all(100);
+  const feedbackCounts = summarizeFeedback(statements.feedbackSummary.all(5000));
   const notice = trim(req.query.notice);
   res.setHeader('Cache-Control', 'no-store');
-  res.type('html').send(renderAdminPage(counts, donationCounts, recent, recentDonations, institutions, dailySignups, notice));
+  res.type('html').send(renderAdminPage(counts, donationCounts, recent, recentDonations, institutions, dailySignups, notice, {
+    feedbackCounts,
+    feedbackList: recentFeedback,
+  }));
 });
 
 adminApp.get('/admin/export.csv', requireLocalAdmin, (_req, res) => {
@@ -1935,9 +2130,42 @@ function buildDailySignupSeries(rows, days) {
   return result;
 }
 
+function summarizeFeedback(rows) {
+  const emails = new Set();
+  for (const row of rows || []) {
+    const email = cleanEmail(row.email);
+    if (email) {
+      emails.add(email);
+    }
+  }
+  return {
+    total: Array.isArray(rows) ? rows.length : 0,
+    unique_testers: emails.size,
+  };
+}
+
+function normalizeFeedbackFeatures(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => clean(item, 80)).filter(Boolean);
+  }
+  if (typeof value === 'string' && value.trim()) {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) {
+        return parsed.map((item) => clean(item, 80)).filter(Boolean);
+      }
+    } catch {
+      return value.split(',').map((item) => clean(item, 80)).filter(Boolean);
+    }
+  }
+  return [];
+}
+
 function renderAdminPage(counts, donationCounts, recent, recentDonations, institutions, dailySignups, notice, options = {}) {
   const formToken = typeof options.formToken === 'function' ? options.formToken : adminFormToken;
   const batchSendToken = formToken('batch-send');
+  const feedbackCounts = options.feedbackCounts || { total: 0, unique_testers: 0 };
+  const recentFeedback = Array.isArray(options.feedbackList) ? options.feedbackList : [];
   const totalSignups = Number(counts.total) || 0;
   const liteCount = Number(counts.lite_count) || 0;
   const bundleCount = Number(counts.bundle_count) || 0;
@@ -1992,6 +2220,31 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
         </tr>`)
         .join('')
     : '<tr><td colspan="5">No donations yet.</td></tr>';
+  const feedbackRows = recentFeedback.length
+    ? recentFeedback
+        .map((item) => {
+          const features = normalizeFeedbackFeatures(item.features_tested);
+          const analysis = safeJsonForAdmin(item.analysis);
+          const overall = safeJsonForAdmin(item.overall);
+          const screenshotUrl = isSafeExternalUrl(item.screenshot_url) ? item.screenshot_url : '';
+          const notes = [
+            analysis.bugs ? `Bugs: ${analysis.bugs}` : '',
+            analysis.confusing_feature ? `Confusing: ${analysis.confusing_feature}` : '',
+            overall.needs_improvement ? `Improve: ${overall.needs_improvement}` : '',
+            overall.final_note ? `Note: ${overall.final_note}` : '',
+          ].filter(Boolean).join(' | ');
+          return `<tr>
+          <td><div class="identity-cell"><strong>${escapeHtml(item.name || 'Anonymous')}</strong><span>${escapeHtml(item.email || 'No email')}</span></div></td>
+          <td>${escapeHtml(item.app_version || '—')}</td>
+          <td>${escapeHtml(item.windows_version || '—')}</td>
+          <td>${features.length ? features.slice(0, 4).map((feature) => `<span class="pill pill-blue">${escapeHtml(feature)}</span>`).join(' ') : '—'}</td>
+          <td>${escapeHtml(cut(notes || '—', 220))}${screenshotUrl ? `<br><a class="table-link" href="${escapeHtml(screenshotUrl)}" target="_blank" rel="noopener">Screenshot link</a>` : ''}</td>
+          <td>${escapeHtml(formatDate(item.created_at))}</td>
+          <td>${item.email ? `<a class="ghost-btn" href="mailto:${encodeURIComponent(item.email)}?subject=${encodeURIComponent('Re: Metis beta feedback')}">Reply</a>` : '—'}</td>
+        </tr>`;
+        })
+        .join('')
+    : '<tr><td colspan="7">No feedback yet.</td></tr>';
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -2392,6 +2645,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
     .identity-cell { display: grid; gap: 4px; }
     .identity-cell strong { font-size: 15px; font-weight: 600; line-height: 1.35; }
     .identity-cell span { color: var(--muted); line-height: 1.55; font-size: 13px; }
+    .table-link { color: var(--moss-light); font-size: 12px; text-decoration: underline; text-underline-offset: 3px; }
     .select-cell,
     .num,
     .actions-cell { width: 1%; white-space: nowrap; }
@@ -2487,6 +2741,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
     <nav class="nav-group" aria-label="Primary">
       <button type="button" class="side-btn is-active" data-panel-target="signups-panel" aria-label="Show signups" title="Signups">${adminIcon('signups')}<span class="side-btn-label">Signups</span></button>
       <button type="button" class="side-btn" data-panel-target="donations-panel" aria-label="Show donations" title="Donations">${adminIcon('donations')}<span class="side-btn-label">Donations</span></button>
+      <button type="button" class="side-btn" data-panel-target="feedback-panel" aria-label="Show feedback" title="Feedback">${adminIcon('feedback')}<span class="side-btn-label">Feedback</span></button>
       <button type="button" class="side-btn" data-panel-target="account-panel" aria-label="Account" title="Account">${adminIcon('account')}<span class="side-btn-label">Account</span></button>
       <a class="side-btn" href="/admin/export.csv" aria-label="Export signups CSV" title="Export CSV">${adminIcon('export')}<span class="side-btn-label">Export CSV</span></a>
       <a class="side-btn" href="/admin/preview/email" aria-label="Preview email" title="Preview email">${adminIcon('preview')}<span class="side-btn-label">Email preview</span></a>
@@ -2597,6 +2852,34 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
               </tr>
             </thead>
             <tbody>${donationRows}</tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+
+    <section id="feedback-panel" class="panel" data-panel>
+      <section class="card section-card">
+        <div class="section-head">
+          <div>
+            <div class="label">Feedback</div>
+            <h2>Beta feedback</h2>
+            <p class="section-copy">${feedbackCounts.total || 0} submissions from ${feedbackCounts.unique_testers || 0} testers.</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Tester</th>
+                <th>App</th>
+                <th>Windows</th>
+                <th>Features</th>
+                <th>Notes</th>
+                <th>Submitted</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>${feedbackRows}</tbody>
           </table>
         </div>
       </section>
@@ -2956,6 +3239,7 @@ function adminIcon(name) {
   const icons = {
     signups: '<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="12" cy="11" r="4"></circle><path d="M5 24c1.9-3.8 4.7-5.7 8-5.7s6.1 1.9 8 5.7"></path><path d="M21 10a3.5 3.5 0 1 1 0 7"></path><path d="M23.5 24c.9-2.1 2.5-3.6 4.5-4.5"></path></svg>',
     donations: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 26s-8-4.9-10.6-9.5C3.2 12.7 5.4 8 10 8c2.5 0 4.1 1.3 6 3.5C17.9 9.3 19.5 8 22 8c4.6 0 6.8 4.7 4.6 8.5C24 21.1 16 26 16 26z"></path></svg>',
+    feedback: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 7h20v13a2 2 0 0 1-2 2H13l-6 5v-5H6a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z"></path><path d="M10 12h12"></path><path d="M10 16h8"></path></svg>',
     export: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M10 4h9l7 7v15a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"></path><path d="M19 4v7h7"></path><path d="M16 14v8"></path><path d="M12.5 19.5 16 23l3.5-3.5"></path></svg>',
     preview: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 10h24v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V10z"></path><path d="M4 11l12 8 12-8"></path></svg>',
     account: '<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="11" r="5"></circle><path d="M7 26c1.8-4.3 5.1-6.5 9-6.5S23.2 21.7 25 26"></path></svg>',
@@ -3096,11 +3380,7 @@ async function verifyTurnstileToken(token, options = {}) {
   const trimmedToken = trim(token);
 
   if (!secretKey) {
-    return {
-      success: false,
-      statusCode: 503,
-      error: 'Verification is unavailable right now. Please try again later.',
-    };
+    return { success: true, statusCode: 200, error: '' };
   }
 
   if (!trimmedToken) {
@@ -3694,6 +3974,33 @@ function validToken(value) {
   return /^[a-f0-9]{48}$/i.test(String(value || ''));
 }
 
+function checkboxAccepted(value) {
+  return value === true || value === 'true' || value === '1' || value === 'yes' || value === 'on';
+}
+
+function normalizeJsonObject(value) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value;
+  }
+  if (typeof value === 'string' && value.trim()) {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
+function safeJsonString(value) {
+  return JSON.stringify(normalizeJsonObject(value));
+}
+
+function safeJsonForAdmin(value) {
+  return normalizeJsonObject(value);
+}
+
 function isSafeExternalUrl(value) {
   try {
     const url = new URL(String(value || ''));
@@ -3932,6 +4239,44 @@ function createLegacySqliteStore() {
       const rows = statements.recentComments.all(Number(limit) || 200) || [];
       return { data: rows, error: null };
     },
+
+    async insertFeedback(feedback) {
+      const result = statements.insertFeedback.run(
+        feedback.name || '',
+        feedback.email || '',
+        feedback.windows_version || '',
+        feedback.ram || '',
+        feedback.app_version || '',
+        feedback.dataset_type || '',
+        feedback.sample_size || '',
+        feedback.num_constructs || '',
+        feedback.num_indicators || '',
+        JSON.stringify(Array.isArray(feedback.features_tested) ? feedback.features_tested : []),
+        safeJsonString(feedback.draw_mode),
+        safeJsonString(feedback.navigation),
+        safeJsonString(feedback.analysis),
+        safeJsonString(feedback.tam),
+        safeJsonString(feedback.overall),
+        feedback.screenshot_url || '',
+        feedback.privacy_policy_version || '',
+        feedback.privacy_accepted_at || '',
+        feedback.source_page || '',
+        feedback.source_title || '',
+        feedback.ip_address || '',
+        feedback.user_agent || '',
+        feedback.created_at
+      );
+
+      return { data: { id: Number(result.lastInsertRowid) || null, ...feedback }, error: null };
+    },
+
+    async listRecentFeedback(limit = 100) {
+      return { data: statements.recentFeedback.all(Number(limit) || 100), error: null };
+    },
+
+    async listFeedbackSummaryRows(limit = 5000) {
+      return { data: statements.feedbackSummary.all(Number(limit) || 5000), error: null };
+    },
   };
 }
 
@@ -4086,6 +4431,8 @@ function createApp(options = {}) {
       recentDonations,
       institutionRows,
       signupSeriesRows,
+      recentFeedback,
+      feedbackSummaryRows,
     ] = await Promise.all([
       listSignupSummaryRowsFromStore(store),
       readStoreResult(store.listRecentSignups ? store.listRecentSignups(50) : []),
@@ -4093,14 +4440,18 @@ function createApp(options = {}) {
       readStoreResult(store.listRecentDonations ? store.listRecentDonations(50) : []),
       readStoreResult(store.listInstitutionRows ? store.listInstitutionRows(1000) : []),
       listSignupSeriesRowsFromStore(store),
+      readStoreResult(store.listRecentFeedback ? store.listRecentFeedback(100) : []),
+      readStoreResult(store.listFeedbackSummaryRows ? store.listFeedbackSummaryRows(5000) : []),
     ]);
 
     return {
       counts: summarizeSignups(signupSummaryRows || []),
       dailySignups: buildDailySignupSeries(summarizeDailySignupRows(signupSeriesRows || [], 14), 14),
       donationCounts: summarizeDonations(donationSummaryRows || []),
+      feedbackCounts: summarizeFeedback(feedbackSummaryRows || []),
       institutions: summarizeInstitutionRows(institutionRows || [], 10),
       recentDonations: recentDonations || [],
+      recentFeedback: recentFeedback || [],
       recentSignups: recentSignups || [],
     };
   }
@@ -4339,6 +4690,79 @@ function createApp(options = {}) {
     }
   });
 
+  hostedApp.post('/api/feedback', async (req, res, next) => {
+    try {
+      if (!originAllowed(req, currentConfig.allowedOrigins)) {
+        return res.status(403).json({ success: false, error: 'Origin not allowed.' });
+      }
+
+      res.setHeader('Cache-Control', 'no-store');
+      const ip = clientIp(req);
+      const verification = await verifyTurnstile({
+        action: 'feedback',
+        ip,
+        req,
+        token: req.body?.['cf-turnstile-response'] || req.body?.turnstileToken,
+      });
+      if (!verification || !verification.success) {
+        return res.status(verification?.statusCode || 403).json({
+          success: false,
+          error: verification?.error || 'Verification failed. Please try again.',
+        });
+      }
+      if (!allowRate(ip, 'feedback')) {
+        return res.status(429).json({ success: false, error: 'Too many feedback submissions. Please try again later.' });
+      }
+
+      const parsed = feedbackSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({
+          success: false,
+          error: firstValidationMessage(parsed.error, 'Please check your feedback and try again.'),
+        });
+      }
+
+      const body = parsed.data;
+      if (body.hp_field) {
+        tripRateLimit(ip, 'feedback');
+        return res.json({ success: true, message: 'Feedback received.' });
+      }
+
+      const now = new Date().toISOString();
+      await readStoreResult(
+        store.insertFeedback({
+          name: body.name,
+          email: body.email,
+          windows_version: body.windows_version,
+          ram: body.ram,
+          app_version: body.app_version,
+          dataset_type: body.dataset_type,
+          sample_size: body.sample_size,
+          num_constructs: body.num_constructs,
+          num_indicators: body.num_indicators,
+          features_tested: body.features_tested,
+          draw_mode: body.draw_mode,
+          navigation: body.navigation,
+          analysis: body.analysis,
+          tam: body.tam,
+          overall: body.overall,
+          screenshot_url: body.screenshot_url,
+          privacy_policy_version: body.privacy_policy_version,
+          privacy_accepted_at: now,
+          source_page: body.source_page,
+          source_title: body.source_title,
+          ip_address: ip,
+          user_agent: cut(req.headers['user-agent'], 300),
+          created_at: now,
+        })
+      );
+
+      return res.json({ success: true, message: 'Feedback received. We will review it as we improve the beta.' });
+    } catch (error) {
+      return next(error);
+    }
+  });
+
   hostedApp.get('/beta/:token', async (req, res, next) => {
     try {
       if (!validToken(req.params.token)) {
@@ -4413,7 +4837,12 @@ function createApp(options = {}) {
           dashboard.institutions,
           dashboard.dailySignups,
           notice,
-          { adminUsername: currentConfig.adminUsername, formToken }
+          {
+            adminUsername: currentConfig.adminUsername,
+            feedbackCounts: dashboard.feedbackCounts,
+            feedbackList: dashboard.recentFeedback,
+            formToken,
+          }
         )
       );
     } catch (error) {
@@ -4648,6 +5077,9 @@ function startServer(options = {}) {
     }
     if (!emailReady(currentConfig)) {
       console.warn('[warn] Email sending is not configured — admin sends will fail until RESEND_API_KEY plus sender email, or SMTP_* vars, are set.');
+    }
+    if (!currentConfig.turnstile?.isConfigured) {
+      console.warn('[warn] Turnstile verification is not configured — public forms will rely on rate limits and honeypot checks only.');
     }
     if (currentConfig.adminPassword === 'change-this-password') {
       console.warn('[warn] ADMIN_PASSWORD is still the default — change it before exposing the admin login.');

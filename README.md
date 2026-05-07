@@ -25,6 +25,7 @@ This backend now supports the hosted single-port shape used by Railway-style dep
    - `HEALTH_TOKEN`
    - `RESEND_API_KEY` plus sender values, or `SMTP_*` if you intentionally use SMTP
    - `SUPPORT_EMAIL`
+   - optional but recommended for bot protection: `TURNSTILE_SECRET_KEY`
    - hosted store env vars if you want Supabase-backed mode:
      - `padi`
      - `Tarkitey`
@@ -73,6 +74,7 @@ From `/admin` you can now:
 - send one pending/failed signup with the row-level `Send` button
 - send multiple selected rows with `Send selected`
 - skip rows already marked `sent`
+- review beta feedback submissions saved through `/api/feedback`
 
 If email delivery is missing, a manual send marks the row as failed:
 
