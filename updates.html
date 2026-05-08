@@ -1,11 +1,11 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" type="image/png" href="/metis-logo-light-nav.png" />
-  <title>metis Updates</title>
-  <meta name="description" content="metis updates and version history." />
+  <title>metis 1.0 Beta Updates</title>
+  <meta name="description" content="metis 1.0 beta feature overview and update log." />
   <link rel="stylesheet" href="style.css?v=20260408i" />
   <link rel="stylesheet" href="docs.css?v=20260408i" />
   <link rel="stylesheet" href="vendor/phosphor/regular/style.css" />
@@ -26,14 +26,13 @@
           <span class="docs-sidebar-title">Updates</span>
         </div>
         <nav class="docs-toc" aria-label="Table of contents">
-          <a class="docs-toc-link docs-toc-top" href="#v0-1-7">v0.1.7</a>
-          <a class="docs-toc-link" href="#v0-1-6">v0.1.6</a>
-          <a class="docs-toc-link" href="#v0-1-5">v0.1.5</a>
-          <a class="docs-toc-link docs-toc-top" href="#v0-1-4">v0.1.4</a>
-          <a class="docs-toc-link" href="#v0-1-3">v0.1.3</a>
-          <a class="docs-toc-link" href="#v0-1-2">v0.1.2</a>
-          <a class="docs-toc-link" href="#v0-1-1">v0.1.1</a>
-          <a class="docs-toc-link" href="#v0-1-0">v0.1.0</a>
+          <a class="docs-toc-link docs-toc-top" href="#v1-0-beta">v1.0 beta</a>
+          <a class="docs-toc-link docs-toc-indent" href="#workspaces-data">Workspaces &amp; Data</a>
+          <a class="docs-toc-link docs-toc-indent" href="#model-canvas">Model Canvas</a>
+          <a class="docs-toc-link docs-toc-indent" href="#analysis-engine">Analysis Engine</a>
+          <a class="docs-toc-link docs-toc-indent" href="#results-diagnostics">Results &amp; Diagnostics</a>
+          <a class="docs-toc-link docs-toc-indent" href="#reporting-exports">Reporting &amp; Exports</a>
+          <a class="docs-toc-link docs-toc-indent" href="#setup-security">Setup &amp; Security</a>
         </nav>
       </div>
     </aside>
@@ -43,307 +42,96 @@
           <span class="feature-tag">updates</span>
         </div>
         <h1 class="docs-hero-title">metis Updates</h1>
-        <p class="docs-hero-sub">Version history and update log for metis. See what’s new, improved, and fixed in each update.</p>
+        <p class="docs-hero-sub">The development update history has been consolidated into one public beta milestone. This page now reflects the current metis desktop app experience in a single release.</p>
       </div>
-      <section class="docs-section" id="v0-1-7">
-        <h2 class="docs-h2">v0.1.7</h2>
+
+      <section class="docs-section" id="v1-0-beta">
+        <h2 class="docs-h2">v1.0 beta</h2>
         <article class="docs-release-card docs-release-latest fade-up">
           <div class="docs-release-header">
-            <span class="docs-release-version">v0.1.7</span>
-            <span class="docs-release-tag">latest</span>
-            <span class="docs-release-date">April 2026</span>
+            <span class="docs-release-version">v1.0 beta</span>
+            <span class="docs-release-tag">current</span>
+            <span class="docs-release-date">May 2026</span>
           </div>
-          <p class="docs-release-intro">This update adds embedded sample workspaces, richer results interactions, and a more flexible workspace format for day-to-day analysis.</p>
+          <p class="docs-release-intro">metis 1.0 beta brings the full PLS-SEM workflow into one desktop app: setup, workspaces, dataset handling, visual model building, PLS-SEM, Bootstrap, PLSpredict, Advanced analysis, results review, exports, and TARK reporting.</p>
 
-          <div class="docs-release-group docs-release-group-features">
-            <h3 class="docs-release-group-title"><i class="ph ph-rocket-launch" aria-hidden="true"></i> New Features</h3>
+          <div class="docs-release-group docs-release-group-features" id="workspaces-data">
+            <h3 class="docs-release-group-title"><i class="ph ph-folders" aria-hidden="true"></i> Workspaces &amp; Data</h3>
             <ul class="docs-release-list">
-              <li>Added single-file <code class="docs-code">.ada</code> workspaces with embedded datasets, so bundled sample datasets can open and run without manual re-importing.</li>
-              <li>Added richer Results View interactions, including multi-select drag, hoverable construct metrics, and movable result-side constructs without breaking the underlying Model Canvas.</li>
-              <li>Added direct access to cross-loadings and real-time calculations in the results workflow for faster model checking.</li>
+              <li>Workspace Home now manages workspaces, models, datasets, and saved results from one project browser.</li>
+              <li>Single-file <code class="docs-code">.ada</code> workspaces embed datasets, support bundled samples, and open directly from File Explorer through the metis file association.</li>
+              <li>Dataset import supports spreadsheet and text data, then opens into DataView for preview, editing, replace, or save-as-new workflows.</li>
+              <li>Descriptive statistics and dataset persistence keep imported data available across model, results, and reporting screens.</li>
             </ul>
           </div>
 
-          <div class="docs-release-group docs-release-group-improvements">
-            <h3 class="docs-release-group-title"><i class="ph ph-wrench" aria-hidden="true"></i> Improvements</h3>
+          <div class="docs-release-group docs-release-group-features" id="model-canvas">
+            <h3 class="docs-release-group-title"><i class="ph ph-vector-three" aria-hidden="true"></i> Model Canvas</h3>
             <ul class="docs-release-list">
-              <li>Workspace loading now extracts embedded datasets to a temporary file so the R backend always receives a usable path.</li>
-              <li>Construct overlays and metrics such as R², Cronbach's alpha, and composite reliability now surface more consistently in the results view.</li>
-              <li>The release now keeps the latest-tagged update log aligned with the current project version across the public pages.</li>
+              <li>Build reflective and formative measurement models with draggable constructs, indicators, measurement paths, and structural paths.</li>
+              <li>Create moderation relationships by connecting a construct to an existing path, with dotted moderation links anchored to the target relationship.</li>
+              <li>Work across multi-model tabs with open, close, reorder, same-session switching, per-model dirty state, and active dataset syncing.</li>
+              <li>Use multi-select drag, shared resize handles, alignment guides, snap controls, copy, cut, paste, select all, Save As, Fit to Screen, and PNG export.</li>
+              <li>Autosave and Run on Draw reduce lost work and make quick model checks available while the canvas is being built.</li>
             </ul>
           </div>
 
-          <div class="docs-release-group docs-release-group-bugs">
-            <h3 class="docs-release-group-title"><i class="ph ph-bug-beetle" aria-hidden="true"></i> Bug Fixes</h3>
+          <div class="docs-release-group docs-release-group-features" id="analysis-engine">
+            <h3 class="docs-release-group-title"><i class="ph ph-chart-line-up" aria-hidden="true"></i> Analysis Engine</h3>
             <ul class="docs-release-list">
-              <li>Fixed multi-select drag and hover behaviour in the Results View so construct movement is predictable and does not dismantle the canvas state.</li>
-              <li>Fixed construct overlay syncing so results-side adjustments stay independent from the main Model Canvas layout.</li>
-              <li>Fixed file association and workspace opening for embedded <code class="docs-code">.ada</code> files.</li>
-            </ul>
-          </div>
-        </article>
-      </section>
-      <section class="docs-section" id="v0-1-6">
-        <h2 class="docs-h2">v0.1.6</h2>
-        <article class="docs-release-card fade-up">
-          <div class="docs-release-header">
-            <span class="docs-release-version">v0.1.6</span>
-            <span class="docs-release-date">April 2026</span>
-          </div>
-          <p class="docs-release-intro">A workflow update focused on moderation modeling, canvas polish, and more reliable diagnostics.</p>
-
-          <div class="docs-release-group docs-release-group-features">
-            <h3 class="docs-release-group-title"><i class="ph ph-rocket-launch" aria-hidden="true"></i> New Features</h3>
-            <ul class="docs-release-list">
-              <li>Added moderation modeling by drawing from a construct to an existing connector, with dotted moderation links anchored to the target path midpoint.</li>
-              <li>Added pre-import canvas snapshot persistence and a faster autosave cadence to reduce the risk of losing work while moving between screens.</li>
-              <li>Added right-click construct actions for copy and cut, plus upfront color selection for indicator-drag construct creation.</li>
+              <li>Run PLS-SEM through the R backend with <code class="docs-code">seminr</code>, including Standard PLS, Consistent PLS, reflective constructs, and formative constructs.</li>
+              <li>Run Bootstrap analyses with path, indirect, total effect, loading, weight, confidence interval, and significance outputs.</li>
+              <li>Run PLSpredict with configurable folds, repetitions, optional CVPAT, Q&sup2;predict, PLS-SEM RMSE/MAE, and linear-model comparison metrics.</li>
+              <li>Run Advanced analysis after a valid PLS-SEM result, including IPMA, NCA, and cIPMA target-construct diagnostics powered by <code class="docs-code">seminrExtras</code>.</li>
+              <li>Long calculations now use a unified calculation modal and chip with progress state, hide, stop, completion feedback, and a single-run lock.</li>
             </ul>
           </div>
 
-          <div class="docs-release-group docs-release-group-improvements">
-            <h3 class="docs-release-group-title"><i class="ph ph-wrench" aria-hidden="true"></i> Improvements</h3>
+          <div class="docs-release-group docs-release-group-improvements" id="results-diagnostics">
+            <h3 class="docs-release-group-title"><i class="ph ph-table" aria-hidden="true"></i> Results &amp; Diagnostics</h3>
             <ul class="docs-release-list">
-              <li>Alignment guides now snap to construct edges, with lighter handles and smaller arrowheads for a cleaner canvas.</li>
-              <li>Properties panels now use a simpler size control with a dedicated auto-size action.</li>
-              <li>Results parsing is more robust, with better SRMR, VIF, and row-key handling for PLS-SEM outputs.</li>
+              <li>Results View has mode-specific sidebars for PLS-SEM, Bootstrap, PLSpredict, and Advanced analysis.</li>
+              <li>Core panels cover path coefficients, total effects, specific indirect effects, outer loadings, outer weights, reliability, discriminant validity, cross-loadings, R&sup2;, f&sup2;, VIF, model fit, and execution logs.</li>
+              <li>Bootstrap panels separate resampled structural and measurement effects from base-model reference panels, including visible reference-state labels.</li>
+              <li>PLSpredict panels include MV/LV summaries, prediction errors, PLS vs LM comparison, Q&sup2;predict, error histograms, and CVPAT states.</li>
+              <li>Advanced analysis panels include priority maps, construct tables, necessity checks, ceiling lines, bottleneck tables, and cIPMA priorities.</li>
+              <li>The results diagram supports metric overlays, hoverable construct diagnostics, result-side movement, and cleaner export behavior.</li>
             </ul>
           </div>
 
-          <div class="docs-release-group docs-release-group-bugs">
-            <h3 class="docs-release-group-title"><i class="ph ph-bug-beetle" aria-hidden="true"></i> Bug Fixes</h3>
+          <div class="docs-release-group docs-release-group-improvements" id="reporting-exports">
+            <h3 class="docs-release-group-title"><i class="ph ph-file-text" aria-hidden="true"></i> Reporting &amp; Exports</h3>
             <ul class="docs-release-list">
-              <li>Fixed autosave so every move, drag, or edit persists the latest canvas state immediately.</li>
-              <li>Fixed SRMR and VIF display issues so model-fit diagnostics now surface correctly in the Results View.</li>
-              <li>Fixed moderation and model-fit data handling so saved results reconstruct more reliably across tabs.</li>
-            </ul>
-          </div>
-        </article>
-      </section>
-      <section class="docs-section" id="v0-1-5">
-        <h2 class="docs-h2">v0.1.5</h2>
-        <article class="docs-release-card fade-up">
-          <div class="docs-release-header">
-            <span class="docs-release-version">v0.1.5</span>
-            <span class="docs-release-date">March 2026</span>
-          </div>
-          <p class="docs-release-intro">A results and analysis update focused on PLSpredict, saved result artifacts, and smoother bootstrap workflow.</p>
-
-          <div class="docs-release-group docs-release-group-features">
-            <h3 class="docs-release-group-title"><i class="ph ph-rocket-launch" aria-hidden="true"></i> New Features</h3>
-            <ul class="docs-release-list">
-              <li>Added real out-of-sample PLSpredict metrics, including Q²predict, PLS-SEM RMSE, and LM RMSE.</li>
-              <li>Added distinct saved result artifacts for PLS-SEM, Bootstrap, and PLSpredict runs, with direct reopen support.</li>
-              <li>Added blocking bootstrap progress flow so long-running analyses are easier to follow.</li>
+              <li>Saved result artifacts reopen PLS-SEM, Bootstrap, PLSpredict, and Advanced analysis outputs from the workspace.</li>
+              <li>Result tables can be copied as rich text, exported to Excel, or included in a clean HTML report with copy-table controls.</li>
+              <li>R scripts can be copied or exported so the analysis can be inspected and reproduced outside the desktop app.</li>
+              <li>TARK turns saved PLS-SEM, Bootstrap, and PLSpredict results into journal-ready report tables, with optional Advanced analysis families.</li>
+              <li>TARK report families cover measurement model assessment, discriminant validity, structural model assessment, explanatory and predictive power, model fit, PLSpredict, IPMA, NCA, and additional effects.</li>
             </ul>
           </div>
 
-          <div class="docs-release-group docs-release-group-improvements">
-            <h3 class="docs-release-group-title"><i class="ph ph-wrench" aria-hidden="true"></i> Improvements</h3>
+          <div class="docs-release-group docs-release-group-bugs" id="setup-security">
+            <h3 class="docs-release-group-title"><i class="ph ph-shield-check" aria-hidden="true"></i> Setup, Packaging &amp; Security</h3>
             <ul class="docs-release-list">
-              <li>Added post-hoc power analysis via semPower for stronger reporting support.</li>
-              <li>Improved the startup splash and first-run experience for smoother app entry.</li>
+              <li>Lite and Bundle beta installers are supported: Lite connects to an existing R installation, while Bundle ships the portable R runtime.</li>
+              <li>The setup wizard validates R, installs required packages, and checks <code class="docs-code">seminr</code>, <code class="docs-code">seminrExtras</code>, <code class="docs-code">semPower</code>, and supporting runtime packages.</li>
+              <li>Installer and setup windows now use stable packaged renderer loading, opaque shell styling, and corrected file-protocol privileges.</li>
+              <li>Security hardening restricts Electron IPC, approved file paths, export opening, local Plumber access, dataset roots, and R executable selection.</li>
+              <li>Production builds remove generated debug files and avoid leaking local development paths into shipped artifacts.</li>
+              <li>Light/dark themes, preferences, title-bar actions, onboarding tour, diagnostics, and clearer error messaging round out the beta experience.</li>
             </ul>
           </div>
 
-          <div class="docs-release-group docs-release-group-bugs">
-            <h3 class="docs-release-group-title"><i class="ph ph-bug-beetle" aria-hidden="true"></i> Bug Fixes</h3>
+          <div class="docs-release-group docs-release-group-notes">
+            <h3 class="docs-release-group-title"><i class="ph ph-info" aria-hidden="true"></i> Beta Notes</h3>
             <ul class="docs-release-list">
-              <li>Fixed the bootstrap response assembly error caused by the missing algorithm object reference.</li>
-              <li>Fixed path-diagram overlay lookup by checking construct names and IDs together.</li>
-              <li>Resolved duplicate Plumber startup and Electron splash sizing issues during development.</li>
+              <li>The previous development updates are folded into this 1.0 beta milestone instead of being listed as separate public releases.</li>
+              <li>Known beta limitations remain documented in the user docs, and future public updates will build from this single beta baseline.</li>
             </ul>
           </div>
-        </article>
-      </section>
-      <section class="docs-section" id="v0-1-4">
-        <h2 class="docs-h2">v0.1.4</h2>
-        <article class="docs-release-card fade-up">
-          <div class="docs-release-header">
-            <span class="docs-release-version">v0.1.4</span>
-          </div>
-          <p class="docs-release-intro">Stabilization pass focused on first-run setup, results rendering, title-bar actions, and export reliability.</p>
-
-          <div class="docs-release-group docs-release-group-bugs">
-            <h3 class="docs-release-group-title"><i class="ph ph-bug-beetle" aria-hidden="true"></i> Bug Fixes</h3>
-            <ul class="docs-release-list">
-              <li>Stopped the unwanted first-run <code class="docs-code">Downloads\\metis</code> folder creation by skipping workspace bootstrap while setup is still pending.</li>
-              <li>Removed unsupported structural overlay options from the results dropdown and kept only the modes that actually render in the path diagram.</li>
-              <li>Bootstrap path coefficients now use the real coefficient table renderer, and the parser now understands bootstrap rows returned as <code class="docs-code">row_name</code> path labels instead of separate <code class="docs-code">from</code> and <code class="docs-code">to</code> fields.</li>
-              <li>Fixed PNG export clipping by exporting from a computed SVG <code class="docs-code">viewBox</code> instead of the current viewport transform.</li>
-            </ul>
-          </div>
-
-          <div class="docs-release-group docs-release-group-improvements">
-            <h3 class="docs-release-group-title"><i class="ph ph-wrench" aria-hidden="true"></i> Improvements</h3>
-            <ul class="docs-release-list">
-              <li>HTML export now uses the real metis logo and strips the model extension from the report title and file name.</li>
-            </ul>
-          </div>
-
-          <div class="docs-release-group docs-release-group-features">
-            <h3 class="docs-release-group-title"><i class="ph ph-rocket-launch" aria-hidden="true"></i> New Features</h3>
-            <ul class="docs-release-list">
-              <li><strong>Save As...</strong> now opens a model/workspace picker and saves a new model copy.</li>
-              <li><strong>Fit to Screen</strong> now works from the menu, <code class="docs-code">Ctrl+0</code>, and the canvas buttons.</li>
-            </ul>
-          </div>
-        </article>
-      </section>
-      <section class="docs-section" id="v0-1-3">
-        <h2 class="docs-h2">v0.1.3</h2>
-        <article class="docs-release-card fade-up">
-          <div class="docs-release-header">
-            <span class="docs-release-version">v0.1.3</span>
-          </div>
-
-          <div class="docs-release-group docs-release-group-bugs">
-            <h3 class="docs-release-group-title"><i class="ph ph-bug-beetle" aria-hidden="true"></i> Bug Fixes</h3>
-            <ul class="docs-release-list">
-              <li>Fixed <code class="docs-code">.ada</code> workspace imports so extracted dataset files are resolved correctly during PLS-SEM calculations, even when the source dataset lives outside the workspace location.</li>
-              <li>Fixed multi-selection drag behavior on the model canvas so dragging from the shared selection area moves the whole selection instead of accidentally selecting a single construct or indicator.</li>
-              <li>Fixed canvas switching behavior so the active dataset context follows the active model tab when moving between models from different workspaces.</li>
-              <li>Fixed title bar home navigation so returning from the canvas still respects the unsaved-changes flow.</li>
-            </ul>
-          </div>
-
-          <div class="docs-release-group docs-release-group-improvements">
-            <h3 class="docs-release-group-title"><i class="ph ph-wrench" aria-hidden="true"></i> Improvements</h3>
-            <ul class="docs-release-list">
-              <li>Refined the unified multi-selection frame with a lighter solid primary outline, cleaner resize handles, and more predictable cursor behavior.</li>
-              <li>Improved model tab labels to show <code class="docs-code">workspace / model</code> clearly, with <code class="docs-code">*</code> for unsaved work and automatic removal after saving.</li>
-              <li>Added per-model dirty-state tracking so unsaved indicators remain accurate when switching between open tabs.</li>
-              <li>Polished the model tab strip to fit the working canvas area only, with compact sizing and better visual separation from the side panels and title bar.</li>
-            </ul>
-          </div>
-
-          <div class="docs-release-group docs-release-group-features">
-            <h3 class="docs-release-group-title"><i class="ph ph-rocket-launch" aria-hidden="true"></i> New Features</h3>
-            <ul class="docs-release-list">
-              <li>Added single-instance <code class="docs-code">.ada</code> workspace opening so opening a workspace from File Explorer reuses the existing metis window instead of launching a second working session.</li>
-              <li>Added multi-model tabs in the model canvas, including open, close, drag-to-reorder, and same-session switching between models.</li>
-              <li>Added shared multi-selection resize handles for grouped constructs and indicators on the model canvas.</li>
-              <li>Added clickable title bar branding so the metis logo can toggle between <code class="docs-code">WorkspaceHome</code> and the last model canvas you were working on.</li>
-            </ul>
-          </div>
-
-        </article>
-      </section>
-      <section class="docs-section" id="v0-1-2">
-        <h2 class="docs-h2">v0.1.2</h2>
-        <article class="docs-release-card fade-up">
-          <div class="docs-release-header">
-            <span class="docs-release-version">v0.1.2</span>
-            <span class="docs-release-date">March 2026</span>
-          </div>
-          <p class="docs-release-intro">Bundle and Lite editions introduced. Form security improvements. UI refinements across team, testimonials, and close-the-gap sections.</p>
-
-          <div class="docs-release-group docs-release-group-features">
-            <h3 class="docs-release-group-title"><i class="ph ph-rocket-launch" aria-hidden="true"></i> New Features</h3>
-            <ul class="docs-release-list">
-              <li><strong>VIF in Measurement Model:</strong> Added Variance Inflation Factor (VIF) calculation to the measurement model for improved multicollinearity diagnostics.</li>
-              <li><strong>Live Results on Canvas:</strong> Introduced a “Run on Draw” option on the model canvas, allowing you to see live updates for factor loadings and correlations as you build your model. This feature can be toggled on or off in the Preferences tab.</li>
-            </ul>
-          </div>
-
-          <div class="docs-release-group docs-release-group-improvements">
-            <h3 class="docs-release-group-title"><i class="ph ph-wrench" aria-hidden="true"></i> Bug Fixes &amp; Improvements</h3>
-            <ul class="docs-release-list">
-              <li><strong>Global R Integration:</strong> Fixed issues with the global R path. If R is already installed on your PC, you can now use the Lite version seamlessly without encountering bugs.</li>
-            </ul>
-          </div>
-
-          <div class="docs-release-group">
-            <h3 class="docs-release-group-title"><i class="ph ph-package" aria-hidden="true"></i> Bundle Edition (~264 MB)</h3>
-            <ul class="docs-release-list">
-              <li>Includes R Portable, no separate R installation required</li>
-              <li>Fully self-contained; installs and runs offline</li>
-              <li>Recommended for first-time users and non-programmers</li>
-            </ul>
-          </div>
-
-          <div class="docs-release-group">
-            <h3 class="docs-release-group-title"><i class="ph ph-lightning" aria-hidden="true"></i> Lite Edition (~72 MB)</h3>
-            <ul class="docs-release-list">
-              <li>Smaller download for users who already have R 4.0+ installed</li>
-              <li>Connects to existing system R environment</li>
-              <li>seminr and required packages installed on first launch</li>
-            </ul>
-          </div>
-
-          <div class="docs-release-group">
-            <h3 class="docs-release-group-title"><i class="ph ph-chart-line-up" aria-hidden="true"></i> Statistical Engine</h3>
-            <ul class="docs-release-list">
-              <li>Full PLS-SEM estimation via the seminr R package</li>
-              <li>Standard PLS and Consistent PLS (PLSc) algorithms supported</li>
-              <li>Reflective and formative measurement models</li>
-              <li>Bootstrapping for significance testing, default 5,000 subsamples</li>
-              <li>PLS Predict with real out-of-sample metrics: Q²predict, PLS-SEM RMSE, and LM RMSE via k-fold cross-validation</li>
-              <li>Post-hoc power analysis via the semPower package</li>
-            </ul>
-          </div>
-
-          <div class="docs-release-group">
-            <h3 class="docs-release-group-title"><i class="ph ph-monitor" aria-hidden="true"></i> User Interface</h3>
-            <ul class="docs-release-list">
-              <li>Workspace Home as the application entry point</li>
-              <li>Dark professional theme: background #0F0F13, primary mayablue #83C3FF</li>
-              <li>Animated splash screen on startup</li>
-              <li>Context-sensitive title bar menus</li>
-              <li>Phosphor icon library throughout</li>
-            </ul>
-          </div>
-
-          <div class="docs-release-group docs-release-group-bugs">
-            <h3 class="docs-release-group-title"><i class="ph ph-bug-beetle" aria-hidden="true"></i> Bug Fixes</h3>
-            <ul class="docs-release-list">
-              <li>Fixed backend 500 error caused by missing <code class="docs-code">algorithm</code> object reference in the bootstrap response assembly.</li>
-              <li>Fixed path diagram overlay lookup failure, both construct name and ID keys are now checked simultaneously.</li>
-              <li>Fixed Electron splash window showing an unwanted black border due to incorrect window dimensions.</li>
-              <li>Resolved intermittent port conflict during development sessions caused by duplicate Plumber backend startup attempts.</li>
-              <li>Bootstrap and PLS Predict actions from the Results View now correctly reconstruct the analysis payload from the saved model.</li>
-            </ul>
-          </div>
-        </article>
-      </section>
-      <section class="docs-section" id="v0-1-1">
-        <h2 class="docs-h2">v0.1.1</h2>
-        <article class="docs-release-card fade-up">
-          <div class="docs-release-header">
-            <span class="docs-release-version">v0.1.1</span>
-          </div>
-
-          <div class="docs-release-group docs-release-group-features">
-            <h3 class="docs-release-group-title"><i class="ph ph-rocket-launch" aria-hidden="true"></i> New Features</h3>
-            <ul class="docs-release-list">
-              <li><strong>Autosave:</strong> Implemented autosave to prevent data loss during your workflow.</li>
-              <li><strong>Select All Variables:</strong> Added the ability to select all variables at once on the model canvas for faster model setup.</li>
-              <li><strong>Bootstrapping &amp; PLS Predict:</strong> Introduced bootstrapping and PLS predict functionalities for more robust model evaluation.</li>
-              <li><strong>Export Model Canvas as PNG:</strong> You can now export the model canvas as a PNG image before running calculations.</li>
-            </ul>
-          </div>
-
-          <div class="docs-release-group docs-release-group-improvements">
-            <h3 class="docs-release-group-title"><i class="ph ph-wrench" aria-hidden="true"></i> Bug Fixes &amp; Improvements</h3>
-            <ul class="docs-release-list">
-              <li><strong>Lite Version Optimization:</strong> The Lite version is now stripped of the bundled R environment, reducing download size for users who already have R installed.</li>
-              <li><strong>Splash Screen:</strong> Improved the splash screen for a smoother loading experience.</li>
-            </ul>
-          </div>
-        </article>
-      </section>
-      <section class="docs-section" id="v0-1-0">
-        <h2 class="docs-h2">v0.1.0</h2>
-        <article class="docs-release-card fade-up">
-          <div class="docs-release-header">
-            <span class="docs-release-version">v0.1.0</span>
-          </div>
-          <p class="docs-release-intro">Initial release with core SEMinR Lite and bundled features.</p>
         </article>
       </section>
     </main>
   </div>
 </body>
 </html>
-
-
