@@ -4242,6 +4242,50 @@ function feedbackWallCommentFromPayload(body, createdAt) {
   };
 }
 
+function feedbackWallCommentFromRow(row) {
+  const comment = feedbackWallCommentFromPayload(row, row?.created_at);
+  if (!comment) {
+    return null;
+  }
+  return {
+    id: `feedback:${row?.created_at || ''}:${cleanEmail(row?.email || '') || clean(row?.name || '', 60)}`,
+    ...comment,
+  };
+}
+
+function wallCommentDedupKey(comment) {
+  return `${trim(comment.name).toLowerCase()}|${trim(comment.body).toLowerCase()}`;
+}
+
+function mergeWallComments(primaryComments, fallbackComments, limit) {
+  const seen = new Set();
+  const merged = [];
+
+  for (const comment of [...(primaryComments || []), ...(fallbackComments || [])]) {
+    const name = clean(comment.name || '', 60) || 'Anonymous';
+    const body = clean(comment.body || '', 280);
+    if (!body) {
+      continue;
+    }
+    const next = {
+      id: comment.id,
+      name,
+      body,
+      created_at: comment.created_at,
+    };
+    const key = wallCommentDedupKey(next);
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    merged.push(next);
+  }
+
+  return merged
+    .sort((left, right) => String(right.created_at || '').localeCompare(String(left.created_at || '')))
+    .slice(0, limit);
+}
+
 function validToken(value) {
   return /^[a-f0-9]{48}$/i.test(String(value || ''));
 }
@@ -4921,13 +4965,15 @@ function createApp(options = {}) {
       res.setHeader('Cache-Control', 'public, max-age=20');
       const limit = Math.max(1, Math.min(200, Number(req.query.limit) || 200));
       const rows = (await readStoreResult(store.listRecentComments(limit))) || [];
+      const feedbackRows = (await readStoreResult(store.listRecentFeedback ? store.listRecentFeedback(limit) : [])) || [];
       const sanitized = rows.map((row) => ({
         id: row.id,
         name: clean(row.name || '', 60),
         body: clean(row.body || '', 280),
         created_at: row.created_at,
       }));
-      return res.json({ success: true, comments: sanitized });
+      const feedbackComments = feedbackRows.map(feedbackWallCommentFromRow).filter(Boolean);
+      return res.json({ success: true, comments: mergeWallComments(sanitized, feedbackComments, limit) });
     } catch (error) {
       return next(error);
     }

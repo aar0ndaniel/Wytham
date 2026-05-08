@@ -702,6 +702,43 @@ test('POST /api/feedback stores tester feedback for admin review', async (t) => 
   assert.doesNotMatch(html, /Recent wall notes/i);
 });
 
+test('GET /api/comments includes wall notes submitted through feedback', async (t) => {
+  const { baseUrl } = await startApp(t, {
+    store: createMemoryStore({
+      feedback: [
+        {
+          created_at: '2026-05-08T08:00:00.000Z',
+          email: 'tester@example.com',
+          name: 'Beta Tester',
+          overall: {
+            final_note: 'This was submitted from the feedback wall fields.',
+            final_note_name: 'Feedback Wall',
+          },
+        },
+      ],
+    }),
+  });
+
+  const response = await fetch(`${baseUrl}/api/comments`, {
+    headers: {
+      origin: 'https://metis.emend.it.com',
+    },
+  });
+
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    success: true,
+    comments: [
+      {
+        id: 'feedback:2026-05-08T08:00:00.000Z:tester@example.com',
+        name: 'Feedback Wall',
+        body: 'This was submitted from the feedback wall fields.',
+        created_at: '2026-05-08T08:00:00.000Z',
+      },
+    ],
+  });
+});
+
 test('admin CSV export follows the active admin panel data shape', async (t) => {
   const { baseUrl } = await startApp(t, {
     store: createMemoryStore({
