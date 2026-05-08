@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://metis.emend.it.com/sitemap.xml
