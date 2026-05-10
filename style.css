@@ -984,7 +984,7 @@ body.index-page img {
 
 .hero-text {
   text-align: left;
-  max-width: 920px;
+  max-width: 960px;
   margin: 0;
 }
 
@@ -1009,7 +1009,7 @@ body.index-page img {
 }
 
 .hero-h1 {
-  font-size: clamp(42px, 5.8vw, 66px);
+  font-size: clamp(40px, 5.8vw, 64px);
   font-weight: 270;
   line-height: 1.02;
   letter-spacing: -0.02em;
@@ -5320,7 +5320,7 @@ body.light .cursor-path-clear:hover {
     justify-content: center;
   }
 
-  .hero-h1 { font-size: clamp(26px, 8.5vw, 34px); }
+  .hero-h1 { font-size: clamp(24px, 8.5vw, 32px); }
   .hero-body { font-size: 13.5px; }
 
   .figma-sel-anim,
@@ -5383,7 +5383,7 @@ body.light .cursor-path-clear:hover {
 @media (max-width: 480px) {
   .nav-inner { padding: 0 10px; }
 
-  .hero-h1 { font-size: clamp(24px, 9vw, 30px); }
+  .hero-h1 { font-size: clamp(22px, 9vw, 28px); }
   .hero-body { font-size: 13px; }
   .section-corners { width: calc(100% - 20px); }
 
