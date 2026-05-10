@@ -1096,38 +1096,9 @@ body.index-page img {
   text-transform: uppercase;
 }
 
-.hero-launch-pill {
-  gap: 10px;
-  text-transform: none;
-  letter-spacing: 0.015em;
-}
-
-.hero-launch-label {
-  opacity: 0.84;
-}
-
-.hero-launch-values {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: 520;
-  color: var(--text);
-}
-
-.hero-launch-values strong {
-  font-weight: 650;
-  color: var(--text);
-}
-
 body.light .hero-proof-pill {
   border-color: rgba(0, 0, 0, 0.08);
   background: rgba(255, 255, 255, 0.78);
-  color: rgba(15, 15, 14, 0.9);
-}
-
-body.light .hero-launch-label,
-body.light .hero-launch-values,
-body.light .hero-launch-values strong {
   color: rgba(15, 15, 14, 0.9);
 }
 

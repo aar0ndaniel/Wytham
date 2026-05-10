@@ -415,44 +415,6 @@ const TURNSTILE_STATE_LABELS = Object.freeze({
 const TURNSTILE_WIDGETS = new Map();
 let turnstileLoadPromise = null;
 
-function initLaunchCountdown() {
-  const daysNode = document.querySelector('[data-launch-days]');
-  const hoursNode = document.querySelector('[data-launch-hours]');
-  const minutesNode = document.querySelector('[data-launch-minutes]');
-  const secondsNode = document.querySelector('[data-launch-seconds]');
-  const labelNode = document.querySelector('.hero-launch-label');
-  const valuesNode = document.querySelector('.hero-launch-values');
-  if (!daysNode || !hoursNode || !minutesNode || !secondsNode || !labelNode || !valuesNode) return;
-
-  const launchAt = new Date('2026-05-25T00:00:00');
-
-  const render = () => {
-    const remainingMs = launchAt.getTime() - Date.now();
-    if (remainingMs <= 0) {
-      labelNode.textContent = 'Public beta is live';
-      daysNode.textContent = '0';
-      hoursNode.textContent = '00';
-      minutesNode.textContent = '00';
-      secondsNode.textContent = '00';
-      return;
-    }
-
-    const totalSeconds = Math.floor(remainingMs / 1000);
-    const days = Math.floor(totalSeconds / 86400);
-    const hours = Math.floor((totalSeconds % 86400) / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-
-    daysNode.textContent = String(days);
-    hoursNode.textContent = String(hours).padStart(2, '0');
-    minutesNode.textContent = String(minutes).padStart(2, '0');
-    secondsNode.textContent = String(seconds).padStart(2, '0');
-  };
-
-  render();
-  window.setInterval(render, 1000);
-}
-
 function resetForm(formId, msgId, btnId) {
   const form = document.getElementById(formId);
   const msg  = document.getElementById(msgId);
@@ -1351,7 +1313,6 @@ document.addEventListener('DOMContentLoaded', () => {
   initSearchableDropdowns();
   initDocsPage();
   initPointerPathTrail();
-  initLaunchCountdown();
   renderTurnstileWidgets();
   initCommentCharCounter();
   initWall();
