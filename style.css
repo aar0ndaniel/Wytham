@@ -3503,6 +3503,34 @@ body.light .legal-code-block {
 }
 
 @media (max-width: 640px) {
+  .legal-main {
+    padding-top: 88px;
+    padding-bottom: 56px;
+  }
+
+  .legal-content {
+    gap: 24px;
+    padding-top: 26px;
+  }
+
+  .legal-section {
+    padding-top: 22px;
+  }
+
+  .legal-section p,
+  .legal-section li {
+    font-size: 14px;
+    line-height: 1.65;
+  }
+
+  .legal-code-block {
+    padding: 14px 14px;
+    font-size: 13px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
   .citation-copy-row {
     flex-direction: column;
     align-items: stretch;
