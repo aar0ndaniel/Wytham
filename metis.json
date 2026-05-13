@@ -1,0 +1,16 @@
+{
+  "type": "software",
+  "title": "Metis: Free PLS-SEM Desktop Software for Academic Researchers",
+  "author": [
+    {
+      "name": "Metis"
+    }
+  ],
+  "issued": {
+    "date-parts": [
+      [2026]
+    ]
+  },
+  "version": "0.0.1",
+  "URL": "https://metis.emend.it.com"
+}

@@ -3428,6 +3428,127 @@ body.light .legal-note {
   border-color: rgba(135,151,107,0.2);
 }
 
+.legal-code-block {
+  border: 1px solid rgba(135,151,107,0.24);
+  background: rgba(135,151,107,0.06);
+  padding: 16px 18px;
+  color: var(--text-2);
+  line-height: 1.7;
+  font-size: 13px;
+  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+  overflow-x: auto;
+  border-radius: 6px;
+  margin: 0 0 14px;
+}
+
+body.light .legal-code-block {
+  background: rgba(135,151,107,0.04);
+  border-color: rgba(135,151,107,0.18);
+}
+
+/* ── Citation Downloads Section ─────────────────────────────────────────── */
+.citation-downloads {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin: 16px 0 14px;
+}
+
+.citation-download-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(198,162,75,0.28);
+  background: rgba(198,162,75,0.08);
+  border-radius: 8px;
+  color: var(--text);
+  text-decoration: none;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.citation-download-btn:hover {
+  border-color: rgba(198,162,75,0.48);
+  background: rgba(198,162,75,0.14);
+  transform: translateY(-2px);
+}
+
+.citation-download-btn:active {
+  transform: translateY(0);
+}
+
+.download-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: rgba(198,162,75,0.2);
+  border-radius: 6px;
+  font-size: 16px;
+  flex-shrink: 0;
+  color: rgba(198,162,75,0.8);
+  line-height: 1;
+}
+
+.citation-download-btn:hover .download-icon {
+  background: rgba(198,162,75,0.32);
+  color: rgba(198,162,75,1);
+}
+
+.download-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.download-label strong {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.download-desc {
+  font-size: 12px;
+  color: var(--text-3);
+  line-height: 1.3;
+}
+
+body.light .citation-download-btn {
+  border-color: rgba(198,162,75,0.3);
+  background: rgba(198,162,75,0.06);
+}
+
+body.light .citation-download-btn:hover {
+  border-color: rgba(198,162,75,0.5);
+  background: rgba(198,162,75,0.12);
+}
+
+body.light .download-icon {
+  background: rgba(198,162,75,0.15);
+  color: rgba(198,162,75,0.75);
+}
+
+body.light .citation-download-btn:hover .download-icon {
+  background: rgba(198,162,75,0.28);
+  color: rgba(198,162,75,0.95);
+}
+
+@media (max-width: 640px) {
+  .citation-downloads {
+    grid-template-columns: 1fr;
+  }
+  
+  .citation-download-btn {
+    padding: 14px 14px;
+  }
+  
+  .download-label strong {
+    font-size: 13px;
+  }
+}
+
 /* ── Theme toggle button ─────────────────────────────────────────────────── */
 .btn-theme-toggle {
   display: inline-flex;

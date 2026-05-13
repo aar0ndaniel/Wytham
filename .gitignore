@@ -19,6 +19,7 @@ backend/node_modules/
 backend/data/
 backend/server-output.log
 data/
+node_modules/
 
 # Design/editor artifacts
 *.pen
