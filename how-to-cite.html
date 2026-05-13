@@ -80,24 +80,32 @@
 
         <section class="legal-section">
           <h2>APA 7th Edition</h2>
-          <p>Use this format for in-text citations and reference lists:</p>
-          <div class="legal-code-block">
-            Metis. (2026). <em>Metis: Free PLS-SEM desktop software for academic researchers</em> (Version 0.0.1) [Computer software]. https://metis.emend.it.com
+          <p>Use these copy-ready formats for your paper:</p>
+          <h3 class="citation-subtitle">In-text citation</h3>
+          <div class="citation-copy-row">
+            <div class="legal-code-block citation-copy-target" id="citation-intext">(Metis, 2026)</div>
+            <button type="button" class="citation-copy-btn" data-copy-target="citation-intext">Copy</button>
+          </div>
+          <h3 class="citation-subtitle">Reference list</h3>
+          <div class="citation-copy-row">
+            <div class="legal-code-block citation-copy-target" id="citation-reference">Metis. (2026). Metis: Free PLS-SEM desktop software for academic researchers (Version 0.0.1) [Computer software]. https://metis.emend.it.com</div>
+            <button type="button" class="citation-copy-btn" data-copy-target="citation-reference">Copy</button>
           </div>
         </section>
 
         <section class="legal-section">
           <h2>BibTeX</h2>
-          <p>Use this format if you are using BibTeX or similar bibliography managers:</p>
-          <div class="legal-code-block">
-            @software{metis2026,<br/>
-            &nbsp;&nbsp;title = {Metis: Free PLS-SEM Desktop Software for Academic Researchers},<br/>
-            &nbsp;&nbsp;author = {{Metis}},<br/>
-            &nbsp;&nbsp;year = {2026},<br/>
-            &nbsp;&nbsp;version = {0.0.1},<br/>
-            &nbsp;&nbsp;url = {https://metis.emend.it.com},<br/>
-            &nbsp;&nbsp;note = {Computer software}<br/>
-            }
+          <p>Use this copy-ready format with BibTeX or similar bibliography managers:</p>
+          <div class="citation-copy-row citation-copy-row-bibtex">
+            <pre class="legal-code-block citation-copy-target citation-code" id="citation-bibtex">@software{metis2026,
+  title = {Metis: Free PLS-SEM Desktop Software for Academic Researchers},
+  author = {{Metis}},
+  year = {2026},
+  version = {0.0.1},
+  url = {https://metis.emend.it.com},
+  note = {Computer software}
+}</pre>
+            <button type="button" class="citation-copy-btn" data-copy-target="citation-bibtex">Copy</button>
           </div>
         </section>
 
@@ -108,5 +116,58 @@
       </div>
     </div>
   </main>
+  <script>
+    (() => {
+      const copyButtons = document.querySelectorAll('.citation-copy-btn');
+      if (!copyButtons.length) {
+        return;
+      }
+
+      const fallbackCopy = (text) => {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.setAttribute('readonly', '');
+        textarea.style.position = 'absolute';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      };
+
+      const setCopiedState = (button) => {
+        const originalLabel = button.textContent;
+        button.textContent = 'Copied';
+        button.disabled = true;
+        setTimeout(() => {
+          button.textContent = originalLabel;
+          button.disabled = false;
+        }, 1200);
+      };
+
+      copyButtons.forEach((button) => {
+        button.addEventListener('click', async () => {
+          const targetId = button.getAttribute('data-copy-target');
+          const target = targetId ? document.getElementById(targetId) : null;
+          if (!target) {
+            return;
+          }
+
+          const text = target.textContent.trim();
+          try {
+            if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+              await navigator.clipboard.writeText(text);
+            } else {
+              fallbackCopy(text);
+            }
+            setCopiedState(button);
+          } catch (_error) {
+            fallbackCopy(text);
+            setCopiedState(button);
+          }
+        });
+      });
+    })();
+  </script>
 </body>
 </html>

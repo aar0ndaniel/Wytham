@@ -3440,9 +3440,9 @@ body.light .legal-note {
   background: rgba(135,151,107,0.06);
   padding: 16px 18px;
   color: var(--text-2);
-  line-height: 1.7;
-  font-size: 13px;
-  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+  line-height: 1.6;
+  font-size: 14px;
+  font-family: var(--font);
   overflow-x: auto;
   border-radius: 6px;
   margin: 0 0 14px;
@@ -3453,11 +3453,74 @@ body.light .legal-code-block {
   border-color: rgba(135,151,107,0.18);
 }
 
+.citation-subtitle {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.citation-copy-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 0 12px;
+}
+
+.citation-copy-target {
+  flex: 1;
+  margin: 0;
+}
+
+.citation-code {
+  white-space: pre;
+  font-family: var(--font);
+}
+
+.citation-copy-btn {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1;
+  padding: 8px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.citation-copy-btn:hover,
+.citation-copy-btn:focus-visible {
+  color: var(--brand);
+  border-color: var(--brand);
+  background: rgba(135,151,107,0.08);
+  outline: none;
+}
+
+.citation-copy-btn:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+@media (max-width: 640px) {
+  .citation-copy-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .citation-copy-btn {
+    align-self: flex-start;
+  }
+}
+
 /* ── Citation Downloads Section ─────────────────────────────────────────── */
 .citation-downloads {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 15px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 10px;
   margin: 16px 0 14px;
 }
 
@@ -3524,7 +3587,9 @@ body.light .citation-download-btn:hover .download-icon {
 
 @media (max-width: 640px) {
   .citation-downloads {
-    grid-template-columns: 1fr;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
   }
   
   .citation-download-btn {
