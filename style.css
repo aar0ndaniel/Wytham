@@ -3391,7 +3391,14 @@ body.light .feature-tag {
   font-size: clamp(22px, 3vw, 32px);
   line-height: 1.1;
   letter-spacing: -0.035em;
+  font-weight: 400;
   color: var(--text);
+}
+
+.legal-main strong,
+.legal-main b,
+.download-label span:first-child {
+  font-weight: 400;
 }
 
 .legal-section p,
@@ -3458,24 +3465,17 @@ body.light .legal-code-block {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 14px;
-  border: 1px solid rgba(198,162,75,0.28);
-  background: rgba(198,162,75,0.08);
-  border-radius: 8px;
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
   color: var(--text);
   text-decoration: none;
-  transition: all 0.2s ease;
+  transition: color 0.2s ease;
   cursor: pointer;
 }
 
 .citation-download-btn:hover {
-  border-color: rgba(198,162,75,0.48);
-  background: rgba(198,162,75,0.14);
-  transform: translateY(-2px);
-}
-
-.citation-download-btn:active {
-  transform: translateY(0);
+  color: var(--brand);
 }
 
 .download-icon {
@@ -3484,17 +3484,14 @@ body.light .legal-code-block {
   justify-content: center;
   width: 28px;
   height: 28px;
-  background: rgba(198,162,75,0.2);
-  border-radius: 6px;
   font-size: 16px;
   flex-shrink: 0;
-  color: rgba(198,162,75,0.8);
+  color: var(--brand);
   line-height: 1;
 }
 
 .citation-download-btn:hover .download-icon {
-  background: rgba(198,162,75,0.32);
-  color: rgba(198,162,75,1);
+  color: var(--brand);
 }
 
 .download-label {
@@ -3516,23 +3513,20 @@ body.light .legal-code-block {
 }
 
 body.light .citation-download-btn {
-  border-color: rgba(198,162,75,0.3);
-  background: rgba(198,162,75,0.06);
+  background: transparent;
 }
 
 body.light .citation-download-btn:hover {
-  border-color: rgba(198,162,75,0.5);
-  background: rgba(198,162,75,0.12);
+  color: var(--brand);
 }
 
 body.light .download-icon {
-  background: rgba(198,162,75,0.15);
-  color: rgba(198,162,75,0.75);
+  background: transparent;
+  color: var(--brand);
 }
 
 body.light .citation-download-btn:hover .download-icon {
-  background: rgba(198,162,75,0.28);
-  color: rgba(198,162,75,0.95);
+  color: var(--brand);
 }
 
 @media (max-width: 640px) {

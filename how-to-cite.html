@@ -20,6 +20,10 @@
   <meta name="twitter:description" content="Citation formats for metis including APA 7th edition and BibTeX for academic papers and theses." />
   <meta name="twitter:image" content="https://metis.emend.it.com/metis-og-preview.png" />
   <link rel="stylesheet" href="style.css?v=20260503p" />
+  <link rel="stylesheet" href="vendor/phosphor/regular/style.css" />
+  <link rel="stylesheet" href="vendor/phosphor/fill/style.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/regular/style.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css" />
   <script src="script.js?v=20260502b" defer></script>
   <script src="vercel-analytics.js?v=20260503a" defer></script>
   <script src="/_vercel/insights/script.js" defer></script>
@@ -48,30 +52,30 @@
           <p>Use one of these files directly in your citation management tool:</p>
           <div class="citation-downloads">
             <a href="metis.bib" download="metis.bib" class="citation-download-btn">
-              <i class="ph ph-file-code download-icon" aria-hidden="true"></i>
+              <i class="ph ph-file-code download-icon icon-candidate" data-ph-fallback="B" aria-hidden="true"></i>
               <div class="download-label">
-                <strong>BibTeX</strong>
-                <span class="download-desc">for LaTeX, Overleaf, TeXShop</span>
+                <span>BibTeX</span>
+                <span class="download-desc">for LaTeX and citation managers</span>
               </div>
             </a>
             <a href="metis.ris" download="metis.ris" class="citation-download-btn">
-              <i class="ph ph-file-text download-icon" aria-hidden="true"></i>
+              <i class="ph ph-file-text download-icon icon-candidate" data-ph-fallback="R" aria-hidden="true"></i>
               <div class="download-label">
-                <strong>RIS</strong>
-                <span class="download-desc">for Mendeley, Zotero, RefWorks</span>
+                <span>RIS</span>
+                <span class="download-desc">for Mendeley, Zotero, and RefWorks</span>
               </div>
             </a>
             <a href="metis.enw" download="metis.enw" class="citation-download-btn">
-              <i class="ph ph-file download-icon" aria-hidden="true"></i>
+              <i class="ph ph-file download-icon icon-candidate" data-ph-fallback="E" aria-hidden="true"></i>
               <div class="download-label">
-                <strong>Endnote</strong>
-                <span class="download-desc">for EndNote, ProCite</span>
+                <span>Endnote</span>
+                <span class="download-desc">for EndNote and ProCite</span>
               </div>
             </a>
             <a href="metis.json" download="metis.json" class="citation-download-btn">
-              <i class="ph ph-brackets-curly download-icon" aria-hidden="true"></i>
+              <i class="ph ph-brackets-curly download-icon icon-candidate" data-ph-fallback="{}" aria-hidden="true"></i>
               <div class="download-label">
-                <strong>CSL JSON</strong>
+                <span>CSL JSON</span>
                 <span class="download-desc">for Citation Style Language tools</span>
               </div>
             </a>
@@ -98,38 +102,6 @@
             &nbsp;&nbsp;url = {https://metis.emend.it.com},<br/>
             &nbsp;&nbsp;note = {Computer software}<br/>
             }
-          </div>
-        </section>
-
-        <section class="legal-section">
-          <h2>Software Version and URL</h2>
-          <ul>
-            <li><strong>Version:</strong> 0.0.1 (beta)</li>
-            <li><strong>Website:</strong> https://metis.emend.it.com</li>
-            <li><strong>Release Year:</strong> 2026</li>
-          </ul>
-          <p>Update the version number if you are citing a newer release of metis.</p>
-        </section>
-
-        <section class="legal-section">
-          <h2>Also Cite SEMinR and Methodological Sources</h2>
-          <p>Metis uses R and <strong>SEMinR</strong> under the hood to perform all PLS-SEM calculations. To give credit to the statistical foundations of your analysis, please also cite:</p>
-          <ul>
-            <li><strong>SEMinR</strong> — the R package that powers metis analysis</li>
-            <li><strong>Relevant methodological sources</strong> — the PLS-SEM papers and techniques you used in your study</li>
-          </ul>
-          <p>This ensures that credit is properly attributed to all the tools and methods that made your research possible.</p>
-        </section>
-
-        <section class="legal-section">
-          <h2>Example Reference Section</h2>
-          <p>Here's how your full reference section might look when you cite metis alongside SEMinR and a PLS-SEM methodology paper:</p>
-          <div class="legal-code-block">
-            Hair, J. F., Ringle, C. M., &amp; Sarstedt, M. (2013). Partial least squares structural equation modeling: Rigorous applications, better results. <em>Long Range Planning, 46</em>(1–2), 1–12.<br/>
-            <br/>
-            Metis. (2026). <em>Metis: Free PLS-SEM desktop software for academic researchers</em> (Version 0.0.1) [Computer software]. https://metis.emend.it.com<br/>
-            <br/>
-            Ray, S., Danks, N. M., &amp; Dawson, J. (2021). seminr: Domain-specific language for building and estimating structural equation models (Version 2.2.0) [R package]. https://CRAN.R-project.org/package=seminr
           </div>
         </section>
 
