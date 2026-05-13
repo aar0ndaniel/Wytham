@@ -3527,7 +3527,7 @@ body.light .legal-code-block {
 .citation-download-btn {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 6px;
   padding: 6px 0;
   border: 0;
   background: transparent;
