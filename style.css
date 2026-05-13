@@ -3457,7 +3457,7 @@ body.light .legal-code-block {
 .citation-downloads {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 12px;
+  gap: 6px;
   margin: 16px 0 14px;
 }
 
