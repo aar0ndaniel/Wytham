@@ -2527,17 +2527,22 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
   const openRate = totalSignups ? Math.round((openedCount / totalSignups) * 100) : 0;
   const noticeBanner = notice ? `<div class="notice">${escapeHtml(notice)}</div>` : '';
   const donationSummary = `${donationCounts.total || 0} messages from ${donationCounts.unique_donors || 0} donors across ${donationCounts.countries || 0} countries.`;
-  const recentRows = recent.length
-    ? recent
-        .map((item) => {
+  const renderSignupRows = (templateKey = 'beta-access') => {
+    const normalizedTemplateKey = normalizeEmailTemplateKey(templateKey);
+    const isSupportUpdate = normalizedTemplateKey === 'support-update';
+    return recent.length
+      ? recent
+          .map((item) => {
           const status = trim(item.email_status).toLowerCase();
-          const sendLabel = status === 'sent' ? 'Resend' : 'Send';
-          const sendConfirm = status === 'sent'
-            ? `Resend the metis beta email to ${item.email}?`
-            : `Send the metis beta email to ${item.email}?`;
+            const sendLabel = isSupportUpdate ? 'Send / resend' : (status === 'sent' ? 'Resend' : 'Send');
+            const sendConfirm = isSupportUpdate
+              ? `Send the download warning and support email update to ${item.email}?`
+              : status === 'sent'
+                ? `Resend the metis beta email to ${item.email}?`
+                : `Send the metis beta email to ${item.email}?`;
           const sendAction = `<form method="post" action="/admin/signups/${encodeURIComponent(item.token)}/send" data-confirm="${escapeHtml(jsString(sendConfirm))}">
                 <input type="hidden" name="csrfToken" value="${escapeHtml(formToken(`${item.token}:send`))}" />
-                <input type="hidden" name="template" value="beta-access" />
+                  <input type="hidden" name="template" value="${escapeHtml(normalizedTemplateKey)}" />
                 <button type="submit" class="ghost-btn">${escapeHtml(sendLabel)}</button>
               </form>`;
 
@@ -2562,7 +2567,10 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
         </tr>`;
         })
         .join('')
-    : '<tr><td colspan="9">No signups yet.</td></tr>';
+      : '<tr><td colspan="9">No signups yet.</td></tr>';
+  };
+  const recentRows = renderSignupRows('beta-access');
+  const updateEmailRows = renderSignupRows('support-update');
   const donationRows = recentDonations.length
     ? recentDonations
         .map((item) => `<tr>
@@ -3132,6 +3140,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
     </div>
     <nav class="nav-group" aria-label="Primary">
       <button type="button" class="side-btn is-active" data-panel-target="signups-panel" aria-label="Show signups" title="Signups">${adminIcon('signups')}<span class="side-btn-label">Signups</span></button>
+      <button type="button" class="side-btn" data-panel-target="update-email-panel" aria-label="Show update email" title="Update email">${adminIcon('preview')}<span class="side-btn-label">Update email</span></button>
       <button type="button" class="side-btn" data-panel-target="donations-panel" aria-label="Show donations" title="Donations">${adminIcon('donations')}<span class="side-btn-label">Donations</span></button>
       <button type="button" class="side-btn" data-panel-target="feedback-panel" aria-label="Show feedback" title="Feedback">${adminIcon('feedback')}<span class="side-btn-label">Feedback</span></button>
       <button type="button" class="side-btn" data-panel-target="account-panel" aria-label="Account" title="Account">${adminIcon('account')}<span class="side-btn-label">Account</span></button>
@@ -3192,18 +3201,6 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
             <h2>Recent signups</h2>
             <p class="section-copy">Latest saved or updated requests across the beta list.</p>
           </div>
-          <div class="broadcast-tools">
-            <div class="broadcast-copy">
-              <span class="label">Urgent update</span>
-              <strong>Download warning and support email</strong>
-            </div>
-            <a class="ghost-btn" href="/admin/preview/email/support-update">Preview update</a>
-            <form method="post" action="/admin/signups/send-all" data-confirm="Send the download warning and support email update to every signup?">
-              <input type="hidden" name="csrfToken" value="${escapeHtml(supportUpdateAllToken)}" />
-              <input type="hidden" name="template" value="support-update" />
-              <button type="submit" class="primary-btn">Send update to all</button>
-            </form>
-          </div>
           <div class="selection-tools">
             <label><input class="select-all" type="checkbox" data-select-all aria-label="Select all visible signups" /> <span>Select all</span></label>
             <span class="selection-count" data-selection-count>0 selected</span>
@@ -3211,7 +3208,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
               <input type="hidden" name="csrfToken" value="${escapeHtml(batchSendToken)}" />
               <input type="hidden" name="template" value="beta-access" />
               <input type="hidden" name="tokens" value="" data-selected-tokens />
-              <button type="submit" class="ghost-btn" data-batch-delete disabled>Send / resend selected</button>
+              <button type="submit" class="ghost-btn" data-batch-action disabled>Send / resend selected</button>
             </form>
           </div>
         </div>
@@ -3231,6 +3228,52 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
               </tr>
             </thead>
             <tbody>${recentRows}</tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+
+    <section id="update-email-panel" class="panel" data-panel data-export-href="/admin/export/signups.csv" data-export-label="Export signups CSV">
+      <section class="card section-card">
+        <div class="table-toolbar">
+          <div>
+            <div class="label">Update email</div>
+            <h2>Download warning and support email</h2>
+            <p class="section-copy">Send the corrected support address and Windows download guidance to beta participants.</p>
+          </div>
+          <div class="selection-tools">
+            <label><input class="select-all" type="checkbox" data-select-all aria-label="Select all visible update recipients" /> <span>Select all</span></label>
+            <span class="selection-count" data-selection-count>0 selected</span>
+            <a class="ghost-btn" href="/admin/preview/email/support-update">Preview update</a>
+            <form method="post" action="/admin/signups/send" data-batch-form data-confirm-selected="Send the download warning and support email update to the selected signups?">
+              <input type="hidden" name="csrfToken" value="${escapeHtml(batchSendToken)}" />
+              <input type="hidden" name="template" value="support-update" />
+              <input type="hidden" name="tokens" value="" data-selected-tokens />
+              <button type="submit" class="ghost-btn" data-batch-action disabled>Send selected</button>
+            </form>
+            <form method="post" action="/admin/signups/send-all" data-confirm="Send the download warning and support email update to every signup?">
+              <input type="hidden" name="csrfToken" value="${escapeHtml(supportUpdateAllToken)}" />
+              <input type="hidden" name="template" value="support-update" />
+              <button type="submit" class="primary-btn">Send all</button>
+            </form>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Select</th>
+                <th>Person</th>
+                <th>Institution</th>
+                <th>Edition</th>
+                <th>Email status</th>
+                <th>Visits</th>
+                <th>Last open</th>
+                <th>Last saved</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>${updateEmailRows}</tbody>
           </table>
         </div>
       </section>

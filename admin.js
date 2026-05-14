@@ -3,12 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const buttons = Array.from(document.querySelectorAll('[data-panel-target]'));
   const panels = Array.from(document.querySelectorAll('[data-panel]'));
   const exportLinks = Array.from(document.querySelectorAll('[data-export-link]'));
-  const rowSelects = Array.from(document.querySelectorAll('[data-row-select]'));
-  const selectAll = document.querySelector('[data-select-all]');
-  const selectionCount = document.querySelector('[data-selection-count]');
-  const batchForm = document.querySelector('[data-batch-form]');
-  const selectedTokensInput = document.querySelector('[data-selected-tokens]');
-  const batchDeleteButton = document.querySelector('[data-batch-delete]');
+  const batchForms = Array.from(document.querySelectorAll('[data-batch-form]'));
 
   const syncExportLinks = (targetId) => {
     const panel = panels.find((item) => item.id === targetId) || panels.find((item) => item.classList.contains('is-active'));
@@ -46,7 +41,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  const syncBatchSelection = () => {
+  const syncBatchSelection = (panel) => {
+    if (!(panel instanceof HTMLElement)) return;
+    const rowSelects = Array.from(panel.querySelectorAll('[data-row-select]'));
+    const selectAll = panel.querySelector('[data-select-all]');
+    const selectionCount = panel.querySelector('[data-selection-count]');
+    const selectedTokensInput = panel.querySelector('[data-selected-tokens]');
+    const batchButtons = Array.from(panel.querySelectorAll('[data-batch-action]'));
     const selected = rowSelects.filter((input) => input.checked);
     const selectedCount = selected.length;
     const allSelected = rowSelects.length > 0 && selectedCount === rowSelects.length;
@@ -61,27 +62,38 @@ document.addEventListener('DOMContentLoaded', () => {
     if (selectedTokensInput instanceof HTMLInputElement) {
       selectedTokensInput.value = selected.map((input) => input.value).join(',');
     }
-    if (batchDeleteButton instanceof HTMLButtonElement) {
-      batchDeleteButton.disabled = selectedCount === 0;
-    }
+    batchButtons.forEach((button) => {
+      if (button instanceof HTMLButtonElement) {
+        button.disabled = selectedCount === 0;
+      }
+    });
   };
 
-  if (selectAll instanceof HTMLInputElement) {
-    selectAll.addEventListener('change', () => {
-      rowSelects.forEach((input) => {
-        input.checked = selectAll.checked;
-      });
-      syncBatchSelection();
-    });
-  }
+  panels.forEach((panel) => {
+    const rowSelects = Array.from(panel.querySelectorAll('[data-row-select]'));
+    const selectAll = panel.querySelector('[data-select-all]');
 
-  rowSelects.forEach((input) => {
-    input.addEventListener('change', syncBatchSelection);
+    if (selectAll instanceof HTMLInputElement) {
+      selectAll.addEventListener('change', () => {
+        rowSelects.forEach((input) => {
+          input.checked = selectAll.checked;
+        });
+        syncBatchSelection(panel);
+      });
+    }
+
+    rowSelects.forEach((input) => {
+      input.addEventListener('change', () => syncBatchSelection(panel));
+    });
+
+    syncBatchSelection(panel);
   });
 
-  if (batchForm instanceof HTMLFormElement) {
+  batchForms.forEach((batchForm) => {
     batchForm.addEventListener('submit', (event) => {
-      syncBatchSelection();
+      const panel = batchForm.closest('[data-panel]');
+      syncBatchSelection(panel);
+      const selectedTokensInput = panel?.querySelector('[data-selected-tokens]');
       if (!(selectedTokensInput instanceof HTMLInputElement) || !selectedTokensInput.value) {
         event.preventDefault();
         return;
@@ -92,7 +104,7 @@ document.addEventListener('DOMContentLoaded', () => {
         event.preventDefault();
       }
     });
-  }
+  });
 
   const savedPanel = window.sessionStorage.getItem(panelStorageKey);
   if (savedPanel && panels.some((panel) => panel.id === savedPanel)) {
@@ -100,8 +112,6 @@ document.addEventListener('DOMContentLoaded', () => {
   } else {
     syncExportLinks('signups-panel');
   }
-
-  syncBatchSelection();
 });
 
 document.addEventListener('submit', (event) => {

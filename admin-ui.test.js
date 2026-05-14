@@ -112,6 +112,7 @@ function run() {
 
   assert.match(dashboardHtml, /metis admin/i);
   assert.match(dashboardHtml, />Signups</);
+  assert.match(dashboardHtml, />Update email</);
   assert.match(dashboardHtml, />Donations</);
   assert.match(dashboardHtml, />Feedback</);
   assert.match(dashboardHtml, />Account</);
@@ -122,9 +123,11 @@ function run() {
   assert.doesNotMatch(dashboardHtml, /This account panel stays intentionally small|Protected admin route|Protected destructive actions|Session controls|Wrap up cleanly|Use logout when you are done/i);
   assert.match(dashboardHtml, /Send \/ resend selected/i);
   assert.match(dashboardHtml, /Download warning and support email/i);
+  assert.match(dashboardHtml, /id="update-email-panel"/i);
   assert.match(dashboardHtml, /action="\/admin\/signups\/send-all"/i);
   assert.match(dashboardHtml, /name="template" value="support-update"/i);
   assert.match(dashboardHtml, /href="\/admin\/preview\/email\/support-update"/i);
+  assert.match(dashboardHtml, />Send all</i);
   assert.match(dashboardHtml, /action="\/admin\/signups\/a{48}\/send"/i);
   assert.match(dashboardHtml, /action="\/admin\/signups\/b{48}\/send"/i);
   assert.match(dashboardHtml, />Resend</i);
