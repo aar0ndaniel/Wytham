@@ -2655,7 +2655,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
           <td><div class="identity-cell signup-person"><span class="signup-avatar ${avatarClass}">${escapeHtml(signupInitials(item))}</span><span class="signup-person-copy"><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.email)}</span></span></div></td>
           <td>${escapeHtml(item.institution || '—')}</td>
           <td>${renderEditionBadge(item.edition)}</td>
-          <td>${renderStatusBadge(item.email_status)}</td>
+          <td>${renderStatusBadge(item.email_status, item.email_sent_by)}</td>
           <td>${renderSentByBadge(item.email_sent_by)}</td>
           <td class="num">${item.beta_visits || 0}</td>
           <td>${renderAdminDateStack(item.last_beta_visit_at)}</td>
@@ -3734,6 +3734,13 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
     .pill-opened { color: #e0ccff; background: rgba(126,82,164,.22); border-color: rgba(183,142,229,.22); }
     .pill-danger { color: #f1c6c6; background: var(--danger-soft); border-color: rgba(217,133,133,.34); }
     .pill-muted { color: rgba(200,193,174,.78); background: rgba(255,255,255,.04); }
+    .pill-status { gap: 6px; padding-left: 8px; padding-right: 11px; }
+    .pill-ico { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; flex: 0 0 auto; }
+    .pill-ico svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .pill-success .pill-ico svg { stroke-width: 2.4; }
+    .th-sortable { white-space: nowrap; }
+    .th-sortable .th-sort-ico { display: inline-flex; align-items: center; margin-left: 6px; opacity: .55; vertical-align: middle; }
+    .th-sortable .th-sort-ico svg { width: 11px; height: 11px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
     .question-head {
       min-width: 220px;
       max-width: 280px;
@@ -3957,7 +3964,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
                 <th>Sent by</th>
                 <th>Visits</th>
                 <th>Last open</th>
-                <th>Last saved</th>
+                <th class="th-sortable">Last saved<span class="th-sort-ico">${adminIcon('sort')}</span></th>
                 <th>Action</th>
               </tr>
             </thead>
@@ -4019,7 +4026,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
                 <th>Sent by</th>
                 <th>Visits</th>
                 <th>Last open</th>
-                <th>Last saved</th>
+                <th class="th-sortable">Last saved<span class="th-sort-ico">${adminIcon('sort')}</span></th>
                 <th>Action</th>
               </tr>
             </thead>
@@ -4492,6 +4499,10 @@ function adminIcon(name) {
     'chevron-left': '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M19 8 11 16l8 8"></path></svg>',
     'chevron-right': '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="m13 8 8 8-8 8"></path></svg>',
     'chevron-down': '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="m10 13 6 6 6-6"></path></svg>',
+    eye: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M3 16s5-9 13-9 13 9 13 9-5 9-13 9S3 16 3 16z"></path><circle cx="16" cy="16" r="3.5"></circle></svg>',
+    clock: '<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="10"></circle><path d="M16 10v6l4 3"></path></svg>',
+    alert: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 5l12 21H4L16 5z"></path><path d="M16 13v6"></path><path d="M16 22.5v.5"></path></svg>',
+    sort: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="m10 12 6-6 6 6"></path><path d="m10 20 6 6 6-6"></path></svg>',
   };
   return icons[name] || '';
 }
@@ -4554,13 +4565,15 @@ function renderEditionBadge(edition) {
     : '<span class="pill pill-blue">Lite</span>';
 }
 
-function renderStatusBadge(status) {
+function renderStatusBadge(status, sentBy) {
   const normalized = trim(status).toLowerCase();
-  if (normalized === 'sent') return '<span class="pill pill-success">Sent</span>';
-  if (normalized === 'opened') return '<span class="pill pill-opened">Opened</span>';
-  if (normalized === 'failed') return '<span class="pill pill-danger">Failed</span>';
-  if (normalized === 'pending') return '<span class="pill pill-warm">Pending</span>';
-  return `<span class="pill pill-muted">${escapeHtml(status || 'Unknown')}</span>`;
+  const sender = trim(sentBy);
+  const titleAttr = sender ? ` title="Sent by ${escapeHtml(sender)}"` : '';
+  if (normalized === 'sent') return `<span class="pill pill-success pill-status"${titleAttr}><span class="pill-ico">${adminIcon('check')}</span>Sent</span>`;
+  if (normalized === 'opened') return `<span class="pill pill-opened pill-status"${titleAttr}><span class="pill-ico">${adminIcon('eye')}</span>Opened</span>`;
+  if (normalized === 'failed') return `<span class="pill pill-danger pill-status"${titleAttr}><span class="pill-ico">${adminIcon('alert')}</span>Failed</span>`;
+  if (normalized === 'pending') return `<span class="pill pill-warm pill-status"${titleAttr}><span class="pill-ico">${adminIcon('clock')}</span>Pending</span>`;
+  return `<span class="pill pill-muted pill-status"${titleAttr}>${escapeHtml(status || 'Unknown')}</span>`;
 }
 
 function renderSentByBadge(sentBy) {

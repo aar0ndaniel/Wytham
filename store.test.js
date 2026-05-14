@@ -421,6 +421,37 @@ test('createStore falls back when deployed Supabase is missing email_sent_by mig
   ]);
 });
 
+test('createStore treats PostgREST schema cache miss for email_sent_by as missing migration', async () => {
+  const queries = [];
+  const cacheMiss = {
+    code: 'PGRST204',
+    message: "Could not find the 'email_sent_by' column of 'signups' in the schema cache",
+  };
+  const results = [
+    { data: null, error: cacheMiss },
+    { data: [{ token: 'signup-token', email_status: 'sent' }], error: null },
+  ];
+  class PromiseQuery extends QueryRecorder {
+    then(resolve, reject) {
+      return Promise.resolve(results.shift()).then(resolve, reject);
+    }
+  }
+  const client = {
+    from() {
+      const query = new PromiseQuery();
+      queries.push(query);
+      return query;
+    },
+  };
+  const store = createStore(client);
+
+  const result = await store.listRecentSignups(10);
+
+  assert.equal(result.error, null);
+  assert.equal(result.data[0].email_sent_by, '');
+  assert.equal(queries.length, 2);
+});
+
 test('createStore ignores email_sent_by update when migration is not applied yet', async () => {
   const missingColumn = {
     code: '42703',
