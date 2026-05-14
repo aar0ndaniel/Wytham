@@ -43,6 +43,7 @@ const RATE_POLICIES = Object.freeze({
   comment: { limit: 4, windowMs: 10 * 60 * 1000 },
   feedback: { limit: 3, windowMs: 10 * 60 * 1000 },
   'admin-login': { limit: 10, windowMs: 10 * 60 * 1000 },
+  'admin-send-all': { limit: 2, windowMs: 60 * 60 * 1000 },
 });
 const RATE_SWEEP_INTERVAL_MS = 60 * 1000;
 const PRIVACY_POLICY_VERSION = '1.0';
@@ -994,6 +995,9 @@ adminApp.post('/admin/signups/send-all', requireLocalAdmin, async (req, res, nex
     const csrfToken = trim(req.body?.csrfToken);
     if (!safeEqualStrings(csrfToken, adminFormToken(`send-all:${templateKey}`))) {
       return res.status(403).type('html').send(simplePage('Action Blocked', 'This send-all request could not be verified.'));
+    }
+    if (!allowRate(clientIp(req), 'admin-send-all')) {
+      return res.status(429).type('html').send(simplePage('Too Many Emails', 'Please wait before sending another all-user email update.'));
     }
 
     const signups = statements.allForEmail.all();
@@ -4019,6 +4023,16 @@ function originAllowed(req, allowedOrigins) {
   return allowedOrigins.includes(origin);
 }
 
+function originFromUrl(value) {
+  const url = trim(value);
+  if (!url) return '';
+  try {
+    return new URL(url).origin;
+  } catch {
+    return '';
+  }
+}
+
 function requestUsesHttps(req) {
   const forwardedProto = trim(req.headers['x-forwarded-proto']).split(',')[0];
   return req.secure || forwardedProto === 'https';
@@ -4093,6 +4107,31 @@ function adminRefererAllowed(req) {
   } catch {
     return false;
   }
+}
+
+function hostedAdminAllowedOrigins(currentConfig = config) {
+  return Array.from(new Set([
+    originFromUrl(currentConfig.publicBaseUrl),
+    ...(currentConfig.allowedOrigins || []),
+  ].filter(Boolean)));
+}
+
+function hostedAdminOriginAllowed(req, currentConfig = config) {
+  const allowedOrigins = hostedAdminAllowedOrigins(currentConfig);
+  const origin = trim(req.headers.origin);
+  if (origin && origin !== 'null') {
+    return allowedOrigins.includes(origin);
+  }
+
+  const referer = trim(req.headers.referer);
+  if (!referer) return true;
+
+  const refererOrigin = originFromUrl(referer);
+  return Boolean(refererOrigin && allowedOrigins.includes(refererOrigin));
+}
+
+function hostedAdminCookieSecure(currentConfig = config) {
+  return originFromUrl(currentConfig.publicBaseUrl).startsWith('https://');
 }
 
 function publicContentSecurityPolicy() {
@@ -4423,6 +4462,7 @@ function serializeCookie(name, value, options) {
   const parts = [`${name}=${encodeURIComponent(value)}`];
   if (options?.path) parts.push(`Path=${options.path}`);
   if (options?.httpOnly) parts.push('HttpOnly');
+  if (options?.secure) parts.push('Secure');
   if (options?.sameSite) parts.push(`SameSite=${options.sameSite}`);
   if (Number.isFinite(options?.maxAge)) parts.push(`Max-Age=${options.maxAge}`);
   return parts.join('; ');
@@ -5053,6 +5093,7 @@ function createApp(options = {}) {
   function setHostedAdminSession(res, username) {
     res.setHeader('Set-Cookie', serializeCookie('metis_admin', createSession(username), {
       httpOnly: true,
+      secure: hostedAdminCookieSecure(currentConfig),
       sameSite: 'Strict',
       path: '/admin',
       maxAge: 8 * 60 * 60,
@@ -5062,6 +5103,7 @@ function createApp(options = {}) {
   function clearHostedAdminSession(res) {
     res.setHeader('Set-Cookie', serializeCookie('metis_admin', '', {
       httpOnly: true,
+      secure: hostedAdminCookieSecure(currentConfig),
       sameSite: 'Strict',
       path: '/admin',
       maxAge: 0,
@@ -5071,6 +5113,9 @@ function createApp(options = {}) {
   function requireHostedAdmin(req, res, next) {
     if (!hasHostedAdminSession(req)) {
       return res.redirect('/admin/login');
+    }
+    if (req.method !== 'GET' && req.method !== 'HEAD' && !hostedAdminOriginAllowed(req, currentConfig)) {
+      return res.status(403).type('html').send(simplePage('Action Blocked', 'This admin request was not accepted from that origin.'));
     }
     next();
   }
@@ -5518,6 +5563,15 @@ function createApp(options = {}) {
   });
 
   hostedApp.post('/admin/login', (req, res) => {
+    if (!hostedAdminOriginAllowed(req, currentConfig)) {
+      return res.status(403).type('html').send(simplePage('Action Blocked', 'This login request was not accepted from that origin.'));
+    }
+
+    const ip = clientIp(req);
+    if (!allowRate(ip, 'admin-login')) {
+      return res.status(429).type('html').send(renderAdminLoginPage('Too many login attempts. Please wait a moment and try again.'));
+    }
+
     const parsed = adminLoginSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).type('html').send(renderAdminLoginPage(firstValidationMessage(parsed.error, 'Please check your login details and try again.')));
@@ -5674,6 +5728,9 @@ function createApp(options = {}) {
       if (!safeEqualStrings(csrfToken, formToken(`send-all:${templateKey}`))) {
         return res.status(403).type('html').send(simplePage('Action Blocked', 'This send-all request could not be verified.'));
       }
+      if (!allowRate(clientIp(req), 'admin-send-all')) {
+        return res.status(429).type('html').send(simplePage('Too Many Emails', 'Please wait before sending another all-user email update.'));
+      }
 
       const signups = await listSignupsForEmailFromStore(store);
       const result = await sendSignupEmailBatch(
@@ -5763,12 +5820,29 @@ function createApp(options = {}) {
   return hostedApp;
 }
 
+function isPublicHostedRuntime(currentConfig = config) {
+  const publicOrigin = originFromUrl(currentConfig.publicBaseUrl);
+  return (
+    normalizeHost(currentConfig.host) === '0.0.0.0' ||
+    (publicOrigin &&
+      !publicOrigin.includes('127.0.0.1') &&
+      !publicOrigin.includes('localhost'))
+  );
+}
+
+function assertSafeHostedRuntime(currentConfig = config) {
+  if (isPublicHostedRuntime(currentConfig) && currentConfig.adminPassword === 'change-this-password') {
+    throw new Error('ADMIN_PASSWORD must be changed before exposing the hosted admin login.');
+  }
+}
+
 function startServer(options = {}) {
   if (options.legacy === true || boolean(process.env.LEGACY_MULTI_PORT)) {
     return startServers();
   }
 
   const currentConfig = options.config || config;
+  assertSafeHostedRuntime(currentConfig);
   const appToStart = options.app || createApp(options);
   const storeMode = options.storeMode || runtimeStoreMode(currentConfig, Boolean(options.store));
   const server = appToStart.listen(currentConfig.port, currentConfig.host, () => {

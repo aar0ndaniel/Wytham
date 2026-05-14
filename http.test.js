@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { once } = require('node:events');
 
-const { createApp } = require('./server.js');
+const { createApp, startServer } = require('./server.js');
 
 function createMemoryStore(initial = {}) {
   const state = {
@@ -234,23 +234,34 @@ async function listenOnSafePort(app) {
   throw new Error('Unable to bind the test app to a safe loopback port.');
 }
 
+let adminLoginIpCounter = 1;
+
+function nextAdminLoginIp() {
+  adminLoginIpCounter += 1;
+  return `198.51.100.${adminLoginIpCounter % 200}`;
+}
+
 async function login(baseUrl) {
-  const response = await fetch(`${baseUrl}/admin/login`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({
-      password: 'top-secret',
-      username: 'ops',
-    }),
-    redirect: 'manual',
-  });
+  const response = await loginResponse(baseUrl);
 
   assert.equal(response.status, 302);
   const cookie = response.headers.getSetCookie()[0];
   assert.match(cookie, /metis_admin=/);
   return cookie.split(';', 1)[0];
+}
+
+async function loginResponse(baseUrl, body = { password: 'top-secret', username: 'ops' }, headers = {}) {
+  return fetch(`${baseUrl}/admin/login`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/x-www-form-urlencoded',
+      origin: 'https://metis.emend.it.com',
+      'x-forwarded-for': nextAdminLoginIp(),
+      ...headers,
+    },
+    body: new URLSearchParams(body),
+    redirect: 'manual',
+  });
 }
 
 function extractCsrfToken(html, actionPath) {
@@ -383,6 +394,64 @@ test('GET / shows backend status instead of the landing page', async (t) => {
   assert.match(html, /metis Backend/);
   assert.match(html, /metis API and admin dashboard/);
   assert.doesNotMatch(html, /metis public beta access/i);
+});
+
+test('startServer refuses exposed hosted admin with the default password', () => {
+  assert.throws(
+    () => startServer({
+      app: {
+        listen() {
+          throw new Error('listen should not be called');
+        },
+      },
+      config: {
+        adminPassword: 'change-this-password',
+        host: '0.0.0.0',
+        port: 0,
+        publicBaseUrl: 'https://metis.emend.it.com',
+        supabase: { isConfigured: true, schema: 'public' },
+      },
+      store: createMemoryStore(),
+    }),
+    /ADMIN_PASSWORD must be changed/
+  );
+});
+
+test('POST /admin/login rate limits hosted login attempts', async (t) => {
+  const { baseUrl } = await startApp(t);
+  const headers = { 'x-forwarded-for': '203.0.113.10' };
+
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const response = await loginResponse(baseUrl, {
+      password: `wrong-${attempt}`,
+      username: 'ops',
+    }, headers);
+    assert.equal(response.status, 401);
+  }
+
+  const limited = await loginResponse(baseUrl, {
+    password: 'wrong-again',
+    username: 'ops',
+  }, headers);
+  assert.equal(limited.status, 429);
+});
+
+test('POST /admin/login rejects untrusted hosted admin origins', async (t) => {
+  const { baseUrl } = await startApp(t);
+
+  const response = await loginResponse(baseUrl, undefined, {
+    origin: 'https://evil.example.com',
+  });
+
+  assert.equal(response.status, 403);
+});
+
+test('POST /admin/login sets Secure on hosted admin cookies when the public URL is HTTPS', async (t) => {
+  const { baseUrl } = await startApp(t);
+
+  const response = await loginResponse(baseUrl);
+  assert.equal(response.status, 302);
+  assert.match(response.headers.getSetCookie()[0], /;\s*Secure\b/);
 });
 
 test('GET /health with token reports non-secret runtime diagnostics', async (t) => {
@@ -1278,4 +1347,122 @@ test('POST /admin/signups/send-all sends the support update to every signup with
   ]);
   assert.equal(store.state.signups[0].email_status, 'pending');
   assert.equal(store.state.signups[1].email_status, 'sent');
+});
+
+test('POST /admin/signups/send-all rejects untrusted hosted admin origins', async (t) => {
+  const token = 'i'.repeat(48);
+  const { baseUrl, store } = await startApp(t, {
+    store: createMemoryStore({
+      signups: [
+        {
+          token,
+          name: 'Ada Lovelace',
+          email: 'ada@example.com',
+          institution: 'KNUST',
+          country: 'Ghana',
+          role: 'Researcher',
+          edition: 'lite',
+          created_at: '2026-05-13T10:00:00.000Z',
+          updated_at: '2026-05-13T10:00:00.000Z',
+          beta_visits: 0,
+          last_beta_visit_at: '',
+          email_status: 'pending',
+          email_error: '',
+          email_sent_at: '',
+        },
+      ],
+    }),
+  });
+
+  const cookie = await login(baseUrl);
+  const dashboard = await fetch(`${baseUrl}/admin`, {
+    headers: { cookie },
+  });
+  const html = await dashboard.text();
+  const csrfToken = extractCsrfToken(html, '/admin/signups/send-all');
+
+  const response = await fetch(`${baseUrl}/admin/signups/send-all`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/x-www-form-urlencoded',
+      cookie,
+      origin: 'https://evil.example.com',
+    },
+    body: new URLSearchParams({
+      csrfToken,
+      template: 'support-update',
+    }),
+    redirect: 'manual',
+  });
+
+  assert.equal(response.status, 403);
+  assert.equal(store.state.signups[0].email_status, 'pending');
+});
+
+test('POST /admin/signups/send-all rate limits repeated all-user email blasts', async (t) => {
+  const token = 'j'.repeat(48);
+  const sent = [];
+  const { baseUrl } = await startApp(t, {
+    sendSignupEmail: async (signup, templateKey) => {
+      sent.push([signup.email, templateKey]);
+      return { status: 'sent', error: '', sentAt: '2026-05-14T09:30:00.000Z' };
+    },
+    store: createMemoryStore({
+      signups: [
+        {
+          token,
+          name: 'Ada Lovelace',
+          email: 'ada@example.com',
+          institution: 'KNUST',
+          country: 'Ghana',
+          role: 'Researcher',
+          edition: 'lite',
+          created_at: '2026-05-13T10:00:00.000Z',
+          updated_at: '2026-05-13T10:00:00.000Z',
+          beta_visits: 0,
+          last_beta_visit_at: '',
+          email_status: 'pending',
+          email_error: '',
+          email_sent_at: '',
+        },
+      ],
+    }),
+  });
+
+  const cookie = await login(baseUrl);
+  const dashboard = await fetch(`${baseUrl}/admin`, {
+    headers: { cookie },
+  });
+  const html = await dashboard.text();
+  const csrfToken = extractCsrfToken(html, '/admin/signups/send-all');
+  const headers = {
+    'content-type': 'application/x-www-form-urlencoded',
+    cookie,
+    origin: 'https://metis.emend.it.com',
+    'x-forwarded-for': '203.0.113.99',
+  };
+  const body = new URLSearchParams({
+    csrfToken,
+    template: 'support-update',
+  });
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const response = await fetch(`${baseUrl}/admin/signups/send-all`, {
+      method: 'POST',
+      headers,
+      body,
+      redirect: 'manual',
+    });
+    assert.equal(response.status, 302);
+  }
+
+  const limited = await fetch(`${baseUrl}/admin/signups/send-all`, {
+    method: 'POST',
+    headers,
+    body,
+    redirect: 'manual',
+  });
+
+  assert.equal(limited.status, 429);
+  assert.equal(sent.length, 2);
 });
