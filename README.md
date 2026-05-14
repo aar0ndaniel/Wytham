@@ -65,6 +65,14 @@ It requires the configured username and password:
 - `ADMIN_USERNAME`
 - `ADMIN_PASSWORD`
 
+To allow multiple admins with separate passwords, set `ADMIN_USERS` to a JSON array:
+
+```env
+ADMIN_USERS=[{"username":"anne","password":"replace-me"},{"username":"mavis","password":"replace-me-too"}]
+```
+
+When `ADMIN_USERS` is present and valid, those accounts are used for admin login. If it is missing or malformed, the dashboard falls back to `ADMIN_USERNAME` and `ADMIN_PASSWORD`.
+
 ### Manual email workflow
 
 `POST /api/signup` does not send email anymore. It only stores or refreshes the signup row as `pending`.

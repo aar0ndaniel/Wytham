@@ -46,6 +46,7 @@ test('createConfig maps hosted runtime values and custom Supabase env names', ()
   assert.deepEqual(config.allowedOrigins, ['https://metis.emend.it.com', 'https://admin.metis.emend.it.com']);
   assert.equal(config.adminUsername, 'ops');
   assert.equal(config.adminPassword, 'secret-password');
+  assert.deepEqual(config.adminUsers, [{ username: 'ops', password: 'secret-password' }]);
   assert.equal(config.healthToken, 'health-token');
   assert.equal(config.smtpHost, 'smtp.example.com');
   assert.equal(config.smtpPort, 587);
@@ -87,6 +88,7 @@ test('createConfig falls back to current backend defaults', () => {
   assert.deepEqual(config.allowedOrigins, ['http://127.0.0.1:8787', 'http://localhost:8787']);
   assert.equal(config.adminUsername, 'admin');
   assert.equal(config.adminPassword, 'change-this-password');
+  assert.deepEqual(config.adminUsers, [{ username: 'admin', password: 'change-this-password' }]);
   assert.equal(config.smtpPort, 465);
   assert.equal(config.smtpSecure, true);
   assert.equal(config.smtpFromName, 'metis Team');
@@ -101,6 +103,36 @@ test('createConfig falls back to current backend defaults', () => {
   assert.equal(config.supabase.isConfigured, false);
   assert.equal(config.turnstile.secretKey, '');
   assert.equal(config.turnstile.isConfigured, false);
+});
+
+test('createConfig accepts multiple admin users with separate passwords', () => {
+  const config = createConfig({
+    ADMIN_USERNAME: 'fallback',
+    ADMIN_PASSWORD: 'fallback-password',
+    ADMIN_USERS: JSON.stringify([
+      { username: 'anne', password: 'anne-password' },
+      { username: 'mavis', password: 'mavis-password' },
+      { username: '', password: 'missing-name' },
+      { username: 'empty-pass', password: '' },
+    ]),
+  });
+
+  assert.equal(config.adminUsername, 'fallback');
+  assert.equal(config.adminPassword, 'fallback-password');
+  assert.deepEqual(config.adminUsers, [
+    { username: 'anne', password: 'anne-password' },
+    { username: 'mavis', password: 'mavis-password' },
+  ]);
+});
+
+test('createConfig ignores malformed ADMIN_USERS and keeps the single admin fallback', () => {
+  const config = createConfig({
+    ADMIN_USERNAME: 'ops',
+    ADMIN_PASSWORD: 'secret-password',
+    ADMIN_USERS: 'not json',
+  });
+
+  assert.deepEqual(config.adminUsers, [{ username: 'ops', password: 'secret-password' }]);
 });
 
 test('createConfig accepts a Resend key in SMTP_PASS when SMTP host is unset', () => {

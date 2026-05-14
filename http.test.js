@@ -454,6 +454,33 @@ test('POST /admin/login sets Secure on hosted admin cookies when the public URL 
   assert.match(response.headers.getSetCookie()[0], /;\s*Secure\b/);
 });
 
+test('POST /admin/login accepts multiple admins with separate passwords', async (t) => {
+  const { baseUrl } = await startApp(t, {
+    config: {
+      adminUsers: [
+        { username: 'anne', password: 'anne-password' },
+        { username: 'mavis', password: 'mavis-password' },
+      ],
+    },
+  });
+
+  const anneResponse = await loginResponse(baseUrl, { username: 'anne', password: 'anne-password' });
+  assert.equal(anneResponse.status, 302);
+  const anneCookie = anneResponse.headers.getSetCookie()[0].split(';', 1)[0];
+
+  const anneDashboard = await fetch(`${baseUrl}/admin`, {
+    headers: { cookie: anneCookie },
+  });
+  assert.equal(anneDashboard.status, 200);
+  assert.match(await anneDashboard.text(), /anne/);
+
+  const mavisResponse = await loginResponse(baseUrl, { username: 'mavis', password: 'mavis-password' });
+  assert.equal(mavisResponse.status, 302);
+
+  const mismatchedResponse = await loginResponse(baseUrl, { username: 'anne', password: 'mavis-password' });
+  assert.equal(mismatchedResponse.status, 401);
+});
+
 test('GET /health with token reports non-secret runtime diagnostics', async (t) => {
   const { baseUrl } = await startApp(t, {
     config: {

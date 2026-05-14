@@ -837,6 +837,7 @@ adminApp.get('/admin', requireLocalAdmin, (req, res) => {
   const notice = trim(req.query.notice);
   res.setHeader('Cache-Control', 'no-store');
   res.type('html').send(renderAdminPage(counts, donationCounts, recent, recentDonations, institutions, dailySignups, notice, {
+    adminUsername: adminSessionUsername(req) || config.adminUsername,
     feedbackCounts,
     feedbackList: recentFeedback,
   }));
@@ -915,7 +916,7 @@ adminApp.post('/admin/login', (req, res) => {
   }
 
   const { username, password } = parsed.data;
-  if (!safeEqualStrings(username, config.adminUsername) || !safeEqualStrings(password, config.adminPassword)) {
+  if (!findAdminUser(username, password, config)) {
     return res.status(401).type('html').send(renderAdminLoginPage('That username or password was not correct.'));
   }
 
@@ -1094,7 +1095,7 @@ function startServers() {
     if (!emailReady()) {
       console.warn('[warn] Email sending is not configured — add RESEND_API_KEY plus sender email, or SMTP_* vars, to .env');
     }
-    if (config.adminPassword === 'change-this-password') {
+    if (hasDefaultAdminPassword(config)) {
       console.warn('[warn] ADMIN_PASSWORD is still the default — change it in .env before sharing the server URL');
     }
   });
@@ -2517,6 +2518,55 @@ function renderFeedbackQuestionCells(item) {
   }).join('');
 }
 
+function signupInitials(item) {
+  const source = clean(item?.name || item?.email || 'M', 80);
+  const parts = source.split(/\s+/).filter(Boolean);
+  if (parts.length > 1) {
+    return `${parts[0][0] || ''}${parts[parts.length - 1][0] || ''}`.toUpperCase();
+  }
+  const compact = source.replace(/[^a-z0-9]/gi, '');
+  return (compact.slice(0, 2) || 'M').toUpperCase();
+}
+
+function signupAvatarClass(item) {
+  const classes = ['avatar-moss', 'avatar-gold', 'avatar-sage', 'avatar-stone', 'avatar-rose'];
+  const source = String(item?.token || item?.email || item?.name || '');
+  const score = Array.from(source).reduce((total, char) => total + char.charCodeAt(0), 0);
+  return classes[score % classes.length];
+}
+
+function renderAdminDateStack(iso, fallback = '-') {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return `<span class="date-empty">${escapeHtml(fallback)}</span>`;
+  }
+  const day = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const time = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return `<span class="date-stack"><span>${escapeHtml(day)}</span><small>${escapeHtml(time)}</small></span>`;
+}
+
+function renderSignupTableFooter(visibleCount, totalCount) {
+  const total = Number(totalCount) || visibleCount;
+  const start = visibleCount ? 1 : 0;
+  const end = visibleCount ? Math.min(visibleCount, total) : 0;
+  const pageCount = visibleCount ? Math.ceil(total / visibleCount) : 0;
+  const pager = pageCount > 1
+    ? `<div class="table-pager" aria-hidden="true">
+        <span class="pager-button is-muted">${adminIcon('chevron-left')}</span>
+        <span class="pager-page is-current">1</span>
+        <span class="pager-page">2</span>
+        <span class="pager-page">3</span>
+        <span class="pager-ellipsis">...</span>
+        <span class="pager-page">${Math.min(pageCount, 7)}</span>
+        <span class="pager-button">${adminIcon('chevron-right')}</span>
+      </div>`
+    : '';
+  return `<div class="signup-table-footer">
+    <span>Showing ${start} to ${end} of ${total} signups</span>
+    ${pager}
+  </div>`;
+}
+
 function renderAdminPage(counts, donationCounts, recent, recentDonations, institutions, dailySignups, notice, options = {}) {
   const formToken = typeof options.formToken === 'function' ? options.formToken : adminFormToken;
   const batchSendToken = formToken('batch-send');
@@ -2544,27 +2594,34 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
               : status === 'sent'
                 ? `Resend the metis beta email to ${item.email}?`
                 : `Send the metis beta email to ${item.email}?`;
+            const sendAria = isSupportUpdate
+              ? `Send the download warning and support email update to ${item.email}`
+              : status === 'sent'
+                ? `Resend the metis beta email to ${item.email}`
+                : `Send the metis beta email to ${item.email}`;
           const sendAction = `<form method="post" action="/admin/signups/${encodeURIComponent(item.token)}/send" data-confirm="${escapeHtml(jsString(sendConfirm))}">
                 <input type="hidden" name="csrfToken" value="${escapeHtml(formToken(`${item.token}:send`))}" />
                   <input type="hidden" name="template" value="${escapeHtml(normalizedTemplateKey)}" />
-                <button type="submit" class="ghost-btn">${escapeHtml(sendLabel)}</button>
+                <button type="submit" class="icon-action icon-action-send" aria-label="${escapeHtml(sendAria)}" title="${escapeHtml(sendLabel)}">${adminIcon('send')}<span class="sr-only">${escapeHtml(sendLabel)}</span></button>
               </form>`;
+          const deleteAria = `Delete ${item.email} from the beta database`;
+          const avatarClass = signupAvatarClass(item);
 
           return `<tr>
           <td class="select-cell"><input class="row-select" type="checkbox" value="${escapeHtml(item.token)}" data-row-select aria-label="Select ${escapeHtml(item.email)}" /></td>
-          <td><div class="identity-cell"><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.email)}</span></div></td>
+          <td><div class="identity-cell signup-person"><span class="signup-avatar ${avatarClass}">${escapeHtml(signupInitials(item))}</span><span class="signup-person-copy"><strong>${escapeHtml(item.name)}</strong><span>${escapeHtml(item.email)}</span></span></div></td>
           <td>${escapeHtml(item.institution || '—')}</td>
           <td>${renderEditionBadge(item.edition)}</td>
           <td>${renderStatusBadge(item.email_status)}</td>
           <td class="num">${item.beta_visits || 0}</td>
-          <td>${item.last_beta_visit_at ? escapeHtml(formatDate(item.last_beta_visit_at)) : 'Not yet'}</td>
-          <td>${escapeHtml(formatDate(item.updated_at || item.created_at))}</td>
+          <td>${renderAdminDateStack(item.last_beta_visit_at)}</td>
+          <td>${renderAdminDateStack(item.updated_at || item.created_at)}</td>
           <td class="actions-cell">
             <div class="row-actions">
               ${sendAction}
               <form method="post" action="/admin/signups/${encodeURIComponent(item.token)}/delete" data-confirm="Delete ${escapeHtml(jsString(item.email))} from the beta database?">
                 <input type="hidden" name="csrfToken" value="${escapeHtml(formToken(item.token))}" />
-                <button type="submit" class="ghost-btn danger-ghost">Delete</button>
+                <button type="submit" class="icon-action icon-action-delete" aria-label="${escapeHtml(deleteAria)}" title="Delete">${adminIcon('trash')}<span class="sr-only">Delete</span></button>
               </form>
             </div>
           </td>
@@ -2821,6 +2878,17 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
       letter-spacing: .02em;
     }
     .card { box-shadow: none; }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
     .topbar {
       display: flex;
       justify-content: space-between;
@@ -2903,6 +2971,13 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
       background: linear-gradient(180deg, #e1c978, var(--gold-strong));
       transform: translateY(-1px);
     }
+    .ghost-btn:disabled,
+    .primary-btn:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
     .summary-strip {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2970,6 +3045,43 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
       color: var(--muted);
       font-size: 13px;
     }
+    .selection-tools form { margin: 0; }
+    .select-all-control {
+      min-height: 38px;
+      padding: 0 4px;
+    }
+    .batch-send-btn {
+      min-height: 38px;
+      min-width: 190px;
+      gap: 9px;
+      padding: 0 14px;
+      border-radius: 12px;
+      color: #F5F1E7;
+      background: linear-gradient(180deg, rgba(135,151,107,.82), rgba(69,93,68,.88));
+      border-color: rgba(170,182,138,.3);
+      box-shadow: 0 12px 30px rgba(0,0,0,.22);
+    }
+    .batch-send-btn svg {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.9;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      flex-shrink: 0;
+    }
+    .batch-send-btn:disabled {
+      color: rgba(245,241,231,.58);
+      background: rgba(255,255,255,.035);
+      border-color: var(--line);
+      box-shadow: none;
+    }
+    .batch-send-btn .split-chevron {
+      margin-left: 2px;
+      padding-left: 9px;
+      border-left: 1px solid rgba(245,241,231,.16);
+    }
     .broadcast-tools {
       display: flex;
       align-items: center;
@@ -3033,6 +3145,200 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
     .actions-cell { width: 1%; white-space: nowrap; }
     .row-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .row-actions form { margin: 0; }
+    .signup-table-card {
+      padding: 12px;
+      overflow: hidden;
+      border-radius: 18px;
+      background:
+        linear-gradient(180deg, rgba(12,16,14,.92), rgba(7,9,9,.9)),
+        radial-gradient(circle at top left, rgba(135,151,107,.11), transparent 42%);
+      border-color: rgba(245,241,231,.1);
+      box-shadow: inset 0 1px 0 rgba(245,241,231,.04), 0 24px 64px rgba(0,0,0,.2);
+    }
+    .signup-table-card .table-toolbar {
+      margin: 0;
+      padding: 4px 4px 12px;
+      align-items: center;
+    }
+    .signup-table-card .table-toolbar h2 {
+      margin-top: 0;
+      font-size: 24px;
+      letter-spacing: -.03em;
+    }
+    .signup-table-card .section-copy {
+      margin-top: 5px;
+      font-size: 12px;
+      line-height: 1.45;
+      max-width: none;
+    }
+    .signup-table-card .selection-tools {
+      gap: 12px;
+      justify-content: flex-end;
+    }
+    .signup-table-card .selection-count {
+      min-width: 76px;
+      color: var(--moss-light);
+      letter-spacing: 0;
+      text-transform: none;
+      font-size: 12px;
+    }
+    .signup-table-card .table-wrap {
+      border: 1px solid rgba(245,241,231,.08);
+      border-radius: 14px;
+      background: rgba(4,7,7,.38);
+      overflow: auto;
+    }
+    .signup-table-card table {
+      min-width: 920px;
+    }
+    .signup-table-card th,
+    .signup-table-card td {
+      padding: 10px 12px;
+      font-size: 13px;
+      vertical-align: middle;
+    }
+    .signup-table-card th {
+      background: rgba(9,11,10,.94);
+      color: rgba(200,193,174,.62);
+      font-size: 10px;
+      letter-spacing: .14em;
+    }
+    .signup-table-card tbody tr {
+      min-height: 54px;
+    }
+    .signup-table-card tr:hover td {
+      background: rgba(170,182,138,.035);
+    }
+    .signup-person {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 190px;
+    }
+    .signup-person-copy {
+      display: grid;
+      gap: 2px;
+      min-width: 0;
+    }
+    .signup-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+      color: #F5F1E7;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .03em;
+      border: 1px solid rgba(245,241,231,.08);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+    }
+    .avatar-moss { background: linear-gradient(145deg, rgba(63,114,91,.96), rgba(29,78,63,.92)); }
+    .avatar-gold { background: linear-gradient(145deg, rgba(198,162,75,.96), rgba(104,82,31,.95)); }
+    .avatar-sage { background: linear-gradient(145deg, rgba(135,151,107,.94), rgba(61,78,54,.95)); }
+    .avatar-stone { background: linear-gradient(145deg, rgba(118,113,100,.95), rgba(50,49,45,.95)); }
+    .avatar-rose { background: linear-gradient(145deg, rgba(137,82,82,.92), rgba(79,41,41,.95)); }
+    .date-stack {
+      display: grid;
+      gap: 2px;
+      color: rgba(245,241,231,.9);
+      line-height: 1.15;
+      white-space: nowrap;
+    }
+    .date-stack small,
+    .date-empty {
+      color: rgba(200,193,174,.68);
+      font-size: 12px;
+      line-height: 1.2;
+    }
+    .icon-action {
+      width: 34px;
+      height: 34px;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: background .14s, border-color .14s, color .14s, transform .14s;
+    }
+    .icon-action svg {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.9;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .icon-action:hover {
+      transform: translateY(-1px);
+      background: rgba(255,255,255,.04);
+      border-color: rgba(245,241,231,.1);
+    }
+    .icon-action-send {
+      color: var(--moss-light);
+    }
+    .icon-action-delete:hover {
+      color: #f1c6c6;
+      background: rgba(217,133,133,.08);
+      border-color: rgba(217,133,133,.22);
+    }
+    .signup-table-card .row-actions {
+      gap: 4px;
+      justify-content: flex-end;
+      flex-wrap: nowrap;
+    }
+    .signup-table-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 4px 0;
+      color: rgba(200,193,174,.78);
+      font-size: 12px;
+      flex-wrap: wrap;
+    }
+    .table-pager {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .pager-button,
+    .pager-page,
+    .pager-ellipsis {
+      min-width: 32px;
+      height: 32px;
+      border-radius: 9px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(245,241,231,.07);
+      background: rgba(255,255,255,.025);
+      color: rgba(245,241,231,.82);
+      font-size: 12px;
+    }
+    .pager-button svg {
+      width: 14px;
+      height: 14px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .pager-button.is-muted {
+      opacity: .45;
+    }
+    .pager-page.is-current {
+      color: #181818;
+      background: linear-gradient(180deg, var(--gold-strong), var(--gold));
+      border-color: rgba(198,162,75,.5);
+    }
     .pill {
       display: inline-flex;
       align-items: center;
@@ -3198,21 +3504,20 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
         </div>
       </section>
 
-      <section class="card section-card">
+      <section class="card section-card signup-table-card">
         <div class="table-toolbar">
           <div>
-            <div class="label">Signups</div>
             <h2>Recent signups</h2>
             <p class="section-copy">Latest saved or updated requests across the beta list.</p>
           </div>
           <div class="selection-tools">
-            <label><input class="select-all" type="checkbox" data-select-all aria-label="Select all visible signups" /> <span>Select all</span></label>
+            <label class="select-all-control"><input class="select-all" type="checkbox" data-select-all aria-label="Select all visible signups" /> <span>Select all</span></label>
             <span class="selection-count" data-selection-count>0 selected</span>
             <form method="post" action="/admin/signups/send" data-batch-form data-confirm-selected="Send the metis beta email to the selected signups?">
               <input type="hidden" name="csrfToken" value="${escapeHtml(batchSendToken)}" />
               <input type="hidden" name="template" value="beta-access" />
               <input type="hidden" name="tokens" value="" data-selected-tokens />
-              <button type="submit" class="ghost-btn" data-batch-action disabled>Send / resend selected</button>
+              <button type="submit" class="ghost-btn batch-send-btn" data-batch-action disabled>${adminIcon('send')}<span>Send / resend selected</span><span class="split-chevron">${adminIcon('chevron-down')}</span></button>
             </form>
           </div>
         </div>
@@ -3220,7 +3525,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
           <table>
             <thead>
               <tr>
-                <th>Select</th>
+                <th class="select-head"><span class="sr-only">Select</span></th>
                 <th>Person</th>
                 <th>Institution</th>
                 <th>Edition</th>
@@ -3234,11 +3539,12 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
             <tbody>${recentRows}</tbody>
           </table>
         </div>
+        ${renderSignupTableFooter(recent.length, totalSignups)}
       </section>
     </section>
 
     <section id="update-email-panel" class="panel" data-panel data-export-href="/admin/export/signups.csv" data-export-label="Export signups CSV">
-      <section class="card section-card">
+      <section class="card section-card signup-table-card">
         <div class="table-toolbar">
           <div>
             <div class="label">Update email</div>
@@ -3246,14 +3552,14 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
             <p class="section-copy">Send the corrected support address and Windows download guidance to beta participants.</p>
           </div>
           <div class="selection-tools">
-            <label><input class="select-all" type="checkbox" data-select-all aria-label="Select all visible update recipients" /> <span>Select all</span></label>
+            <label class="select-all-control"><input class="select-all" type="checkbox" data-select-all aria-label="Select all visible update recipients" /> <span>Select all</span></label>
             <span class="selection-count" data-selection-count>0 selected</span>
             <a class="ghost-btn" href="/admin/preview/email/support-update">Preview update</a>
             <form method="post" action="/admin/signups/send" data-batch-form data-confirm-selected="Send the download warning and support email update to the selected signups?">
               <input type="hidden" name="csrfToken" value="${escapeHtml(batchSendToken)}" />
               <input type="hidden" name="template" value="support-update" />
               <input type="hidden" name="tokens" value="" data-selected-tokens />
-              <button type="submit" class="ghost-btn" data-batch-action disabled>Send selected</button>
+              <button type="submit" class="ghost-btn batch-send-btn" data-batch-action disabled>${adminIcon('send')}<span>Send selected</span><span class="split-chevron">${adminIcon('chevron-down')}</span></button>
             </form>
             <form method="post" action="/admin/signups/send-all" data-confirm="Send the download warning and support email update to every signup?">
               <input type="hidden" name="csrfToken" value="${escapeHtml(supportUpdateAllToken)}" />
@@ -3266,7 +3572,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
           <table>
             <thead>
               <tr>
-                <th>Select</th>
+                <th class="select-head"><span class="sr-only">Select</span></th>
                 <th>Person</th>
                 <th>Institution</th>
                 <th>Edition</th>
@@ -3280,6 +3586,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
             <tbody>${updateEmailRows}</tbody>
           </table>
         </div>
+        ${renderSignupTableFooter(recent.length, totalSignups)}
       </section>
     </section>
 
@@ -3697,6 +4004,11 @@ function adminIcon(name) {
     account: '<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="11" r="5"></circle><path d="M7 26c1.8-4.3 5.1-6.5 9-6.5S23.2 21.7 25 26"></path></svg>',
     back: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M20 8 12 16l8 8"></path><path d="M13 16h13"></path></svg>',
     logout: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M13 6H8a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h5"></path><path d="M18 11l5 5-5 5"></path><path d="M12 16h11"></path></svg>',
+    send: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M27 5 13 19"></path><path d="m27 5-8 22-6-8-8-6 22-8z"></path></svg>',
+    trash: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M7 9h18"></path><path d="M13 9V6h6v3"></path><path d="M10 9l1 17h10l1-17"></path><path d="M14 14v7"></path><path d="M18 14v7"></path></svg>',
+    'chevron-left': '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M19 8 11 16l8 8"></path></svg>',
+    'chevron-right': '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="m13 8 8 8-8 8"></path></svg>',
+    'chevron-down': '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="m10 13 6 6 6-6"></path></svg>',
   };
   return icons[name] || '';
 }
@@ -4306,16 +4618,11 @@ function createAdminSession(username) {
 }
 
 function hasAdminSession(req) {
-  const session = parseCookies(req).metis_admin;
-  if (!session) return false;
-  const [username, expiresAt, signature] = session.split('|');
-  if (!username || !expiresAt || !signature) return false;
-  const payload = `${username}|${expiresAt}`;
-  const expected = crypto.createHmac('sha256', adminSessionSecret).update(payload, 'utf8').digest('hex');
-  if (!safeEqualStrings(signature, expected)) return false;
-  if (!safeEqualStrings(username, config.adminUsername)) return false;
-  if (!Number.isFinite(Number(expiresAt)) || Number(expiresAt) < Date.now()) return false;
-  return true;
+  return Boolean(adminSessionUsername(req));
+}
+
+function adminSessionUsername(req) {
+  return verifiedAdminSessionUsername(req, config, adminSessionSecret);
 }
 
 function setAdminSession(res, username) {
@@ -4358,6 +4665,52 @@ function parseBatchTokens(value) {
     }
   }
   return Array.from(new Set(tokens)).slice(0, 100);
+}
+
+function configuredAdminUsers(currentConfig = config) {
+  if (Array.isArray(currentConfig.adminUsers) && currentConfig.adminUsers.length) {
+    return currentConfig.adminUsers
+      .map((item) => ({
+        username: trim(item?.username),
+        password: trim(item?.password),
+      }))
+      .filter((item) => item.username && item.password);
+  }
+
+  return [{
+    username: trim(currentConfig.adminUsername) || 'admin',
+    password: trim(currentConfig.adminPassword) || 'change-this-password',
+  }];
+}
+
+function findAdminUser(username, password, currentConfig = config) {
+  const cleanUsername = trim(username);
+  const cleanPassword = trim(password);
+  if (!cleanUsername || !cleanPassword) return null;
+
+  return configuredAdminUsers(currentConfig).find((user) => (
+    safeEqualStrings(user.username, cleanUsername) &&
+    safeEqualStrings(user.password, cleanPassword)
+  )) || null;
+}
+
+function hasConfiguredAdminUsername(username, currentConfig = config) {
+  const cleanUsername = trim(username);
+  if (!cleanUsername) return false;
+  return configuredAdminUsers(currentConfig).some((user) => safeEqualStrings(user.username, cleanUsername));
+}
+
+function verifiedAdminSessionUsername(req, currentConfig, signingSecret) {
+  const session = parseCookies(req).metis_admin;
+  if (!session) return '';
+  const [username, expiresAt, signature] = session.split('|');
+  if (!username || !expiresAt || !signature) return '';
+  const payload = `${username}|${expiresAt}`;
+  const expected = crypto.createHmac('sha256', signingSecret).update(payload, 'utf8').digest('hex');
+  if (!safeEqualStrings(signature, expected)) return '';
+  if (!hasConfiguredAdminUsername(username, currentConfig)) return '';
+  if (!Number.isFinite(Number(expiresAt)) || Number(expiresAt) < Date.now()) return '';
+  return username;
 }
 
 async function sendSignupEmailBatch(signups, templateKey, sendEmail, markStatus) {
@@ -5078,16 +5431,11 @@ function createApp(options = {}) {
   }
 
   function hasHostedAdminSession(req) {
-    const session = parseCookies(req).metis_admin;
-    if (!session) return false;
-    const [username, expiresAt, signature] = session.split('|');
-    if (!username || !expiresAt || !signature) return false;
-    const payload = `${username}|${expiresAt}`;
-    const expected = crypto.createHmac('sha256', sessionSecret).update(payload, 'utf8').digest('hex');
-    if (!safeEqualStrings(signature, expected)) return false;
-    if (!safeEqualStrings(username, currentConfig.adminUsername)) return false;
-    if (!Number.isFinite(Number(expiresAt)) || Number(expiresAt) < Date.now()) return false;
-    return true;
+    return Boolean(hostedAdminSessionUsername(req));
+  }
+
+  function hostedAdminSessionUsername(req) {
+    return verifiedAdminSessionUsername(req, currentConfig, sessionSecret);
   }
 
   function setHostedAdminSession(res, username) {
@@ -5542,7 +5890,7 @@ function createApp(options = {}) {
           dashboard.dailySignups,
           notice,
           {
-            adminUsername: currentConfig.adminUsername,
+            adminUsername: hostedAdminSessionUsername(req) || currentConfig.adminUsername,
             feedbackCounts: dashboard.feedbackCounts,
             feedbackList: dashboard.recentFeedback,
             formToken,
@@ -5578,7 +5926,7 @@ function createApp(options = {}) {
     }
 
     const { username, password } = parsed.data;
-    if (!safeEqualStrings(username, currentConfig.adminUsername) || !safeEqualStrings(password, currentConfig.adminPassword)) {
+    if (!findAdminUser(username, password, currentConfig)) {
       return res.status(401).type('html').send(renderAdminLoginPage('That username or password was not correct.'));
     }
 
@@ -5831,9 +6179,13 @@ function isPublicHostedRuntime(currentConfig = config) {
 }
 
 function assertSafeHostedRuntime(currentConfig = config) {
-  if (isPublicHostedRuntime(currentConfig) && currentConfig.adminPassword === 'change-this-password') {
+  if (isPublicHostedRuntime(currentConfig) && hasDefaultAdminPassword(currentConfig)) {
     throw new Error('ADMIN_PASSWORD must be changed before exposing the hosted admin login.');
   }
+}
+
+function hasDefaultAdminPassword(currentConfig = config) {
+  return configuredAdminUsers(currentConfig).some((user) => user.password === 'change-this-password');
 }
 
 function startServer(options = {}) {
@@ -5861,7 +6213,7 @@ function startServer(options = {}) {
     if (!currentConfig.turnstile?.isConfigured) {
       console.warn('[warn] Turnstile verification is not configured — public forms will rely on rate limits and honeypot checks only.');
     }
-    if (currentConfig.adminPassword === 'change-this-password') {
+    if (hasDefaultAdminPassword(currentConfig)) {
       console.warn('[warn] ADMIN_PASSWORD is still the default — change it before exposing the admin login.');
     }
   });

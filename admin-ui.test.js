@@ -122,6 +122,11 @@ function run() {
   assert.doesNotMatch(dashboardHtml, /var\(--blue|var\(--warm|Beta dashboard/i);
   assert.doesNotMatch(dashboardHtml, /This account panel stays intentionally small|Protected admin route|Protected destructive actions|Session controls|Wrap up cleanly|Use logout when you are done/i);
   assert.match(dashboardHtml, /Send \/ resend selected/i);
+  assert.match(dashboardHtml, /signup-table-card/i);
+  assert.match(dashboardHtml, /signup-avatar avatar-/i);
+  assert.match(dashboardHtml, /signup-table-footer/i);
+  assert.match(dashboardHtml, /aria-label="Send the metis beta email to ada@example\.com"/i);
+  assert.match(dashboardHtml, /aria-label="Delete ada@example\.com from the beta database"/i);
   assert.match(dashboardHtml, /Download warning and support email/i);
   assert.match(dashboardHtml, /id="update-email-panel"/i);
   assert.match(dashboardHtml, /action="\/admin\/signups\/send-all"/i);
