@@ -2750,7 +2750,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
       background:
         radial-gradient(circle at top right, rgba(211,184,95,.08), transparent 18%),
         linear-gradient(180deg, var(--bg-deep) 0%, var(--bg) 42%, #151514 100%);
-      padding: 32px 32px 48px 356px;
+      padding: 28px 28px 42px 272px;
       -webkit-font-smoothing: antialiased;
     }
     body::before {
@@ -2784,10 +2784,10 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
       left: 0;
       top: 0;
       bottom: 0;
-      width: 356px;
+      width: 272px;
       display: flex;
       flex-direction: column;
-      padding: 52px 38px 32px;
+      padding: 28px 20px 22px;
       border-right: 1px solid rgba(245,241,231,.11);
       background:
         radial-gradient(circle at 18% 18%, rgba(198,162,75,.08), transparent 24%),
@@ -2798,19 +2798,19 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
     .sidebar-brand {
       display: flex;
       align-items: center;
-      gap: 13px;
-      margin-bottom: 42px;
+      gap: 10px;
+      margin-bottom: 24px;
     }
     .sidebar-brand img {
-      width: 39px;
-      height: 39px;
+      width: 30px;
+      height: 30px;
       border-radius: 0;
       display: block;
       box-shadow: none;
     }
     .sidebar-title {
       font-family: 'Newsreader', Georgia, serif;
-      font-size: 28px;
+      font-size: 23px;
       font-weight: 700;
       line-height: 1;
       letter-spacing: -.02em;
@@ -2821,55 +2821,55 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
       font-size: 10px;
       letter-spacing: .12em;
       text-transform: uppercase;
-      padding: 0 16px;
-      margin-bottom: 12px;
+      padding: 0 10px;
+      margin-bottom: 8px;
     }
     .nav-sections {
       display: grid;
-      gap: 24px;
+      gap: 16px;
     }
     .nav-section {
       display: grid;
-      gap: 8px;
-      padding-bottom: 24px;
+      gap: 5px;
+      padding-bottom: 16px;
       border-bottom: 1px solid rgba(245,241,231,.08);
     }
     .sidebar-spacer {
       flex: 1;
-      min-height: 28px;
+      min-height: 18px;
     }
     .nav-footer,
     .sidebar-user {
       margin-top: auto;
-      padding-top: 28px;
+      padding-top: 18px;
       border-top: 1px solid rgba(245,241,231,.08);
     }
     .nav-footer {
       margin-top: 0;
-      padding-bottom: 28px;
+      padding-bottom: 18px;
     }
     .nav-footer form { margin: 0; }
     .side-btn {
       width: 100%;
-      min-height: 66px;
-      padding: 0 18px;
-      border-radius: 14px;
+      min-height: 44px;
+      padding: 0 11px;
+      border-radius: 10px;
       border: 1px solid transparent;
       background: transparent;
       color: var(--muted);
       display: inline-flex;
       align-items: center;
       justify-content: flex-start;
-      gap: 14px;
+      gap: 10px;
       cursor: pointer;
       text-decoration: none;
       font: inherit;
-      font-size: 15px;
+      font-size: 13px;
       text-align: left;
       font-weight: 500;
       transition: background .14s, border-color .14s, color .14s, box-shadow .14s;
     }
-    .side-btn svg { width: 21px; height: 21px; stroke: currentColor; fill: none; stroke-width: 1.55; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+    .side-btn svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 1.55; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
     .side-btn-label {
       flex: 1;
       line-height: 1.2;
@@ -2884,18 +2884,18 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
     }
     .side-btn.is-active {
       background:
-        radial-gradient(circle at 12% 50%, rgba(211,184,95,.28), transparent 34%),
+        radial-gradient(circle at 12% 50%, rgba(211,184,95,.18), transparent 34%),
         linear-gradient(180deg, rgba(198,162,75,.15), rgba(198,162,75,.075));
-      border-color: rgba(198,162,75,.64);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 16px 34px rgba(0,0,0,.22);
+      border-color: rgba(198,162,75,.42);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 8px 18px rgba(0,0,0,.16);
     }
     .side-btn.is-active svg {
       color: var(--gold-strong);
     }
     .side-btn-logout {
-      min-height: 46px;
+      min-height: 40px;
       color: #e27768;
-      padding: 0 16px;
+      padding: 0 11px;
     }
     .side-btn-logout:hover {
       color: #ff9788;
@@ -2905,12 +2905,12 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
     .sidebar-user {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       color: var(--text);
     }
     .sidebar-user-avatar {
-      width: 42px;
-      height: 42px;
+      width: 34px;
+      height: 34px;
       border-radius: 50%;
       display: inline-flex;
       align-items: center;
@@ -2943,7 +2943,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      font-size: 14px;
+      font-size: 12px;
       font-weight: 600;
     }
     .sidebar-user-email {
@@ -2951,7 +2951,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
       text-overflow: ellipsis;
       white-space: nowrap;
       color: rgba(200,193,174,.64);
-      font-size: 12px;
+      font-size: 11px;
     }
     .sidebar-user-badge {
       min-height: 18px;
@@ -2966,8 +2966,8 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
       letter-spacing: .03em;
     }
     .sidebar-user-menu {
-      width: 22px;
-      height: 22px;
+      width: 18px;
+      height: 18px;
       color: rgba(200,193,174,.74);
       display: inline-flex;
       align-items: center;
