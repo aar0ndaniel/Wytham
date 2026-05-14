@@ -7,11 +7,16 @@
   <style>
     body { margin: 0; padding: 0; background: #ffffff; }
     table { border-collapse: collapse; }
+     /* Ensure hero image preserves aspect ratio on small viewports
+       Use a PNG/JPG for broad email client support (Gmail doesn't support inline SVG). */
+     .hero-mark{ width:230px; height:auto; max-width:40%; display:block; }
+    img.logo{ display:block; width:56px; height:auto; }
     @media only screen and (max-width: 640px) {
       .shell { width: 100% !important; }
       .stack-pad { padding-left: 22px !important; padding-right: 22px !important; }
       .hero-title { font-size: 42px !important; }
-      .hero-mark { width: 170px !important; height: 220px !important; right: -54px !important; }
+      .hero-mark { width: 170px !important; height: auto !important; right: -54px !important; }
+      img.logo{ width:48px !important; }
     }
   </style>
 </head>
@@ -29,18 +34,15 @@
               <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="width:100%;border-radius:18px;background:#fbfaf6;overflow:hidden;">
                 <tr>
                   <td class="stack-pad" style="position:relative;padding:56px 50px 78px;overflow:hidden;">
-                    <svg class="hero-mark" width="230" height="300" viewBox="0 0 246 323" aria-hidden="true" style="position:absolute;right:-10px;top:20px;width:230px;height:300px;opacity:.55;">
-                      <polygon points="196.35 238.72 53.7 322.64 74.68 127.55 196.35 238.72" fill="none" stroke="#8f9c72" stroke-width="3" stroke-linejoin="round"/>
-                      <polygon points="153.13 189.64 74.68 117.7 246.27 0 153.13 189.64" fill="none" stroke="#8f9c72" stroke-width="3" stroke-linejoin="round"/>
-                      <path d="M49.09,294.95L0,46.57c10.52,10.23,20.82,20.72,31.05,31.25,12.73,13.09,25.47,26.34,37.74,39.88-2.74,30.83-6.68,61.54-10.05,92.3-3.03,27.62-5.07,56.05-8.8,83.5-.09.63-.06,1.29-.85,1.46Z" fill="none" stroke="#8f9c72" stroke-width="3" stroke-linejoin="round"/>
-                    </svg>
+                    <!-- Replaced SVG with PNG/JPG for Gmail compatibility. Provide `hero_img_src` when sending. -->
+                    <img class="hero-mark" src="{{hero_img_src}}" alt="decorative" style="position:absolute;right:-10px;top:20px;opacity:.55;" />
 
                     <table role="presentation" cellspacing="0" cellpadding="0" style="position:relative;z-index:1;">
                       <tr>
                         <td style="padding:0 0 44px;">
                           <table role="presentation" cellspacing="0" cellpadding="0">
                             <tr>
-                              <td><img src="{{logo_src}}" width="56" height="56" alt="Metis" style="display:block;width:56px;height:56px;border:0;" /></td>
+                              <td><img class="logo" src="{{logo_src}}" width="56" height="56" alt="Metis" style="border:0;" /></td>
                             </tr>
                           </table>
                         </td>
@@ -99,13 +101,15 @@
               <p style="margin:0 0 24px;">I also need to correct the support email from my previous message. <strong style="font-weight:700;">The address I shared was not receiving messages properly</strong>, so if you tried to contact me and the email bounced, I sincerely apologize.</p>
               <p style="margin:0 0 12px;">For installation issues, feedback, or questions, please contact me directly at:</p>
 
-              <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 0 24px;">
+                  <!-- IMPORTANT: set `sending_domain` (e.g. "example.com") and the path variables below
+                    so all links originate from the sending domain to avoid spam filters. -->
+                  <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 0 24px;">
                 <tr>
                   <td style="width:46px;height:46px;border-radius:50%;background:#e5ead2;text-align:center;">
                     <span style="color:#2f3f12;font-family:'Segoe UI Symbol','Segoe UI',Arial,sans-serif;font-size:22px;line-height:46px;">&#9993;</span>
                   </td>
                   <td style="padding-left:16px;">
-                    <a href="mailto:{{support_email}}" style="color:#52691e;font-family:Matter,'Segoe UI',Arial,sans-serif;font-size:20px;font-weight:700;text-decoration:none;">{{support_email}}</a>
+                    <a href="mailto:aaronakuteye@gmail.com" style="color:#52691e;font-family:Matter,'Segoe UI',Arial,sans-serif;font-size:20px;font-weight:700;text-decoration:none;">aaronakuteye@gmail.com</a>
                   </td>
                 </tr>
               </table>
@@ -121,9 +125,10 @@
           <tr>
             <td class="stack-pad" style="padding:22px 20px 8px;border-top:1px solid #e8e5dc;color:#5f5f5f;font-family:Matter,'Segoe UI',Arial,sans-serif;font-size:13px;line-height:1.65;">
               <p style="margin:0 0 10px;">Your beta access link remains available here:</p>
-              <p style="margin:0 0 18px;word-break:break-all;"><a href="{{download_portal_url}}" style="color:#52691e;text-decoration:underline;">{{download_portal_url}}</a></p>
+              <!-- Links below should use `sending_domain` + path when possible. Example: https://{{sending_domain}}{{download_portal_path}} -->
+              <p style="margin:0 0 18px;word-break:break-all;"><a href="https://{{sending_domain}}{{download_portal_path}}" style="color:#52691e;text-decoration:underline;">https://{{sending_domain}}{{download_portal_path}}</a></p>
               <p style="margin:0 0 14px;">You are receiving this email because you registered interest in testing Metis.</p>
-              <p style="margin:0;"><a href="{{privacy_url}}" style="color:#52691e;text-decoration:underline;">Privacy Policy</a> &middot; <a href="{{terms_url}}" style="color:#52691e;text-decoration:underline;">Beta Terms</a></p>
+              <p style="margin:0;"><a href="https://{{sending_domain}}{{privacy_path}}" style="color:#52691e;text-decoration:underline;">Privacy Policy</a> &middot; <a href="https://{{sending_domain}}{{terms_path}}" style="color:#52691e;text-decoration:underline;">Beta Terms</a></p>
             </td>
           </tr>
         </table>
