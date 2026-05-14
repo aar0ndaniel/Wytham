@@ -24,6 +24,7 @@ if (!fs.existsSync(PRIMARY_DB_PATH) && fs.existsSync(LEGACY_DB_PATH)) {
 }
 const DB_PATH = PRIMARY_DB_PATH;
 const EMAIL_TEMPLATE_PATH = path.join(BACKEND_DIR, 'signup-beta-email-template.html');
+const SUPPORT_UPDATE_EMAIL_TEMPLATE_PATH = path.join(BACKEND_DIR, 'support-update-email-template.html');
 const LOGO_PATH = path.join(BACKEND_DIR, 'metis-logo-light-nav.png');
 const ADMIN_SCRIPT_PATH = path.join(BACKEND_DIR, 'admin.js');
 const MATTER_FONT_PATH = path.join(BACKEND_DIR, 'matter.woff2');
@@ -518,6 +519,11 @@ const statements = {
     FROM signups
     ORDER BY created_at DESC
   `),
+  allForEmail: db.prepare(`
+    SELECT token, name, email, institution, country, role, edition, created_at, updated_at, email_status, beta_visits, last_beta_visit_at
+    FROM signups
+    ORDER BY updated_at DESC
+  `),
   allDonationsForExport: db.prepare(`
     SELECT name, email, country, amount, message, created_at
     FROM donations
@@ -922,6 +928,88 @@ adminApp.get('/admin/preview/email', requireLocalAdmin, (_req, res) => {
   res.type('html').send(renderAdminEmailPreviewPage(renderEmailTemplate(sample, '/admin/logo')));
 });
 
+adminApp.get('/admin/preview/email/support-update', requireLocalAdmin, (_req, res) => {
+  const sample = sampleSignup('bundle');
+  res.setHeader('Cache-Control', 'no-store');
+  res.type('html').send(renderAdminEmailPreviewPage(renderSupportUpdateEmailTemplate(sample, '/admin/logo')));
+});
+
+adminApp.post('/admin/signups/:token/send', requireLocalAdmin, async (req, res, next) => {
+  try {
+    const signupToken = trim(req.params.token);
+    const csrfToken = trim(req.body?.csrfToken);
+    if (!validToken(signupToken) || !safeEqualStrings(csrfToken, adminFormToken(`${signupToken}:send`))) {
+      return res.status(403).type('html').send(simplePage('Action Blocked', 'This send request could not be verified.'));
+    }
+
+    const templateKey = normalizeEmailTemplateKey(req.body?.template);
+    const signup = statements.byToken.get(signupToken);
+    if (!signup) {
+      return res.redirect('/admin?notice=Signup%20not%20found');
+    }
+
+    const emailResult = normalizeEmailResult(await sendSignupEmail(signup, { templateKey }));
+    if (templateKey === 'beta-access') {
+      statements.markEmail.run(emailResult.status, emailResult.error || '', emailResult.sentAt || '', signup.token);
+    }
+    const notice = emailResult.status === 'sent'
+      ? `${templateKey === 'support-update' ? 'Support update' : 'Email'} sent`
+      : `Email failed: ${emailResult.error || 'Unknown error.'}`;
+    return res.redirect(`/admin?notice=${encodeURIComponent(notice)}`);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+adminApp.post('/admin/signups/send', requireLocalAdmin, async (req, res, next) => {
+  try {
+    const csrfToken = trim(req.body?.csrfToken);
+    if (!safeEqualStrings(csrfToken, adminFormToken('batch-send'))) {
+      return res.status(403).type('html').send(simplePage('Action Blocked', 'This batch send request could not be verified.'));
+    }
+
+    const tokens = parseBatchTokens(req.body?.tokens);
+    if (!tokens.length) {
+      return res.redirect('/admin?notice=No%20signups%20selected');
+    }
+
+    const templateKey = normalizeEmailTemplateKey(req.body?.template);
+    const signups = tokens.map((token) => statements.byToken.get(token)).filter(Boolean);
+    const result = await sendSignupEmailBatch(
+      signups,
+      templateKey,
+      (signup, selectedTemplate) => sendSignupEmail(signup, { templateKey: selectedTemplate }),
+      (signup, emailResult) => statements.markEmail.run(emailResult.status, emailResult.error || '', emailResult.sentAt || '', signup.token)
+    );
+
+    return res.redirect(`/admin?notice=${encodeURIComponent(batchNotice(result, templateKey))}`);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+adminApp.post('/admin/signups/send-all', requireLocalAdmin, async (req, res, next) => {
+  try {
+    const templateKey = normalizeEmailTemplateKey(req.body?.template);
+    const csrfToken = trim(req.body?.csrfToken);
+    if (!safeEqualStrings(csrfToken, adminFormToken(`send-all:${templateKey}`))) {
+      return res.status(403).type('html').send(simplePage('Action Blocked', 'This send-all request could not be verified.'));
+    }
+
+    const signups = statements.allForEmail.all();
+    const result = await sendSignupEmailBatch(
+      signups,
+      templateKey,
+      (signup, selectedTemplate) => sendSignupEmail(signup, { templateKey: selectedTemplate }),
+      (signup, emailResult) => statements.markEmail.run(emailResult.status, emailResult.error || '', emailResult.sentAt || '', signup.token)
+    );
+
+    return res.redirect(`/admin?notice=${encodeURIComponent(batchNotice(result, templateKey))}`);
+  } catch (error) {
+    return next(error);
+  }
+});
+
 adminApp.post('/admin/signups/:token/delete', requireLocalAdmin, (req, res) => {
   const signupToken = trim(req.params.token);
   const csrfToken = trim(req.body?.csrfToken);
@@ -1072,6 +1160,29 @@ function renderEmailTemplate(signup, logoSrc, currentConfig = config) {
   return template.replace(/\{\{([a-z_]+)\}\}/gi, (_match, key) => escapeHtml(values[key] || ''));
 }
 
+function renderSupportUpdateEmailTemplate(signup, logoSrc, currentConfig = config) {
+  const template = fs.readFileSync(SUPPORT_UPDATE_EMAIL_TEMPLATE_PATH, 'utf8');
+  const supportEmail = currentConfig.supportEmail || 'aaronakuteye@gmail.com';
+  const publicLogoSrc = 'https://metis.emend.it.com/metis-logo-moss.png';
+  const values = {
+    logo_src: /^https:\/\//i.test(trim(logoSrc)) ? logoSrc : publicLogoSrc,
+    first_name: firstName(signup.name),
+    full_name: signup.name,
+    download_portal_url: betaUrl(signup.token, currentConfig),
+    privacy_url: 'https://metis.emend.it.com/privacy.html',
+    terms_url: 'https://metis.emend.it.com/terms.html',
+    support_email: supportEmail,
+  };
+
+  return template.replace(/\{\{([a-z_]+)\}\}/gi, (_match, key) => escapeHtml(values[key] || ''));
+}
+
+function renderEmailTemplateByKey(signup, logoSrc, currentConfig = config, templateKey = 'beta-access') {
+  return templateKey === 'support-update'
+    ? renderSupportUpdateEmailTemplate(signup, logoSrc, currentConfig)
+    : renderEmailTemplate(signup, logoSrc, currentConfig);
+}
+
 function renderEmailText(signup, currentConfig = config) {
   const editionLabel = signup.edition === 'lite' ? 'Lite' : 'Bundle';
   const portalUrl = betaUrl(signup.token, currentConfig);
@@ -1111,6 +1222,59 @@ function renderEmailText(signup, currentConfig = config) {
   ].join('\n');
 }
 
+function renderSupportUpdateEmailText(signup, currentConfig = config) {
+  const supportEmail = currentConfig.supportEmail || 'aaronakuteye@gmail.com';
+  return [
+    `Hi ${firstName(signup.name)},`,
+    '',
+    'Thank you again for being part of the Metis Beta.',
+    '',
+    'I noticed that some Windows users may see a warning such as "This file is not commonly downloaded" or "Windows protected your PC" when downloading or opening the Metis installer.',
+    '',
+    'This can happen because Metis is still a new beta application, so Windows has not built enough reputation for the installer yet. If you downloaded Metis from the official link I sent, you can continue with these steps:',
+    '',
+    '1. In the browser download warning, choose Keep, then Keep anyway.',
+    '2. When Windows SmartScreen appears, click More info.',
+    '3. Click Run anyway.',
+    '',
+    'I also need to correct the support email from my previous message. The address I shared was not receiving messages properly, so if you tried to contact me and the email bounced, I sincerely apologize.',
+    '',
+    'For installation issues, feedback, or questions, please contact me directly at:',
+    supportEmail,
+    '',
+    'If the download or installation still does not work, reply to this email and I will help you personally.',
+    '',
+    'Thank you for your patience as we test this first beta build.',
+    '',
+    'Best,',
+    'Aaron',
+    'Product Lead, Metis',
+    '',
+    `Your Metis beta link: ${betaUrl(signup.token, currentConfig)}`,
+  ].join('\n');
+}
+
+function renderEmailTextByKey(signup, currentConfig = config, templateKey = 'beta-access') {
+  return templateKey === 'support-update'
+    ? renderSupportUpdateEmailText(signup, currentConfig)
+    : renderEmailText(signup, currentConfig);
+}
+
+function subjectForEmailTemplate(signup, templateKey = 'beta-access') {
+  if (templateKey === 'support-update') {
+    return 'Metis Beta: Download warning and correct support email';
+  }
+  return `Metis beta testing: ${signup.edition === 'lite' ? 'Lite' : 'Bundle'} version ready`;
+}
+
+function replyToForEmailTemplate(currentConfig = config, templateKey = 'beta-access') {
+  return currentConfig.supportEmail || 'aaronakuteye@gmail.com';
+}
+
+function normalizeEmailTemplateKey(value) {
+  return trim(value) === 'support-update' ? 'support-update' : 'beta-access';
+}
+
 async function sendSignupEmailViaResend(signup, subject, html, text, currentConfig = config, options = {}) {
   const apiKey = trim(currentConfig.resendApiKey);
   const fromEmail = trim(currentConfig.smtpFromEmail);
@@ -1122,6 +1286,22 @@ async function sendSignupEmailViaResend(signup, subject, html, text, currentConf
   const fetchImpl = options.fetchImpl || fetch;
   const timeoutMs = emailSendTimeoutMs(currentConfig);
   const timeout = createAbortTimeout(timeoutMs);
+  const payload = {
+    from: `"${currentConfig.smtpFromName}" <${fromEmail}>`,
+    to: [signup.email],
+    subject,
+    html,
+    text,
+    reply_to: options.replyTo || currentConfig.supportEmail || fromEmail,
+    tags: [
+      { name: 'template', value: normalizeEmailTemplateKey(options.templateKey) },
+      { name: 'edition', value: signup.edition === 'bundle' ? 'bundle' : 'lite' },
+    ],
+  };
+  if (validEmail(currentConfig.supportBccEmail)) {
+    payload.bcc = [currentConfig.supportBccEmail];
+  }
+
   const requestOptions = {
     method: 'POST',
     headers: {
@@ -1129,17 +1309,7 @@ async function sendSignupEmailViaResend(signup, subject, html, text, currentConf
       'Content-Type': 'application/json',
       'User-Agent': 'metis-beta-backend/0.1.0',
     },
-    body: JSON.stringify({
-      from: `"${currentConfig.smtpFromName}" <${fromEmail}>`,
-      to: [signup.email],
-      subject,
-      html,
-      text,
-      reply_to: currentConfig.supportEmail || fromEmail,
-      tags: [
-        { name: 'edition', value: signup.edition === 'bundle' ? 'bundle' : 'lite' },
-      ],
-    }),
+    body: JSON.stringify(payload),
   };
   if (timeout.signal) {
     requestOptions.signal = timeout.signal;
@@ -1171,13 +1341,17 @@ async function sendSignupEmailViaResend(signup, subject, html, text, currentConf
 async function sendSignupEmail(signup, options = {}) {
   const currentConfig = options.config || config;
   const currentMailer = options.mailer !== undefined ? options.mailer : mailer;
-  const html = renderEmailTemplate(signup, '', currentConfig);
-  const text = renderEmailText(signup, currentConfig);
-  const subject = `Metis beta testing: ${signup.edition === 'lite' ? 'Lite' : 'Bundle'} version ready`;
+  const templateKey = normalizeEmailTemplateKey(options.templateKey);
+  const html = renderEmailTemplateByKey(signup, '', currentConfig, templateKey);
+  const text = renderEmailTextByKey(signup, currentConfig, templateKey);
+  const subject = subjectForEmailTemplate(signup, templateKey);
+  const replyTo = replyToForEmailTemplate(currentConfig, templateKey);
 
   if (trim(currentConfig.resendApiKey)) {
     return sendSignupEmailViaResend(signup, subject, html, text, currentConfig, {
       fetchImpl: options.fetchImpl,
+      replyTo,
+      templateKey,
     });
   }
 
@@ -1185,16 +1359,20 @@ async function sendSignupEmail(signup, options = {}) {
     return { status: 'failed', error: 'SMTP not configured.', sentAt: '' };
   }
 
-  const smtpHtml = renderEmailTemplate(signup, '', currentConfig);
+  const smtpHtml = renderEmailTemplateByKey(signup, '', currentConfig, templateKey);
   try {
-    await withTimeout(currentMailer.sendMail({
+    const mailOptions = {
       from: `"${currentConfig.smtpFromName}" <${currentConfig.smtpFromEmail}>`,
       to: signup.email,
-      replyTo: currentConfig.supportEmail || currentConfig.smtpFromEmail,
+      replyTo,
       subject,
       html: smtpHtml,
       text,
-    }), emailSendTimeoutMs(currentConfig), smtpTimeoutMessage(emailSendTimeoutMs(currentConfig)));
+    };
+    if (validEmail(currentConfig.supportBccEmail)) {
+      mailOptions.bcc = currentConfig.supportBccEmail;
+    }
+    await withTimeout(currentMailer.sendMail(mailOptions), emailSendTimeoutMs(currentConfig), smtpTimeoutMessage(emailSendTimeoutMs(currentConfig)));
     return { status: 'sent', error: '', sentAt: new Date().toISOString() };
   } catch (error) {
     return { status: 'failed', error: cut(error.message, 300), sentAt: '' };
@@ -2338,6 +2516,7 @@ function renderFeedbackQuestionCells(item) {
 function renderAdminPage(counts, donationCounts, recent, recentDonations, institutions, dailySignups, notice, options = {}) {
   const formToken = typeof options.formToken === 'function' ? options.formToken : adminFormToken;
   const batchSendToken = formToken('batch-send');
+  const supportUpdateAllToken = formToken('send-all:support-update');
   const feedbackCounts = options.feedbackCounts || { total: 0, unique_testers: 0 };
   const recentFeedback = Array.isArray(options.feedbackList) ? options.feedbackList : [];
   const totalSignups = Number(counts.total) || 0;
@@ -2358,6 +2537,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
             : `Send the metis beta email to ${item.email}?`;
           const sendAction = `<form method="post" action="/admin/signups/${encodeURIComponent(item.token)}/send" data-confirm="${escapeHtml(jsString(sendConfirm))}">
                 <input type="hidden" name="csrfToken" value="${escapeHtml(formToken(`${item.token}:send`))}" />
+                <input type="hidden" name="template" value="beta-access" />
                 <button type="submit" class="ghost-btn">${escapeHtml(sendLabel)}</button>
               </form>`;
 
@@ -2778,6 +2958,30 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
       color: var(--muted);
       font-size: 13px;
     }
+    .broadcast-tools {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 10px;
+      border: 1px solid rgba(170,182,138,.18);
+      border-radius: 18px;
+      background: rgba(170,182,138,.07);
+    }
+    .broadcast-tools form { margin: 0; }
+    .broadcast-copy {
+      display: grid;
+      gap: 3px;
+      min-width: 210px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .broadcast-copy strong {
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 600;
+    }
     .selection-tools label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
     .selection-count { color: var(--moss-light); font-size: 11px; text-transform: uppercase; letter-spacing: .16em; }
     .row-select,
@@ -2988,11 +3192,24 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
             <h2>Recent signups</h2>
             <p class="section-copy">Latest saved or updated requests across the beta list.</p>
           </div>
+          <div class="broadcast-tools">
+            <div class="broadcast-copy">
+              <span class="label">Urgent update</span>
+              <strong>Download warning and support email</strong>
+            </div>
+            <a class="ghost-btn" href="/admin/preview/email/support-update">Preview update</a>
+            <form method="post" action="/admin/signups/send-all" data-confirm="Send the download warning and support email update to every signup?">
+              <input type="hidden" name="csrfToken" value="${escapeHtml(supportUpdateAllToken)}" />
+              <input type="hidden" name="template" value="support-update" />
+              <button type="submit" class="primary-btn">Send update to all</button>
+            </form>
+          </div>
           <div class="selection-tools">
             <label><input class="select-all" type="checkbox" data-select-all aria-label="Select all visible signups" /> <span>Select all</span></label>
             <span class="selection-count" data-selection-count>0 selected</span>
             <form method="post" action="/admin/signups/send" data-batch-form data-confirm-selected="Send the metis beta email to the selected signups?">
               <input type="hidden" name="csrfToken" value="${escapeHtml(batchSendToken)}" />
+              <input type="hidden" name="template" value="beta-access" />
               <input type="hidden" name="tokens" value="" data-selected-tokens />
               <button type="submit" class="ghost-btn" data-batch-delete disabled>Send / resend selected</button>
             </form>
@@ -4061,6 +4278,38 @@ function parseBatchTokens(value) {
   return Array.from(new Set(tokens)).slice(0, 100);
 }
 
+async function sendSignupEmailBatch(signups, templateKey, sendEmail, markStatus) {
+  let sentCount = 0;
+  let failedCount = 0;
+  const normalizedTemplateKey = normalizeEmailTemplateKey(templateKey);
+
+  for (const signup of signups) {
+    const emailResult = normalizeEmailResult(await sendEmail(signup, normalizedTemplateKey));
+    if (markStatus && normalizedTemplateKey === 'beta-access') {
+      await markStatus(signup, emailResult);
+    }
+
+    if (emailResult.status === 'sent') {
+      sentCount += 1;
+    } else {
+      failedCount += 1;
+    }
+  }
+
+  return { failedCount, sentCount };
+}
+
+function batchNotice({ failedCount, sentCount }, templateKey = 'beta-access') {
+  const label = normalizeEmailTemplateKey(templateKey) === 'support-update'
+    ? 'support update'
+    : 'beta access email';
+  let notice = `${sentCount} ${label}${sentCount === 1 ? '' : 's'} sent`;
+  if (failedCount) {
+    notice += `, ${failedCount} failed`;
+  }
+  return notice;
+}
+
 function firstName(value) {
   return trim(value).split(/\s+/)[0] || 'there';
 }
@@ -4354,6 +4603,12 @@ function createLegacySqliteStore() {
     ORDER BY updated_at DESC
     LIMIT ?
   `);
+  const signupsForEmailStatement = db.prepare(`
+    SELECT token, name, email, institution, country, role, edition, created_at, updated_at, email_status, beta_visits, last_beta_visit_at
+    FROM signups
+    ORDER BY updated_at DESC
+    LIMIT ?
+  `);
   const recentDonationsStatement = db.prepare(`
     SELECT name, email, country, amount, message, created_at
     FROM donations
@@ -4473,6 +4728,10 @@ function createLegacySqliteStore() {
 
     async listRecentSignups(limit = 50) {
       return { data: recentSignupsStatement.all(limit), error: null };
+    },
+
+    async listSignupsForEmail(limit = 5000) {
+      return { data: signupsForEmailStatement.all(limit), error: null };
     },
 
     async listSignupSeriesRows(limit = 5000) {
@@ -4684,6 +4943,16 @@ async function listSignupSeriesRowsFromStore(store) {
   return [];
 }
 
+async function listSignupsForEmailFromStore(store) {
+  if (typeof store.listSignupsForEmail === 'function') {
+    return (await readStoreResult(store.listSignupsForEmail(5000))) || [];
+  }
+  if (typeof store.listRecentSignups === 'function') {
+    return (await readStoreResult(store.listRecentSignups(5000))) || [];
+  }
+  return [];
+}
+
 async function listDonationSummaryRowsFromStore(store) {
   if (typeof store.listDonationSummaryRows === 'function') {
     return (await readStoreResult(store.listDonationSummaryRows(5000))) || [];
@@ -4701,7 +4970,7 @@ function createApp(options = {}) {
   const currentMailer = options.mailer !== undefined ? options.mailer : createMailer(currentConfig);
   const sendEmail = typeof options.sendSignupEmail === 'function'
     ? options.sendSignupEmail
-    : (signup) => sendSignupEmail(signup, { config: currentConfig, fetchImpl: options.fetchImpl, mailer: currentMailer });
+    : (signup, templateKey = 'beta-access') => sendSignupEmail(signup, { config: currentConfig, fetchImpl: options.fetchImpl, mailer: currentMailer, templateKey });
   const verifyTurnstile = typeof options.verifyTurnstile === 'function'
     ? options.verifyTurnstile
     : ({ token, ip }) => verifyTurnstileToken(token, { config: currentConfig, ip });
@@ -5282,6 +5551,12 @@ function createApp(options = {}) {
     res.type('html').send(renderAdminEmailPreviewPage(renderEmailTemplate(sample, '/admin/logo', currentConfig)));
   });
 
+  hostedApp.get('/admin/preview/email/support-update', requireHostedAdmin, (_req, res) => {
+    const sample = sampleSignup('bundle');
+    res.setHeader('Cache-Control', 'no-store');
+    res.type('html').send(renderAdminEmailPreviewPage(renderSupportUpdateEmailTemplate(sample, '/admin/logo', currentConfig)));
+  });
+
   hostedApp.post('/admin/signups/:token/send', requireHostedAdmin, async (req, res, next) => {
     try {
       const signupToken = trim(req.params.token);
@@ -5295,10 +5570,13 @@ function createApp(options = {}) {
         return res.redirect('/admin?notice=Signup%20not%20found');
       }
 
-      const emailResult = normalizeEmailResult(await sendEmail(signup));
-      await readStoreResult(store.markSignupEmailStatus(signup.token, emailResult));
+      const templateKey = normalizeEmailTemplateKey(req.body?.template);
+      const emailResult = normalizeEmailResult(await sendEmail(signup, templateKey));
+      if (templateKey === 'beta-access') {
+        await readStoreResult(store.markSignupEmailStatus(signup.token, emailResult));
+      }
       const notice = emailResult.status === 'sent'
-        ? 'Email sent'
+        ? `${templateKey === 'support-update' ? 'Support update' : 'Email'} sent`
         : `Email failed: ${emailResult.error || 'Unknown error.'}`;
       return res.redirect(`/admin?notice=${encodeURIComponent(notice)}`);
     } catch (error) {
@@ -5318,6 +5596,7 @@ function createApp(options = {}) {
         return res.redirect('/admin?notice=No%20signups%20selected');
       }
 
+      const templateKey = normalizeEmailTemplateKey(req.body?.template);
       let sentCount = 0;
       let failedCount = 0;
 
@@ -5327,8 +5606,10 @@ function createApp(options = {}) {
           continue;
         }
 
-        const emailResult = normalizeEmailResult(await sendEmail(signup));
-        await readStoreResult(store.markSignupEmailStatus(signup.token, emailResult));
+        const emailResult = normalizeEmailResult(await sendEmail(signup, templateKey));
+        if (templateKey === 'beta-access') {
+          await readStoreResult(store.markSignupEmailStatus(signup.token, emailResult));
+        }
 
         if (emailResult.status === 'sent') {
           sentCount += 1;
@@ -5337,12 +5618,29 @@ function createApp(options = {}) {
         }
       }
 
-      let notice = `${sentCount} sent`;
-      if (failedCount) {
-        notice += `, ${failedCount} failed`;
+      return res.redirect(`/admin?notice=${encodeURIComponent(batchNotice({ sentCount, failedCount }, templateKey))}`);
+    } catch (error) {
+      return next(error);
+    }
+  });
+
+  hostedApp.post('/admin/signups/send-all', requireHostedAdmin, async (req, res, next) => {
+    try {
+      const templateKey = normalizeEmailTemplateKey(req.body?.template);
+      const csrfToken = trim(req.body?.csrfToken);
+      if (!safeEqualStrings(csrfToken, formToken(`send-all:${templateKey}`))) {
+        return res.status(403).type('html').send(simplePage('Action Blocked', 'This send-all request could not be verified.'));
       }
 
-      return res.redirect(`/admin?notice=${encodeURIComponent(notice)}`);
+      const signups = await listSignupsForEmailFromStore(store);
+      const result = await sendSignupEmailBatch(
+        signups,
+        templateKey,
+        sendEmail,
+        (signup, emailResult) => readStoreResult(store.markSignupEmailStatus(signup.token, emailResult))
+      );
+
+      return res.redirect(`/admin?notice=${encodeURIComponent(batchNotice(result, templateKey))}`);
     } catch (error) {
       return next(error);
     }

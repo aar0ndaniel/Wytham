@@ -26,6 +26,8 @@ test('createConfig maps hosted runtime values and custom Supabase env names', ()
     EMAIL_SEND_TIMEOUT_MS: '9000',
     RESEND_API_KEY: 're_test_key',
     RESEND_API_BASE_URL: 'https://api.resend.test/',
+    SUPPORT_EMAIL: 'ignored-support@example.com',
+    SUPPORT_UPDATE_EMAIL: 'ignored-update@example.com',
     LITE_SHARE_URL: 'https://example.com/lite',
     BUNDLE_SHARE_URL: 'https://example.com/bundle',
     padi: 'https://project.supabase.co',
@@ -55,7 +57,9 @@ test('createConfig maps hosted runtime values and custom Supabase env names', ()
   assert.equal(config.emailSendTimeoutMs, 9000);
   assert.equal(config.resendApiKey, 're_test_key');
   assert.equal(config.resendEndpoint, 'https://api.resend.test');
-  assert.equal(config.supportEmail, 'mailer@example.com');
+  assert.equal(config.supportEmail, 'aaronakuteye@gmail.com');
+  assert.equal(config.supportBccEmail, 'hbessel.art@knust.edu.gh');
+  assert.equal(config.supportUpdateEmail, 'aaronakuteye@gmail.com');
   assert.equal(config.liteShareUrl, 'https://example.com/lite');
   assert.equal(config.bundleShareUrl, 'https://example.com/bundle');
   assert.deepEqual(config.supabase, {
@@ -90,7 +94,9 @@ test('createConfig falls back to current backend defaults', () => {
   assert.equal(config.emailSendTimeoutMs, 15000);
   assert.equal(config.resendApiKey, '');
   assert.equal(config.resendEndpoint, 'https://api.resend.com');
-  assert.equal(config.supportEmail, '');
+  assert.equal(config.supportEmail, 'aaronakuteye@gmail.com');
+  assert.equal(config.supportBccEmail, 'hbessel.art@knust.edu.gh');
+  assert.equal(config.supportUpdateEmail, 'aaronakuteye@gmail.com');
   assert.equal(config.supabase.schema, 'public');
   assert.equal(config.supabase.isConfigured, false);
   assert.equal(config.turnstile.secretKey, '');

@@ -184,7 +184,9 @@ async function startApp(t, options = {}) {
     smtpPort: 465,
     smtpSecure: true,
     smtpUser: '',
-    supportEmail: 'support@metis.emend.it.com',
+    supportEmail: 'aaronakuteye@gmail.com',
+    supportBccEmail: 'hbessel.art@knust.edu.gh',
+    supportUpdateEmail: 'aaronakuteye@gmail.com',
     turnstile: {
       secretKey: 'turnstile-secret',
       isConfigured: true,
@@ -490,6 +492,23 @@ test('admin email preview uses tokenized backend access URL instead of raw share
   assert.doesNotMatch(html, /\/admin\/logo/);
   assert.doesNotMatch(html, /metis-logo-light-nav\.png/);
   assert.doesNotMatch(html, /onedrive\.example\.com\/lite-installer/);
+});
+
+test('admin support update preview uses the correction template and direct support email', async (t) => {
+  const { baseUrl } = await startApp(t);
+
+  const cookie = await login(baseUrl);
+  const response = await fetch(`${baseUrl}/admin/preview/email/support-update`, {
+    headers: { cookie },
+  });
+  const html = await response.text();
+
+  assert.equal(response.status, 200);
+  assert.match(html, /Download &amp;amp;&lt;br \/&gt;Support Update/);
+  assert.match(html, /This file is not commonly downloaded/);
+  assert.match(html, /Keep anyway/);
+  assert.match(html, /mailto:aaronakuteye@gmail\.com/);
+  assert.match(html, /Product Lead, Metis/);
 });
 
 test('GET /metis-logo-light-nav.png serves the email logo image', async (t) => {
@@ -1036,6 +1055,8 @@ test('POST /admin/signups/:token/send sends through Resend HTTP when configured'
   assert.equal(requests[0].headers['User-Agent'], 'metis-beta-backend/0.1.0');
   assert.equal(requests[0].body.from, '"metis Team" <team@metis.emend.it.com>');
   assert.deepEqual(requests[0].body.to, ['ada@gmail.com']);
+  assert.deepEqual(requests[0].body.bcc, ['hbessel.art@knust.edu.gh']);
+  assert.equal(requests[0].body.reply_to, 'aaronakuteye@gmail.com');
   assert.match(requests[0].body.subject, /Metis beta testing/i);
   assert.match(requests[0].body.html, /https:\/\/metis\.emend\.it\.com\/beta\/eeee/);
   assert.match(requests[0].body.html, /Your Lite version is now ready for testing/);
@@ -1174,11 +1195,87 @@ test('POST /admin/signups/send attempts selected pending and sent rows', async (
   });
 
   assert.equal(response.status, 302);
-  assert.equal(response.headers.get('location'), '/admin?notice=0%20sent%2C%202%20failed');
+  assert.equal(response.headers.get('location'), '/admin?notice=0%20beta%20access%20emails%20sent%2C%202%20failed');
   assert.equal(store.state.signups[0].email_status, 'failed');
   assert.equal(store.state.signups[0].email_error, 'SMTP not configured.');
   assert.equal(store.state.signups[0].email_sent_at, '');
   assert.equal(store.state.signups[1].email_status, 'failed');
   assert.equal(store.state.signups[1].email_error, 'SMTP not configured.');
   assert.equal(store.state.signups[1].email_sent_at, '');
+});
+
+test('POST /admin/signups/send-all sends the support update to every signup without changing beta email status', async (t) => {
+  const tokens = ['g'.repeat(48), 'h'.repeat(48)];
+  const sent = [];
+  const { baseUrl, store } = await startApp(t, {
+    sendSignupEmail: async (signup, templateKey) => {
+      sent.push([signup.email, templateKey]);
+      return { status: 'sent', error: '', sentAt: '2026-05-14T09:30:00.000Z' };
+    },
+    store: createMemoryStore({
+      signups: [
+        {
+          token: tokens[0],
+          name: 'Ada Lovelace',
+          email: 'ada@example.com',
+          institution: 'KNUST',
+          country: 'Ghana',
+          role: 'Researcher',
+          edition: 'lite',
+          created_at: '2026-05-13T10:00:00.000Z',
+          updated_at: '2026-05-13T10:00:00.000Z',
+          beta_visits: 0,
+          last_beta_visit_at: '',
+          email_status: 'pending',
+          email_error: '',
+          email_sent_at: '',
+        },
+        {
+          token: tokens[1],
+          name: 'Grace Hopper',
+          email: 'grace@example.com',
+          institution: 'Navy',
+          country: 'US',
+          role: 'Scientist',
+          edition: 'bundle',
+          created_at: '2026-05-13T11:00:00.000Z',
+          updated_at: '2026-05-13T11:00:00.000Z',
+          beta_visits: 4,
+          last_beta_visit_at: '2026-05-14T08:00:00.000Z',
+          email_status: 'sent',
+          email_error: '',
+          email_sent_at: '2026-05-13T12:00:00.000Z',
+        },
+      ],
+    }),
+  });
+
+  const cookie = await login(baseUrl);
+  const dashboard = await fetch(`${baseUrl}/admin`, {
+    headers: { cookie },
+  });
+  const html = await dashboard.text();
+  const csrfToken = extractCsrfToken(html, '/admin/signups/send-all');
+
+  const response = await fetch(`${baseUrl}/admin/signups/send-all`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/x-www-form-urlencoded',
+      cookie,
+    },
+    body: new URLSearchParams({
+      csrfToken,
+      template: 'support-update',
+    }),
+    redirect: 'manual',
+  });
+
+  assert.equal(response.status, 302);
+  assert.equal(response.headers.get('location'), '/admin?notice=2%20support%20updates%20sent');
+  assert.deepEqual(sent, [
+    ['ada@example.com', 'support-update'],
+    ['grace@example.com', 'support-update'],
+  ]);
+  assert.equal(store.state.signups[0].email_status, 'pending');
+  assert.equal(store.state.signups[1].email_status, 'sent');
 });
