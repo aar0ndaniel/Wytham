@@ -150,6 +150,7 @@ test('createStore shapes signup and admin queries around the supplied client', (
     status: 'failed',
     error: 'Mailbox unavailable',
     sentAt: '',
+    sentBy: 'ops',
   });
   store.listRecentSignups(25);
   store.findSignupByEmail('ada@example.com');
@@ -179,10 +180,10 @@ test('createStore shapes signup and admin queries around the supplied client', (
   assert.deepEqual(queries[2].steps, [
     {
       method: 'update',
-      args: [{ email_status: 'failed', email_error: 'Mailbox unavailable', email_sent_at: null }],
+      args: [{ email_status: 'failed', email_error: 'Mailbox unavailable', email_sent_at: null, email_sent_by: 'ops' }],
     },
     { method: 'eq', args: ['token', 'signup-token'] },
-    { method: 'select', args: ['token,email_status,email_error,email_sent_at'] },
+    { method: 'select', args: ['token,email_status,email_error,email_sent_at,email_sent_by'] },
     { method: 'single', args: [] },
   ]);
 
@@ -190,7 +191,7 @@ test('createStore shapes signup and admin queries around the supplied client', (
   assert.deepEqual(queries[3].steps, [
     {
       method: 'select',
-      args: ['token,name,email,institution,country,role,edition,created_at,updated_at,email_status,beta_visits,last_beta_visit_at'],
+      args: ['token,name,email,institution,country,role,edition,created_at,updated_at,email_status,email_sent_by,beta_visits,last_beta_visit_at'],
     },
     { method: 'order', args: ['updated_at', { ascending: false }] },
     { method: 'limit', args: [25] },
@@ -341,7 +342,7 @@ test('createStore exposes CSV export queries for each admin panel', () => {
 
   assert.equal(queries[0].table, 'signups');
   assert.deepEqual(queries[0].steps, [
-    { method: 'select', args: ['name,email,institution,country,role,edition,created_at,email_status,beta_visits'] },
+    { method: 'select', args: ['name,email,institution,country,role,edition,created_at,email_status,email_sent_by,beta_visits'] },
     { method: 'order', args: ['created_at', { ascending: false }] },
     { method: 'limit', args: [10] },
   ]);

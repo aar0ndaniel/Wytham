@@ -113,12 +113,30 @@ function createMemoryStore(initial = {}) {
       signup.email_status = nextStatus.status;
       signup.email_error = nextStatus.error;
       signup.email_sent_at = nextStatus.sentAt;
+      signup.email_sent_by = nextStatus.sentBy || '';
       return {
         data: {
           token: signup.token,
           email_status: signup.email_status,
           email_error: signup.email_error,
           email_sent_at: signup.email_sent_at,
+          email_sent_by: signup.email_sent_by,
+        },
+        error: null,
+      };
+    },
+
+    async markSignupEmailSender(token, sentBy) {
+      const signup = state.signups.find((item) => item.token === token);
+      if (!signup) {
+        return { data: null, error: new Error('Missing signup') };
+      }
+
+      signup.email_sent_by = sentBy || '';
+      return {
+        data: {
+          token: signup.token,
+          email_sent_by: signup.email_sent_by,
         },
         error: null,
       };
@@ -943,7 +961,7 @@ test('admin CSV export follows the active admin panel data shape', async (t) => 
   assert.equal(signupsResponse.status, 200);
   assert.match(signupsResponse.headers.get('content-type'), /text\/csv/i);
   const signupsCsv = await signupsResponse.text();
-  assert.match(signupsCsv, /^name,email,institution,country,role,edition,created_at,email_status,beta_visits/m);
+  assert.match(signupsCsv, /^name,email,institution,country,role,edition,created_at,email_status,email_sent_by,beta_visits/m);
   assert.match(signupsCsv, /"Ada Lovelace","ada@example.com"/);
 
   const donationsResponse = await fetch(`${baseUrl}/admin/export/donations.csv`, { headers: { cookie } });
@@ -1026,6 +1044,7 @@ test('POST /admin/signups/:token/send sends a pending signup manually and marks 
   assert.equal(store.state.signups[0].email_status, 'sent');
   assert.equal(store.state.signups[0].email_error, '');
   assert.equal(store.state.signups[0].email_sent_at, '2026-04-16T20:15:00.000Z');
+  assert.equal(store.state.signups[0].email_sent_by, 'ops');
 });
 
 test('POST /admin/signups/:token/send resends to an already sent signup', async (t) => {
@@ -1374,6 +1393,8 @@ test('POST /admin/signups/send-all sends the support update to every signup with
   ]);
   assert.equal(store.state.signups[0].email_status, 'pending');
   assert.equal(store.state.signups[1].email_status, 'sent');
+  assert.equal(store.state.signups[0].email_sent_by, 'ops');
+  assert.equal(store.state.signups[1].email_sent_by, 'ops');
 });
 
 test('POST /admin/signups/send-all rejects untrusted hosted admin origins', async (t) => {

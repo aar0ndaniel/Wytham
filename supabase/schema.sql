@@ -20,6 +20,7 @@ create table if not exists public.signups (
   email_status text not null default 'pending',
   email_error text not null default '',
   email_sent_at timestamptz,
+  email_sent_by text not null default '',
   constraint signups_email_status_check check (email_status in ('pending', 'sent', 'failed'))
 );
 

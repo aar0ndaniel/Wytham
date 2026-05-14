@@ -47,7 +47,7 @@ const RATE_POLICIES = Object.freeze({
 });
 const RATE_SWEEP_INTERVAL_MS = 60 * 1000;
 const PRIVACY_POLICY_VERSION = '1.0';
-const SIGNUP_EXPORT_HEADERS = ['name', 'email', 'institution', 'country', 'role', 'edition', 'created_at', 'email_status', 'beta_visits'];
+const SIGNUP_EXPORT_HEADERS = ['name', 'email', 'institution', 'country', 'role', 'edition', 'created_at', 'email_status', 'email_sent_by', 'beta_visits'];
 const DONATION_EXPORT_HEADERS = ['name', 'email', 'country', 'amount', 'message', 'created_at'];
 const FEEDBACK_BASE_EXPORT_COLUMNS = [
   'name',
@@ -378,7 +378,8 @@ db.exec(`
     last_beta_visit_at TEXT NOT NULL DEFAULT '',
     email_status TEXT NOT NULL DEFAULT 'pending',
     email_error TEXT NOT NULL DEFAULT '',
-    email_sent_at TEXT NOT NULL DEFAULT ''
+    email_sent_at TEXT NOT NULL DEFAULT '',
+    email_sent_by TEXT NOT NULL DEFAULT ''
   );
   CREATE TABLE IF NOT EXISTS donations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -430,6 +431,8 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_feedback_email ON feedback(email);
 `);
 
+ensureSqliteColumn(db, 'signups', 'email_sent_by', "TEXT NOT NULL DEFAULT ''");
+
 const statements = {
   byEmail: db.prepare('SELECT * FROM signups WHERE email = ?'),
   byToken: db.prepare('SELECT * FROM signups WHERE token = ?'),
@@ -449,13 +452,18 @@ const statements = {
   `),
   markEmail: db.prepare(`
     UPDATE signups
-    SET email_status = ?, email_error = ?, email_sent_at = ?
+    SET email_status = ?, email_error = ?, email_sent_at = ?, email_sent_by = ?
     WHERE token = ?
   `),
   markVisit: db.prepare(`
     UPDATE signups
     SET beta_visits = beta_visits + 1,
         last_beta_visit_at = ?
+    WHERE token = ?
+  `),
+  markEmailSender: db.prepare(`
+    UPDATE signups
+    SET email_sent_by = ?
     WHERE token = ?
   `),
   insertDonation: db.prepare(`
@@ -477,7 +485,7 @@ const statements = {
     FROM signups
   `),
   recent: db.prepare(`
-    SELECT token, name, email, institution, country, role, edition, created_at, updated_at, email_status, beta_visits, last_beta_visit_at
+    SELECT token, name, email, institution, country, role, edition, created_at, updated_at, email_status, email_sent_by, beta_visits, last_beta_visit_at
     FROM signups
     ORDER BY updated_at DESC
     LIMIT 50
@@ -516,12 +524,12 @@ const statements = {
     LIMIT 50
   `),
   allForExport: db.prepare(`
-    SELECT name, email, institution, country, role, edition, created_at, email_status, beta_visits
+    SELECT name, email, institution, country, role, edition, created_at, email_status, email_sent_by, beta_visits
     FROM signups
     ORDER BY created_at DESC
   `),
   allForEmail: db.prepare(`
-    SELECT token, name, email, institution, country, role, edition, created_at, updated_at, email_status, beta_visits, last_beta_visit_at
+    SELECT token, name, email, institution, country, role, edition, created_at, updated_at, email_status, email_sent_by, beta_visits, last_beta_visit_at
     FROM signups
     ORDER BY updated_at DESC
   `),
@@ -675,6 +683,7 @@ app.post('/api/signup', async (req, res) => {
     emailResult.status,
     emailResult.error || '',
     emailResult.sentAt || '',
+    '',
     signup.token
   );
 
@@ -952,7 +961,10 @@ adminApp.post('/admin/signups/:token/send', requireLocalAdmin, async (req, res, 
 
     const emailResult = normalizeEmailResult(await sendSignupEmail(signup, { templateKey }));
     if (templateKey === 'beta-access') {
-      statements.markEmail.run(emailResult.status, emailResult.error || '', emailResult.sentAt || '', signup.token);
+      const sentBy = emailResult.status === 'sent' ? adminSessionUsername(req) || config.adminUsername : '';
+      statements.markEmail.run(emailResult.status, emailResult.error || '', emailResult.sentAt || '', sentBy, signup.token);
+    } else if (emailResult.status === 'sent') {
+      statements.markEmailSender.run(adminSessionUsername(req) || config.adminUsername, signup.token);
     }
     const notice = emailResult.status === 'sent'
       ? `${templateKey === 'support-update' ? 'Support update' : 'Email'} sent`
@@ -977,11 +989,23 @@ adminApp.post('/admin/signups/send', requireLocalAdmin, async (req, res, next) =
 
     const templateKey = normalizeEmailTemplateKey(req.body?.template);
     const signups = tokens.map((token) => statements.byToken.get(token)).filter(Boolean);
+    const sentBy = adminSessionUsername(req) || config.adminUsername;
     const result = await sendSignupEmailBatch(
       signups,
       templateKey,
       (signup, selectedTemplate) => sendSignupEmail(signup, { templateKey: selectedTemplate }),
-      (signup, emailResult) => statements.markEmail.run(emailResult.status, emailResult.error || '', emailResult.sentAt || '', signup.token)
+      (signup, emailResult) => statements.markEmail.run(
+        emailResult.status,
+        emailResult.error || '',
+        emailResult.sentAt || '',
+        emailResult.status === 'sent' ? sentBy : '',
+        signup.token
+      ),
+      (signup, emailResult) => {
+        if (emailResult.status === 'sent') {
+          statements.markEmailSender.run(sentBy, signup.token);
+        }
+      }
     );
 
     return res.redirect(`/admin?notice=${encodeURIComponent(batchNotice(result, templateKey))}`);
@@ -1002,11 +1026,23 @@ adminApp.post('/admin/signups/send-all', requireLocalAdmin, async (req, res, nex
     }
 
     const signups = statements.allForEmail.all();
+    const sentBy = adminSessionUsername(req) || config.adminUsername;
     const result = await sendSignupEmailBatch(
       signups,
       templateKey,
       (signup, selectedTemplate) => sendSignupEmail(signup, { templateKey: selectedTemplate }),
-      (signup, emailResult) => statements.markEmail.run(emailResult.status, emailResult.error || '', emailResult.sentAt || '', signup.token)
+      (signup, emailResult) => statements.markEmail.run(
+        emailResult.status,
+        emailResult.error || '',
+        emailResult.sentAt || '',
+        emailResult.status === 'sent' ? sentBy : '',
+        signup.token
+      ),
+      (signup, emailResult) => {
+        if (emailResult.status === 'sent') {
+          statements.markEmailSender.run(sentBy, signup.token);
+        }
+      }
     );
 
     return res.redirect(`/admin?notice=${encodeURIComponent(batchNotice(result, templateKey))}`);
@@ -2579,7 +2615,14 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
   const openedCount = Number(counts.opened_count) || 0;
   const totalVisits = Number(counts.total_beta_visits) || 0;
   const openRate = totalSignups ? Math.round((openedCount / totalSignups) * 100) : 0;
-  const noticeBanner = notice ? `<div class="notice">${escapeHtml(notice)}</div>` : '';
+  const noticeBanner = notice
+    ? `<div class="notice">
+        <span class="notice-icon">${adminIcon('check')}</span>
+        <strong>${escapeHtml(notice)}</strong>
+        <span class="notice-time">2 mins ago</span>
+        <span class="notice-close" aria-hidden="true">${adminIcon('close')}</span>
+      </div>`
+    : '';
   const donationSummary = `${donationCounts.total || 0} messages from ${donationCounts.unique_donors || 0} donors across ${donationCounts.countries || 0} countries.`;
   const renderSignupRows = (templateKey = 'beta-access') => {
     const normalizedTemplateKey = normalizeEmailTemplateKey(templateKey);
@@ -2613,6 +2656,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
           <td>${escapeHtml(item.institution || '—')}</td>
           <td>${renderEditionBadge(item.edition)}</td>
           <td>${renderStatusBadge(item.email_status)}</td>
+          <td>${renderSentByBadge(item.email_sent_by)}</td>
           <td class="num">${item.beta_visits || 0}</td>
           <td>${renderAdminDateStack(item.last_beta_visit_at)}</td>
           <td>${renderAdminDateStack(item.updated_at || item.created_at)}</td>
@@ -2628,10 +2672,12 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
         </tr>`;
         })
         .join('')
-      : '<tr><td colspan="9">No signups yet.</td></tr>';
+      : '<tr><td colspan="10">No signups yet.</td></tr>';
   };
   const recentRows = renderSignupRows('beta-access');
   const updateEmailRows = renderSignupRows('support-update');
+  const sidebarUserName = clean(options.adminUsername || config.adminUsername || 'Admin', 64);
+  const sidebarUserEmail = sidebarUserName.includes('@') ? sidebarUserName : 'metis admin';
   const donationRows = recentDonations.length
     ? recentDonations
         .map((item) => `<tr>
@@ -2735,108 +2781,95 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
     .shell { max-width: 1240px; margin: 0 auto; position: relative; z-index: 1; }
     .floating-sidebar {
       position: fixed;
-      left: 18px;
-      top: 18px;
-      bottom: 18px;
-      width: 306px;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 356px;
       display: flex;
       flex-direction: column;
-      padding: 14px;
-      border: 1px solid var(--line);
-      border-radius: 30px;
-      background: rgba(18,18,18,.88);
-      backdrop-filter: blur(16px);
-      box-shadow: var(--shadow);
+      padding: 52px 38px 32px;
+      border-right: 1px solid rgba(245,241,231,.11);
+      background:
+        radial-gradient(circle at 18% 18%, rgba(198,162,75,.08), transparent 24%),
+        linear-gradient(180deg, rgba(18,18,17,.98), rgba(10,10,10,.98));
+      box-shadow: inset -1px 0 0 rgba(255,255,255,.025), 24px 0 70px rgba(0,0,0,.18);
       z-index: 100;
-    }
-    .sidebar-panel-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      padding: 2px 6px 12px;
-    }
-    .sidebar-panel-toggle {
-      width: 28px;
-      height: 28px;
-      border-radius: 10px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      color: rgba(245,241,231,.7);
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,.03);
-    }
-    .sidebar-panel-toggle svg {
-      width: 14px;
-      height: 14px;
-      stroke: currentColor;
-      fill: none;
-      stroke-width: 1.8;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-      transform: rotate(180deg);
     }
     .sidebar-brand {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 0 8px 14px;
-      margin-bottom: 10px;
-      border-bottom: 1px solid var(--line);
+      gap: 13px;
+      margin-bottom: 42px;
     }
     .sidebar-brand img {
-      width: 40px;
-      height: 40px;
-      border-radius: 14px;
+      width: 39px;
+      height: 39px;
+      border-radius: 0;
       display: block;
-      box-shadow: 0 10px 24px rgba(0,0,0,.24);
+      box-shadow: none;
     }
     .sidebar-title {
-      margin-top: 2px;
       font-family: 'Newsreader', Georgia, serif;
-      font-size: 26px;
+      font-size: 28px;
       font-weight: 700;
-      line-height: .95;
-      letter-spacing: -.03em;
+      line-height: 1;
+      letter-spacing: -.02em;
     }
-    .sidebar-subtitle {
+    .nav-section-label {
+      grid-column: 1 / -1;
       color: rgba(200,193,174,.56);
       font-size: 10px;
-      letter-spacing: .18em;
+      letter-spacing: .12em;
       text-transform: uppercase;
+      padding: 0 16px;
+      margin-bottom: 12px;
     }
-    .nav-group {
+    .nav-sections {
       display: grid;
-      gap: 10px;
+      gap: 24px;
+    }
+    .nav-section {
+      display: grid;
+      gap: 8px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid rgba(245,241,231,.08);
+    }
+    .sidebar-spacer {
+      flex: 1;
+      min-height: 28px;
+    }
+    .nav-footer,
+    .sidebar-user {
+      margin-top: auto;
+      padding-top: 28px;
+      border-top: 1px solid rgba(245,241,231,.08);
     }
     .nav-footer {
-      margin-top: auto;
-      padding-top: 12px;
-      border-top: 1px solid var(--line);
+      margin-top: 0;
+      padding-bottom: 28px;
     }
     .nav-footer form { margin: 0; }
     .side-btn {
       width: 100%;
-      min-height: 50px;
-      padding: 0 14px;
+      min-height: 66px;
+      padding: 0 18px;
       border-radius: 14px;
-      border: 1px solid rgba(245,241,231,.08);
-      background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.02));
+      border: 1px solid transparent;
+      background: transparent;
       color: var(--muted);
       display: inline-flex;
       align-items: center;
       justify-content: flex-start;
-      gap: 12px;
+      gap: 14px;
       cursor: pointer;
       text-decoration: none;
       font: inherit;
-      font-size: 14px;
+      font-size: 15px;
       text-align: left;
       font-weight: 500;
-      transition: background .14s, border-color .14s, color .14s, transform .14s;
+      transition: background .14s, border-color .14s, color .14s, box-shadow .14s;
     }
-    .side-btn svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+    .side-btn svg { width: 21px; height: 21px; stroke: currentColor; fill: none; stroke-width: 1.55; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
     .side-btn-label {
       flex: 1;
       line-height: 1.2;
@@ -2844,38 +2877,173 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
     .side-btn:hover,
     .side-btn.is-active {
       color: var(--text);
-      transform: translateY(-1px);
     }
     .side-btn:hover {
-      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.025));
-      border-color: rgba(245,241,231,.16);
+      background: rgba(245,241,231,.035);
+      border-color: rgba(245,241,231,.08);
     }
     .side-btn.is-active {
       background:
-        linear-gradient(110deg, rgba(245,241,231,.16), transparent 42%),
-        linear-gradient(180deg, rgba(10,10,10,.98), rgba(7,7,7,.92));
-      border-color: rgba(245,241,231,.22);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 12px 28px rgba(0,0,0,.18);
+        radial-gradient(circle at 12% 50%, rgba(211,184,95,.28), transparent 34%),
+        linear-gradient(180deg, rgba(198,162,75,.15), rgba(198,162,75,.075));
+      border-color: rgba(198,162,75,.64);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 16px 34px rgba(0,0,0,.22);
+    }
+    .side-btn.is-active svg {
+      color: var(--gold-strong);
     }
     .side-btn-logout {
-      color: #f3cece;
-      border-color: rgba(217,133,133,.24);
-      background: rgba(217,133,133,.08);
+      min-height: 46px;
+      color: #e27768;
+      padding: 0 16px;
     }
     .side-btn-logout:hover {
-      color: #fff0f0;
-      border-color: rgba(217,133,133,.36);
-      background: rgba(217,133,133,.12);
+      color: #ff9788;
+      border-color: rgba(226,119,104,.18);
+      background: rgba(226,119,104,.08);
+    }
+    .sidebar-user {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--text);
+    }
+    .sidebar-user-avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+      color: #fff;
+      font-weight: 700;
+      font-size: 12px;
+      border: 1px solid rgba(245,241,231,.2);
+      background:
+        radial-gradient(circle at 50% 28%, #f5d7bd 0 18%, transparent 19%),
+        radial-gradient(circle at 50% 74%, #2d5d73 0 28%, transparent 29%),
+        linear-gradient(145deg, #e6b991, #2c6680 62%, #153548);
+      box-shadow: 0 12px 24px rgba(0,0,0,.24);
+      overflow: hidden;
+    }
+    .sidebar-user-copy {
+      min-width: 0;
+      display: grid;
+      gap: 2px;
+      flex: 1;
+    }
+    .sidebar-user-name-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .sidebar-user-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .sidebar-user-email {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: rgba(200,193,174,.64);
+      font-size: 12px;
+    }
+    .sidebar-user-badge {
+      min-height: 18px;
+      padding: 0 5px;
+      border-radius: 5px;
+      display: inline-flex;
+      align-items: center;
+      color: #fff4d5;
+      background: #ff7f22;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: .03em;
+    }
+    .sidebar-user-menu {
+      width: 22px;
+      height: 22px;
+      color: rgba(200,193,174,.74);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .sidebar-user-menu svg {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.7;
+      stroke-linecap: round;
+      stroke-linejoin: round;
     }
     .notice {
-      margin-bottom: 20px;
-      padding: 14px 16px;
-      border: 1px solid rgba(170,182,138,.24);
-      border-radius: 14px;
-      background: rgba(170,182,138,.08);
-      color: #d8e2c9;
+      min-height: 58px;
+      margin-bottom: 24px;
+      padding: 0 20px;
+      border: 1px solid rgba(31,135,100,.58);
+      border-radius: 12px;
+      background:
+        linear-gradient(90deg, rgba(15,97,75,.62), rgba(12,68,58,.72)),
+        rgba(7,33,29,.86);
+      color: #effaf1;
       font-size: 14px;
-      letter-spacing: .02em;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 14px 36px rgba(0,0,0,.16);
+    }
+    .notice strong {
+      font-weight: 600;
+    }
+    .notice-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #68e1b4;
+      border: 1px solid currentColor;
+      flex: 0 0 auto;
+    }
+    .notice-icon svg {
+      width: 14px;
+      height: 14px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .notice-time {
+      margin-left: auto;
+      color: rgba(245,241,231,.68);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    .notice-close {
+      width: 24px;
+      height: 24px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(245,241,231,.72);
+      flex: 0 0 auto;
+    }
+    .notice-close svg {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
     }
     .card { box-shadow: none; }
     .sr-only {
@@ -2894,12 +3062,12 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
       justify-content: space-between;
       align-items: flex-start;
       gap: 20px;
-      padding: 8px 0 24px;
-      margin-bottom: 24px;
-      border-bottom: 1px solid var(--line);
+      padding: 0 0 24px;
+      margin-bottom: 0;
+      border: 0;
+      background: transparent;
     }
-    .brand { display: flex; align-items: center; gap: 14px; }
-    .brand img { width: 44px; height: 44px; border-radius: 14px; display: block; box-shadow: 0 10px 24px rgba(0,0,0,.24); }
+    .brand { display: block; min-width: 0; }
     .eyebrow,
     .label {
       color: rgba(200,193,174,.58);
@@ -2907,13 +3075,19 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
       letter-spacing: .18em;
       text-transform: uppercase;
     }
+    .topbar .eyebrow {
+      color: #68e1b4;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .13em;
+    }
     .brand h1 {
       margin: 8px 0 0;
-      font-family: 'Newsreader', Georgia, serif;
-      font-size: 42px;
+      font-family: 'IBM Plex Sans', system-ui, sans-serif;
+      font-size: 34px;
       font-weight: 700;
-      line-height: .95;
-      letter-spacing: -.04em;
+      line-height: 1.05;
+      letter-spacing: -.03em;
     }
     .brand p,
     .section-copy,
@@ -2929,6 +3103,8 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
       gap: 12px;
       flex-wrap: wrap;
       align-items: center;
+      justify-content: flex-end;
+      padding-top: 14px;
     }
     .quick-actions form {
       margin: 0;
@@ -2939,12 +3115,13 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-height: 44px;
+      min-height: 46px;
       min-width: 140px;
-      padding: 0 20px;
-      border-radius: 999px;
+      gap: 9px;
+      padding: 0 18px;
+      border-radius: 9px;
       border: 1px solid var(--line-strong);
-      background: transparent;
+      background: rgba(7,13,18,.62);
       color: var(--text);
       text-decoration: none;
       text-align: center;
@@ -2961,14 +3138,25 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
       border-color: rgba(245,241,231,.18);
       transform: translateY(-1px);
     }
+    .ghost-btn svg,
+    .primary-btn svg {
+      width: 17px;
+      height: 17px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.9;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      flex: 0 0 auto;
+    }
     .primary-btn {
-      color: #181818;
-      background: linear-gradient(180deg, var(--gold-strong), var(--gold));
-      border-color: rgba(198,162,75,.5);
-      box-shadow: 0 12px 30px rgba(198,162,75,.18);
+      color: #F5F1E7;
+      background: linear-gradient(180deg, rgba(31,135,100,.9), rgba(20,94,74,.96));
+      border-color: rgba(117,211,172,.26);
+      box-shadow: 0 12px 30px rgba(31,135,100,.18);
     }
     .primary-btn:hover {
-      background: linear-gradient(180deg, #e1c978, var(--gold-strong));
+      background: linear-gradient(180deg, rgba(43,154,116,.94), rgba(25,112,87,.98));
       transform: translateY(-1px);
     }
     .ghost-btn:disabled,
@@ -2981,32 +3169,79 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
     .summary-strip {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 0;
-      margin-bottom: 20px;
-      overflow: hidden;
-    }
-    .summary-item {
-      padding: 20px 22px 22px;
-      border: none;
-      border-right: 1px solid var(--line);
+      gap: 16px;
+      margin-bottom: 22px;
+      padding: 0;
+      border: 0;
       background: transparent;
     }
-    .summary-item:last-child { border-right: none; }
+    .summary-item {
+      min-height: 124px;
+      padding: 20px 22px;
+      border: 1px solid rgba(245,241,231,.08);
+      border-radius: 14px;
+      background:
+        radial-gradient(circle at top left, rgba(135,151,107,.10), transparent 42%),
+        linear-gradient(180deg, rgba(14,20,24,.88), rgba(7,12,16,.86));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.035), 0 20px 44px rgba(0,0,0,.16);
+    }
+    .summary-item:last-child { border-right: 1px solid rgba(245,241,231,.08); }
+    .summary-item-head {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+    }
+    .summary-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+      color: var(--moss-light);
+      background: rgba(18,92,70,.42);
+      border: 1px solid rgba(170,182,138,.12);
+    }
+    .summary-icon svg {
+      width: 21px;
+      height: 21px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.7;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .summary-icon-editions {
+      color: #b8c6ff;
+      background: rgba(63,94,158,.26);
+    }
+    .summary-icon-open {
+      color: #dec7ff;
+      background: rgba(114,70,150,.28);
+    }
+    .summary-icon-visits {
+      color: var(--gold-strong);
+      background: rgba(198,162,75,.18);
+    }
+    .summary-copy {
+      min-width: 0;
+      display: grid;
+      gap: 7px;
+    }
     .summary-value {
       display: block;
-      margin-top: 10px;
-      font-family: 'Newsreader', Georgia, serif;
+      font-family: 'IBM Plex Sans', system-ui, sans-serif;
       font-size: 34px;
       font-weight: 700;
       line-height: 1;
-      letter-spacing: -.04em;
+      letter-spacing: -.03em;
     }
     .summary-text {
       display: block;
-      margin-top: 8px;
       color: var(--muted);
       font-size: 13px;
-      line-height: 1.6;
+      line-height: 1.3;
     }
     .panel { display: none; }
     .panel.is-active { display: block; }
@@ -3017,6 +3252,12 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
       border: 1px solid var(--line);
       border-radius: 24px;
       background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+    }
+    .section-card.summary-strip {
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
     }
     .section-head,
     .table-toolbar,
@@ -3051,14 +3292,14 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
       padding: 0 4px;
     }
     .batch-send-btn {
-      min-height: 38px;
-      min-width: 190px;
+      min-height: 42px;
+      min-width: 208px;
       gap: 9px;
-      padding: 0 14px;
+      padding: 0 12px 0 16px;
       border-radius: 12px;
       color: #F5F1E7;
-      background: linear-gradient(180deg, rgba(135,151,107,.82), rgba(69,93,68,.88));
-      border-color: rgba(170,182,138,.3);
+      background: linear-gradient(180deg, rgba(31,135,100,.88), rgba(20,94,74,.92));
+      border-color: rgba(117,211,172,.25);
       box-shadow: 0 12px 30px rgba(0,0,0,.22);
     }
     .batch-send-btn svg {
@@ -3107,9 +3348,18 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
       font-weight: 600;
     }
     .selection-tools label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
-    .selection-count { color: var(--moss-light); font-size: 11px; text-transform: uppercase; letter-spacing: .16em; }
+    .selection-count { color: var(--moss-light); font-size: 12px; font-weight: 600; }
     .row-select,
-    .select-all { width: 15px; height: 15px; accent-color: var(--moss); }
+    .select-all {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--moss);
+    }
+    .row-select {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--moss);
+    }
     .table-wrap {
       overflow: auto;
       border-top: 1px solid var(--line);
@@ -3146,23 +3396,146 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
     .row-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .row-actions form { margin: 0; }
     .signup-table-card {
-      padding: 12px;
+      padding: 14px 14px 16px;
       overflow: hidden;
-      border-radius: 18px;
+      border-radius: 14px;
       background:
-        linear-gradient(180deg, rgba(12,16,14,.92), rgba(7,9,9,.9)),
-        radial-gradient(circle at top left, rgba(135,151,107,.11), transparent 42%);
-      border-color: rgba(245,241,231,.1);
+        radial-gradient(circle at top right, rgba(135,151,107,.10), transparent 28%),
+        linear-gradient(180deg, rgba(9,17,22,.94), rgba(6,12,17,.94));
+      border-color: rgba(245,241,231,.08);
       box-shadow: inset 0 1px 0 rgba(245,241,231,.04), 0 24px 64px rgba(0,0,0,.2);
+    }
+    .panel-stack {
+      display: grid;
+      gap: 18px;
+    }
+    .panel-hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 20px;
+      padding: 22px 24px;
+      border: 1px solid rgba(245,241,231,.08);
+      border-radius: 14px;
+      background:
+        radial-gradient(circle at top right, rgba(135,151,107,.12), transparent 32%),
+        linear-gradient(180deg, rgba(9,17,22,.94), rgba(6,12,17,.94));
+      box-shadow: inset 0 1px 0 rgba(245,241,231,.04), 0 18px 46px rgba(0,0,0,.16);
+    }
+    .panel-hero-main {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      min-width: 0;
+    }
+    .panel-hero-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+      color: var(--moss-light);
+      background: rgba(18,92,70,.34);
+      border: 1px solid rgba(170,182,138,.14);
+    }
+    .panel-hero-icon svg {
+      width: 24px;
+      height: 24px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.65;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .panel-hero h2 {
+      margin: 5px 0 0;
+      font-family: 'IBM Plex Sans', system-ui, sans-serif;
+      font-size: 24px;
+      line-height: 1.1;
+      letter-spacing: -.03em;
+    }
+    .panel-hero .section-copy {
+      margin-top: 6px;
+      max-width: 70ch;
+    }
+    .panel-stat-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .panel-stat {
+      min-width: 132px;
+      min-height: 72px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(245,241,231,.08);
+      background: rgba(255,255,255,.025);
+      display: grid;
+      gap: 5px;
+    }
+    .panel-stat strong {
+      font-size: 24px;
+      line-height: 1;
+      letter-spacing: -.03em;
+    }
+    .panel-stat span {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.25;
+    }
+    .data-panel-card {
+      padding: 14px 14px 16px;
+      overflow: hidden;
+      border-radius: 14px;
+      background:
+        radial-gradient(circle at top right, rgba(135,151,107,.08), transparent 28%),
+        linear-gradient(180deg, rgba(9,17,22,.94), rgba(6,12,17,.94));
+      border-color: rgba(245,241,231,.08);
+      box-shadow: inset 0 1px 0 rgba(245,241,231,.04), 0 24px 64px rgba(0,0,0,.2);
+    }
+    .data-panel-card .section-head {
+      margin: 0;
+      padding: 10px 10px 14px;
+      align-items: flex-start;
+    }
+    .data-panel-card .section-head h2 {
+      margin-top: 0;
+      font-family: 'IBM Plex Sans', system-ui, sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      line-height: 1.15;
+      letter-spacing: -.03em;
+    }
+    .data-panel-card .table-wrap {
+      border: 1px solid rgba(245,241,231,.08);
+      border-radius: 12px;
+      background: rgba(3,9,13,.48);
+      overflow: auto;
+    }
+    .data-panel-card th {
+      background: rgba(7,13,18,.98);
+    }
+    .panel-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      align-items: center;
     }
     .signup-table-card .table-toolbar {
       margin: 0;
-      padding: 4px 4px 12px;
-      align-items: center;
+      padding: 10px 10px 14px;
+      align-items: flex-start;
     }
     .signup-table-card .table-toolbar h2 {
       margin-top: 0;
-      font-size: 24px;
+      font-family: 'IBM Plex Sans', system-ui, sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      line-height: 1.15;
       letter-spacing: -.03em;
     }
     .signup-table-card .section-copy {
@@ -3174,6 +3547,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
     .signup-table-card .selection-tools {
       gap: 12px;
       justify-content: flex-end;
+      padding-top: 2px;
     }
     .signup-table-card .selection-count {
       min-width: 76px;
@@ -3184,30 +3558,32 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
     }
     .signup-table-card .table-wrap {
       border: 1px solid rgba(245,241,231,.08);
-      border-radius: 14px;
-      background: rgba(4,7,7,.38);
+      border-radius: 12px;
+      background: rgba(3,9,13,.48);
       overflow: auto;
     }
     .signup-table-card table {
-      min-width: 920px;
+      min-width: 980px;
     }
     .signup-table-card th,
     .signup-table-card td {
-      padding: 10px 12px;
+      padding: 12px 14px;
       font-size: 13px;
       vertical-align: middle;
     }
     .signup-table-card th {
-      background: rgba(9,11,10,.94);
+      background: rgba(7,13,18,.98);
       color: rgba(200,193,174,.62);
       font-size: 10px;
       letter-spacing: .14em;
+      font-weight: 500;
     }
     .signup-table-card tbody tr {
-      min-height: 54px;
+      min-height: 62px;
+      background: rgba(7,15,21,.42);
     }
     .signup-table-card tr:hover td {
-      background: rgba(170,182,138,.035);
+      background: rgba(170,182,138,.04);
     }
     .signup-person {
       display: flex;
@@ -3221,8 +3597,8 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
       min-width: 0;
     }
     .signup-avatar {
-      width: 32px;
-      height: 32px;
+      width: 34px;
+      height: 34px;
       border-radius: 50%;
       display: inline-flex;
       align-items: center;
@@ -3298,7 +3674,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      padding: 14px 4px 0;
+      padding: 14px 10px 0;
       color: rgba(200,193,174,.78);
       font-size: 12px;
       flex-wrap: wrap;
@@ -3311,8 +3687,8 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
     .pager-button,
     .pager-page,
     .pager-ellipsis {
-      min-width: 32px;
-      height: 32px;
+      min-width: 34px;
+      height: 34px;
       border-radius: 9px;
       display: inline-flex;
       align-items: center;
@@ -3335,9 +3711,10 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
       opacity: .45;
     }
     .pager-page.is-current {
-      color: #181818;
-      background: linear-gradient(180deg, var(--gold-strong), var(--gold));
-      border-color: rgba(198,162,75,.5);
+      color: #F5F1E7;
+      background: linear-gradient(180deg, rgba(31,135,100,.9), rgba(20,94,74,.96));
+      border-color: rgba(117,211,172,.28);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.1);
     }
     .pill {
       display: inline-flex;
@@ -3348,12 +3725,13 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
       border: 1px solid var(--line);
       font-size: 11px;
       font-family: 'IBM Plex Mono', monospace;
-      letter-spacing: .08em;
+      letter-spacing: .06em;
       text-transform: uppercase;
     }
-    .pill-blue { color: var(--moss-light); background: var(--moss-soft); border-color: rgba(135,151,107,.34); }
+    .pill-blue { color: #b9dbff; background: rgba(54,105,168,.18); border-color: rgba(83,139,196,.22); }
     .pill-warm { color: #f4d9a3; background: var(--gold-soft); border-color: rgba(198,162,75,.34); }
-    .pill-success { color: #d8e2c9; background: var(--success-soft); border-color: rgba(170,182,138,.34); }
+    .pill-success { color: #ccefd8; background: rgba(31,135,100,.18); border-color: rgba(117,211,172,.22); }
+    .pill-opened { color: #e0ccff; background: rgba(126,82,164,.22); border-color: rgba(183,142,229,.22); }
     .pill-danger { color: #f1c6c6; background: var(--danger-soft); border-color: rgba(217,133,133,.34); }
     .pill-muted { color: rgba(200,193,174,.78); background: rgba(255,255,255,.04); }
     .question-head {
@@ -3382,35 +3760,47 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
     .danger-solid { color: #fff0f0; border-color: rgba(217,133,133,.32); background: rgba(120,37,37,.82); }
     .account-layout {
       display: grid;
-      grid-template-columns: minmax(0, 1.1fr) minmax(280px, .9fr);
-      gap: 14px;
+      gap: 18px;
     }
-    .account-profile { display: flex; align-items: center; gap: 14px; }
+    .account-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(280px, .9fr);
+      gap: 16px;
+    }
+    .account-profile { display: flex; align-items: center; gap: 16px; }
     .account-avatar {
-      width: 42px;
-      height: 42px;
-      border-radius: 14px;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       color: var(--moss-light);
-      background: var(--moss-soft);
-      border: 1px solid rgba(135,151,107,.28);
+      background: rgba(18,92,70,.34);
+      border: 1px solid rgba(170,182,138,.14);
     }
-    .account-avatar svg { width: 20px; height: 20px; }
+    .account-avatar svg { width: 24px; height: 24px; }
+    .account-name {
+      margin-top: 6px;
+      font-size: 28px;
+      line-height: 1.05;
+      letter-spacing: -.04em;
+      font-weight: 700;
+    }
     .security-list { display: grid; gap: 8px; margin-top: 16px; }
     .security-item {
       padding: 13px 14px;
-      border-radius: 16px;
-      border: 1px solid var(--line);
-      border-left: 3px solid rgba(198,162,75,.34);
-      background: rgba(255,255,255,.02);
+      border-radius: 12px;
+      border: 1px solid rgba(245,241,231,.08);
+      background: rgba(255,255,255,.025);
     }
     .security-item strong { display: block; margin-bottom: 5px; font-size: 13px; }
     .security-item span { color: var(--muted); font-size: 12px; line-height: 1.65; }
     @media (max-width: 1080px) {
-      .account-layout { grid-template-columns: 1fr; }
+      .account-grid { grid-template-columns: 1fr; }
       .summary-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .panel-hero { grid-template-columns: 1fr; }
+      .panel-stat-row { justify-content: flex-start; }
     }
     @media (max-width: 860px) {
       body { padding: 18px 16px 76px; }
@@ -3418,9 +3808,14 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
         position: static;
         width: auto;
         margin-bottom: 18px;
+        padding: 20px;
+        border: 1px solid var(--line);
         border-radius: 24px;
       }
-      .nav-group { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .sidebar-brand { margin-bottom: 20px; }
+      .nav-section { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .nav-footer,
+      .sidebar-user { padding-top: 18px; padding-bottom: 0; }
       .shell { padding-top: 0; }
       .topbar,
       .section-card,
@@ -3428,7 +3823,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
       .account-panel-card { padding: 16px; }
     }
     @media (max-width: 640px) {
-      .nav-group,
+      .nav-section,
       .summary-strip { grid-template-columns: 1fr; }
       .topbar,
       .section-head,
@@ -3438,44 +3833,53 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
 </head>
 <body>
   <div class="floating-sidebar" aria-label="Dashboard shortcuts">
-    <div class="sidebar-panel-head">
-      <div class="sidebar-subtitle">Protected route</div>
-      <div class="sidebar-panel-toggle" aria-hidden="true">${adminIcon('back')}</div>
-    </div>
     <div class="sidebar-brand">
       <img src="/admin/logo" alt="metis app icon" />
-      <div>
-        <div class="sidebar-title">metis</div>
-      </div>
+      <div class="sidebar-title">metis</div>
     </div>
-    <nav class="nav-group" aria-label="Primary">
-      <button type="button" class="side-btn is-active" data-panel-target="signups-panel" aria-label="Show signups" title="Signups">${adminIcon('signups')}<span class="side-btn-label">Signups</span></button>
-      <button type="button" class="side-btn" data-panel-target="update-email-panel" aria-label="Show update email" title="Update email">${adminIcon('preview')}<span class="side-btn-label">Update email</span></button>
-      <button type="button" class="side-btn" data-panel-target="donations-panel" aria-label="Show donations" title="Donations">${adminIcon('donations')}<span class="side-btn-label">Donations</span></button>
-      <button type="button" class="side-btn" data-panel-target="feedback-panel" aria-label="Show feedback" title="Feedback">${adminIcon('feedback')}<span class="side-btn-label">Feedback</span></button>
-      <button type="button" class="side-btn" data-panel-target="account-panel" aria-label="Account" title="Account">${adminIcon('account')}<span class="side-btn-label">Account</span></button>
-      <a class="side-btn" href="/admin/export/signups.csv" data-export-link aria-label="Export signups CSV" title="Export signups CSV">${adminIcon('export')}<span class="side-btn-label" data-export-text>Export signups CSV</span></a>
-      <a class="side-btn" href="/admin/preview/email" aria-label="Preview email" title="Preview email">${adminIcon('preview')}<span class="side-btn-label">Email preview</span></a>
+    <nav class="nav-sections" aria-label="Primary">
+      <section class="nav-section" aria-labelledby="admin-nav-heading">
+        <div class="nav-section-label" id="admin-nav-heading">Admin</div>
+        <button type="button" class="side-btn is-active" data-panel-target="signups-panel" aria-label="Show signups" title="Signups">${adminIcon('signups')}<span class="side-btn-label">Signups</span></button>
+        <button type="button" class="side-btn" data-panel-target="update-email-panel" aria-label="Show update email" title="Update email">${adminIcon('preview')}<span class="side-btn-label">Update email</span></button>
+        <button type="button" class="side-btn" data-panel-target="donations-panel" aria-label="Show donations" title="Donations">${adminIcon('donations')}<span class="side-btn-label">Donations</span></button>
+        <button type="button" class="side-btn" data-panel-target="feedback-panel" aria-label="Show feedback" title="Feedback">${adminIcon('feedback')}<span class="side-btn-label">Feedback</span></button>
+        <button type="button" class="side-btn" data-panel-target="account-panel" aria-label="Account" title="Account">${adminIcon('account')}<span class="side-btn-label">Account</span></button>
+      </section>
+      <section class="nav-section" aria-labelledby="tools-nav-heading">
+        <div class="nav-section-label" id="tools-nav-heading">Tools</div>
+        <a class="side-btn" href="/admin/export/signups.csv" data-export-link aria-label="Export signups CSV" title="Export signups CSV">${adminIcon('export')}<span class="side-btn-label" data-export-text>Export signups CSV</span></a>
+        <a class="side-btn" href="/admin/preview/email" aria-label="Preview email" title="Preview email">${adminIcon('preview')}<span class="side-btn-label">Email preview</span></a>
+      </section>
     </nav>
+    <div class="sidebar-spacer"></div>
     <div class="nav-footer">
       <form method="post" action="/admin/logout">
         <button type="submit" class="side-btn side-btn-logout">${adminIcon('logout')}<span class="side-btn-label">Log out</span></button>
       </form>
     </div>
+    <div class="sidebar-user" aria-label="Signed in account">
+      <div class="sidebar-user-avatar" aria-hidden="true"></div>
+      <div class="sidebar-user-copy">
+        <div class="sidebar-user-name-row">
+          <span class="sidebar-user-name">${escapeHtml(sidebarUserName)}</span>
+          <span class="sidebar-user-badge">PRO</span>
+        </div>
+        <div class="sidebar-user-email">${escapeHtml(sidebarUserEmail)}</div>
+      </div>
+      <span class="sidebar-user-menu" aria-hidden="true">${adminIcon('chevron-down')}</span>
+    </div>
   </div>
   <div class="shell">
     <section class="card topbar">
       <div class="brand">
-        <img src="/admin/logo" alt="metis app icon" />
-        <div>
-          <div class="eyebrow">metis admin</div>
-          <h1>Admin</h1>
-          <p>A quieter view of signups, support notes, and export.</p>
-        </div>
+        <div class="eyebrow">metis admin</div>
+        <h1>Admin dashboard</h1>
+        <p>A quieter view of signups, support notes, and export.</p>
       </div>
       <div class="quick-actions">
-        <a class="ghost-btn" href="/admin/preview/email">Preview email</a>
-        <a class="primary-btn" href="/admin/export/signups.csv" data-export-link aria-label="Export signups CSV" title="Export signups CSV"><span data-export-text>Export signups CSV</span></a>
+        <a class="ghost-btn" href="/admin/preview/email">${adminIcon('preview')}<span>Preview emails</span></a>
+        <a class="primary-btn" href="/admin/export/signups.csv" data-export-link aria-label="Export signups CSV" title="Export signups CSV">${adminIcon('download')}<span data-export-text>Export signups CSV</span></a>
       </div>
     </section>
     ${noticeBanner}
@@ -3483,24 +3887,44 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
     <section id="signups-panel" class="panel is-active" data-panel data-export-href="/admin/export/signups.csv" data-export-label="Export signups CSV">
       <section class="section-card summary-strip" aria-label="Signup summary">
         <div class="summary-item">
-          <div class="label">Total</div>
-          <strong class="summary-value">${totalSignups}</strong>
-          <span class="summary-text">Beta requests</span>
+          <div class="summary-item-head">
+            <span class="summary-icon">${adminIcon('signups')}</span>
+            <span class="summary-copy">
+              <span class="summary-text">Total beta requests</span>
+              <strong class="summary-value">${totalSignups}</strong>
+              <span class="summary-text">All time</span>
+            </span>
+          </div>
         </div>
         <div class="summary-item">
-          <div class="label">Editions</div>
-          <strong class="summary-value">${liteCount} / ${bundleCount}</strong>
-          <span class="summary-text">Lite and Bundle</span>
+          <div class="summary-item-head">
+            <span class="summary-icon summary-icon-editions">${adminIcon('editions')}</span>
+            <span class="summary-copy">
+              <span class="summary-text">Editions (Lite / Bundle)</span>
+              <strong class="summary-value">${liteCount} / ${bundleCount}</strong>
+              <span class="summary-text">Lite and Bundle</span>
+            </span>
+          </div>
         </div>
         <div class="summary-item">
-          <div class="label">Open rate</div>
-          <strong class="summary-value">${openRate}%</strong>
-          <span class="summary-text">${openedCount} opened</span>
+          <div class="summary-item-head">
+            <span class="summary-icon summary-icon-open">${adminIcon('preview')}</span>
+            <span class="summary-copy">
+              <span class="summary-text">Email open rate</span>
+              <strong class="summary-value">${openRate}%</strong>
+              <span class="summary-text">${openedCount} opened</span>
+            </span>
+          </div>
         </div>
         <div class="summary-item">
-          <div class="label">Visits</div>
-          <strong class="summary-value">${totalVisits}</strong>
-          <span class="summary-text">Beta link opens</span>
+          <div class="summary-item-head">
+            <span class="summary-icon summary-icon-visits">${adminIcon('link')}</span>
+            <span class="summary-copy">
+              <span class="summary-text">Beta link visits</span>
+              <strong class="summary-value">${totalVisits}</strong>
+              <span class="summary-text">Unique visits</span>
+            </span>
+          </div>
         </div>
       </section>
 
@@ -3530,6 +3954,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
                 <th>Institution</th>
                 <th>Edition</th>
                 <th>Email status</th>
+                <th>Sent by</th>
                 <th>Visits</th>
                 <th>Last open</th>
                 <th>Last saved</th>
@@ -3544,17 +3969,31 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
     </section>
 
     <section id="update-email-panel" class="panel" data-panel data-export-href="/admin/export/signups.csv" data-export-label="Export signups CSV">
+      <section class="panel-stack">
+        <section class="panel-hero">
+          <div class="panel-hero-main">
+            <span class="panel-hero-icon">${adminIcon('preview')}</span>
+            <div>
+              <div class="eyebrow">Update email</div>
+              <h2>Download warning and support email</h2>
+              <p class="section-copy">Send the corrected support address and Windows download guidance to beta participants.</p>
+            </div>
+          </div>
+          <div class="panel-stat-row">
+            <div class="panel-stat"><strong>${totalSignups}</strong><span>Recipients</span></div>
+            <div class="panel-stat"><strong>${openRate}%</strong><span>Beta email opened</span></div>
+          </div>
+        </section>
       <section class="card section-card signup-table-card">
         <div class="table-toolbar">
           <div>
-            <div class="label">Update email</div>
-            <h2>Download warning and support email</h2>
-            <p class="section-copy">Send the corrected support address and Windows download guidance to beta participants.</p>
+            <h2>Update recipients</h2>
+            <p class="section-copy">Select individual signups or send the update to the full beta list.</p>
           </div>
           <div class="selection-tools">
             <label class="select-all-control"><input class="select-all" type="checkbox" data-select-all aria-label="Select all visible update recipients" /> <span>Select all</span></label>
             <span class="selection-count" data-selection-count>0 selected</span>
-            <a class="ghost-btn" href="/admin/preview/email/support-update">Preview update</a>
+            <a class="ghost-btn" href="/admin/preview/email/support-update">${adminIcon('preview')}<span>Preview update</span></a>
             <form method="post" action="/admin/signups/send" data-batch-form data-confirm-selected="Send the download warning and support email update to the selected signups?">
               <input type="hidden" name="csrfToken" value="${escapeHtml(batchSendToken)}" />
               <input type="hidden" name="template" value="support-update" />
@@ -3564,7 +4003,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
             <form method="post" action="/admin/signups/send-all" data-confirm="Send the download warning and support email update to every signup?">
               <input type="hidden" name="csrfToken" value="${escapeHtml(supportUpdateAllToken)}" />
               <input type="hidden" name="template" value="support-update" />
-              <button type="submit" class="primary-btn">Send all</button>
+              <button type="submit" class="primary-btn">${adminIcon('send')}<span>Send all</span></button>
             </form>
           </div>
         </div>
@@ -3577,6 +4016,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
                 <th>Institution</th>
                 <th>Edition</th>
                 <th>Email status</th>
+                <th>Sent by</th>
                 <th>Visits</th>
                 <th>Last open</th>
                 <th>Last saved</th>
@@ -3588,15 +4028,34 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
         </div>
         ${renderSignupTableFooter(recent.length, totalSignups)}
       </section>
+      </section>
     </section>
 
     <section id="donations-panel" class="panel" data-panel data-export-href="/admin/export/donations.csv" data-export-label="Export donations CSV">
-      <section class="card section-card">
+      <section class="panel-stack">
+        <section class="panel-hero">
+          <div class="panel-hero-main">
+            <span class="panel-hero-icon">${adminIcon('donations')}</span>
+            <div>
+              <div class="eyebrow">Donations</div>
+              <h2>Support inbox</h2>
+              <p class="section-copy">${escapeHtml(donationSummary)}</p>
+            </div>
+          </div>
+          <div class="panel-stat-row">
+            <div class="panel-stat"><strong>${donationCounts.total || 0}</strong><span>Messages</span></div>
+            <div class="panel-stat"><strong>${donationCounts.unique_donors || 0}</strong><span>Donors</span></div>
+            <div class="panel-stat"><strong>${donationCounts.countries || 0}</strong><span>Countries</span></div>
+          </div>
+        </section>
+      <section class="card section-card data-panel-card">
         <div class="section-head">
           <div>
-            <div class="label">Donations</div>
-            <h2>Support inbox</h2>
-            <p class="section-copy">${escapeHtml(donationSummary)}</p>
+            <h2>Recent support notes</h2>
+            <p class="section-copy">Messages and donor details from people supporting the beta.</p>
+          </div>
+          <div class="panel-actions">
+            <a class="ghost-btn" href="/admin/export/donations.csv">${adminIcon('download')}<span>Export donations CSV</span></a>
           </div>
         </div>
         <div class="table-wrap">
@@ -3614,15 +4073,33 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
           </table>
         </div>
       </section>
+      </section>
     </section>
 
     <section id="feedback-panel" class="panel" data-panel data-export-href="/admin/export/feedback.csv" data-export-label="Export feedback CSV">
-      <section class="card section-card">
+      <section class="panel-stack">
+        <section class="panel-hero">
+          <div class="panel-hero-main">
+            <span class="panel-hero-icon">${adminIcon('feedback')}</span>
+            <div>
+              <div class="eyebrow">Feedback</div>
+              <h2>Beta feedback</h2>
+              <p class="section-copy">${feedbackCounts.total || 0} submissions from ${feedbackCounts.unique_testers || 0} testers.</p>
+            </div>
+          </div>
+          <div class="panel-stat-row">
+            <div class="panel-stat"><strong>${feedbackCounts.total || 0}</strong><span>Submissions</span></div>
+            <div class="panel-stat"><strong>${feedbackCounts.unique_testers || 0}</strong><span>Testers</span></div>
+          </div>
+        </section>
+      <section class="card section-card data-panel-card">
         <div class="section-head">
           <div>
-            <div class="label">Feedback</div>
-            <h2>Beta feedback</h2>
-            <p class="section-copy">${feedbackCounts.total || 0} submissions from ${feedbackCounts.unique_testers || 0} testers.</p>
+            <h2>Feedback queue</h2>
+            <p class="section-copy">Survey answers, environment details, and tester replies in one view.</p>
+          </div>
+          <div class="panel-actions">
+            <a class="ghost-btn" href="/admin/export/feedback.csv">${adminIcon('download')}<span>Export feedback CSV</span></a>
           </div>
         </div>
         <div class="table-wrap">
@@ -3641,6 +4118,7 @@ function renderAdminPage(counts, donationCounts, recent, recentDonations, instit
             <tbody>${feedbackRows}</tbody>
           </table>
         </div>
+      </section>
       </section>
     </section>
 
@@ -3999,7 +4477,12 @@ function adminIcon(name) {
     signups: '<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="12" cy="11" r="4"></circle><path d="M5 24c1.9-3.8 4.7-5.7 8-5.7s6.1 1.9 8 5.7"></path><path d="M21 10a3.5 3.5 0 1 1 0 7"></path><path d="M23.5 24c.9-2.1 2.5-3.6 4.5-4.5"></path></svg>',
     donations: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 26s-8-4.9-10.6-9.5C3.2 12.7 5.4 8 10 8c2.5 0 4.1 1.3 6 3.5C17.9 9.3 19.5 8 22 8c4.6 0 6.8 4.7 4.6 8.5C24 21.1 16 26 16 26z"></path></svg>',
     feedback: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 7h20v13a2 2 0 0 1-2 2H13l-6 5v-5H6a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z"></path><path d="M10 12h12"></path><path d="M10 16h8"></path></svg>',
+    check: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="m9 16 5 5 9-10"></path></svg>',
+    close: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M10 10l12 12"></path><path d="M22 10 10 22"></path></svg>',
+    download: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 5v15"></path><path d="m10 15 6 6 6-6"></path><path d="M7 25h18"></path></svg>',
+    editions: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="m16 5 11 6-11 6-11-6 11-6z"></path><path d="m6 16 10 6 10-6"></path><path d="m6 21 10 6 10-6"></path></svg>',
     export: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M10 4h9l7 7v15a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"></path><path d="M19 4v7h7"></path><path d="M16 14v8"></path><path d="M12.5 19.5 16 23l3.5-3.5"></path></svg>',
+    link: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M13.5 18.5a5 5 0 0 0 7 0l3.5-3.5a5 5 0 0 0-7-7l-2 2"></path><path d="M18.5 13.5a5 5 0 0 0-7 0L8 17a5 5 0 0 0 7 7l2-2"></path></svg>',
     preview: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 10h24v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V10z"></path><path d="M4 11l12 8 12-8"></path></svg>',
     account: '<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="11" r="5"></circle><path d="M7 26c1.8-4.3 5.1-6.5 9-6.5S23.2 21.7 25 26"></path></svg>',
     back: '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M20 8 12 16l8 8"></path><path d="M13 16h13"></path></svg>',
@@ -4016,38 +4499,73 @@ function adminIcon(name) {
 function renderAdminAccountPanel(options = {}) {
   const adminUsername = trim(options.adminUsername) || config.adminUsername;
   return `<div class="account-layout">
-    <section class="card account-card">
-      <div class="account-top">
-        <div class="account-profile">
-          <div class="account-avatar">${adminIcon('account')}</div>
-          <div>
-            <div class="label">Signed in as</div>
-            <div style="font-size:28px;line-height:1.05;letter-spacing:-.04em;margin-top:8px;">${escapeHtml(adminUsername)}</div>
-          </div>
+    <section class="panel-hero">
+      <div class="panel-hero-main">
+        <span class="panel-hero-icon">${adminIcon('account')}</span>
+        <div>
+          <div class="eyebrow">Account</div>
+          <h2>Admin session</h2>
+          <p class="section-copy">Manage the signed-in dashboard session and keep local admin access tidy.</p>
         </div>
-        <span class="pill pill-blue">Admin session</span>
+      </div>
+      <div class="panel-stat-row">
+        <div class="panel-stat"><strong>Local</strong><span>Protected route</span></div>
+        <div class="panel-stat"><strong>Active</strong><span>Session state</span></div>
       </div>
     </section>
-    <section class="card account-panel-card">
-      <form method="post" action="/admin/logout">
-        <button type="submit" class="ghost-btn danger-solid" style="display:inline-flex;align-items:center;gap:8px;">${adminIcon('logout')}<span>Log out</span></button>
-      </form>
-    </section>
+    <div class="account-grid">
+      <section class="card account-card">
+        <div class="account-top">
+          <div class="account-profile">
+            <div class="account-avatar">${adminIcon('account')}</div>
+            <div>
+              <div class="label">Signed in as</div>
+              <div class="account-name">${escapeHtml(adminUsername)}</div>
+              <p class="account-copy">This session can access signup exports, email previews, and admin send actions.</p>
+            </div>
+          </div>
+          <span class="pill pill-success">Admin session</span>
+        </div>
+      </section>
+      <section class="card account-panel-card">
+        <div class="account-profile">
+          <div class="account-avatar">${adminIcon('logout')}</div>
+          <div>
+            <div class="label">Session control</div>
+            <h2 style="margin:6px 0 8px;font-size:22px;line-height:1.15;letter-spacing:-.03em;">End this session</h2>
+            <p class="account-copy">Sign out after reviewing private beta data.</p>
+          </div>
+        </div>
+        <div class="security-list">
+          <div class="security-item"><strong>Admin access</strong><span>Dashboard pages require a valid local admin session.</span></div>
+          <div class="security-item"><strong>Action safeguards</strong><span>Send, delete, and logout actions continue to use server-side form tokens.</span></div>
+        </div>
+        <form method="post" action="/admin/logout" style="margin:18px 0 0;">
+          <button type="submit" class="ghost-btn danger-solid">${adminIcon('logout')}<span>Log out</span></button>
+        </form>
+      </section>
+    </div>
   </div>`;
 }
 
 function renderEditionBadge(edition) {
   return trim(edition).toLowerCase() === 'bundle'
-    ? '<span class="pill pill-warm">Bundle</span>'
+    ? '<span class="pill pill-success">Bundle</span>'
     : '<span class="pill pill-blue">Lite</span>';
 }
 
 function renderStatusBadge(status) {
   const normalized = trim(status).toLowerCase();
   if (normalized === 'sent') return '<span class="pill pill-success">Sent</span>';
+  if (normalized === 'opened') return '<span class="pill pill-opened">Opened</span>';
   if (normalized === 'failed') return '<span class="pill pill-danger">Failed</span>';
-  if (normalized === 'pending') return '<span class="pill pill-muted">Pending</span>';
+  if (normalized === 'pending') return '<span class="pill pill-warm">Pending</span>';
   return `<span class="pill pill-muted">${escapeHtml(status || 'Unknown')}</span>`;
+}
+
+function renderSentByBadge(sentBy) {
+  const adminName = trim(sentBy);
+  return adminName ? `<span class="pill pill-muted">${escapeHtml(adminName)}</span>` : '<span class="date-empty">—</span>';
 }
 
 function simplePage(title, copy) {
@@ -4383,6 +4901,14 @@ function adminOriginAllowed(req) {
   }
 }
 
+function ensureSqliteColumn(database, tableName, columnName, definition) {
+  const columns = database.prepare(`PRAGMA table_info(${tableName})`).all();
+  if (columns.some((column) => column.name === columnName)) {
+    return;
+  }
+  database.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
+}
+
 function adminHostAllowed(req) {
   const rawHost = trim(req.headers.host);
   if (!rawHost) return false;
@@ -4713,7 +5239,7 @@ function verifiedAdminSessionUsername(req, currentConfig, signingSecret) {
   return username;
 }
 
-async function sendSignupEmailBatch(signups, templateKey, sendEmail, markStatus) {
+async function sendSignupEmailBatch(signups, templateKey, sendEmail, markStatus, markSender) {
   let sentCount = 0;
   let failedCount = 0;
   const normalizedTemplateKey = normalizeEmailTemplateKey(templateKey);
@@ -4722,6 +5248,8 @@ async function sendSignupEmailBatch(signups, templateKey, sendEmail, markStatus)
     const emailResult = normalizeEmailResult(await sendEmail(signup, normalizedTemplateKey));
     if (markStatus && normalizedTemplateKey === 'beta-access') {
       await markStatus(signup, emailResult);
+    } else if (markSender && normalizedTemplateKey === 'support-update') {
+      await markSender(signup, emailResult);
     }
 
     if (emailResult.status === 'sent') {
@@ -5017,15 +5545,15 @@ function createLegacySqliteStore() {
       token, name, email, institution, country, role, edition,
       source_page, source_title, ip_address, user_agent,
       created_at, updated_at, beta_visits, last_beta_visit_at,
-      email_status, email_error, email_sent_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      email_status, email_error, email_sent_at, email_sent_by
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const updateSignupStatement = db.prepare(`
     UPDATE signups
     SET name = ?, institution = ?, country = ?, role = ?, edition = ?,
         source_page = ?, source_title = ?, ip_address = ?, user_agent = ?,
         updated_at = ?, beta_visits = ?, last_beta_visit_at = ?,
-        email_status = ?, email_error = ?, email_sent_at = ?
+        email_status = ?, email_error = ?, email_sent_at = ?, email_sent_by = ?
     WHERE email = ?
   `);
   const updateVisitStatement = db.prepare(`
@@ -5033,14 +5561,19 @@ function createLegacySqliteStore() {
     SET beta_visits = ?, last_beta_visit_at = ?
     WHERE token = ?
   `);
+  const updateEmailSenderStatement = db.prepare(`
+    UPDATE signups
+    SET email_sent_by = ?
+    WHERE token = ?
+  `);
   const recentSignupsStatement = db.prepare(`
-    SELECT token, name, email, institution, country, role, edition, created_at, updated_at, email_status, beta_visits, last_beta_visit_at
+    SELECT token, name, email, institution, country, role, edition, created_at, updated_at, email_status, email_sent_by, beta_visits, last_beta_visit_at
     FROM signups
     ORDER BY updated_at DESC
     LIMIT ?
   `);
   const signupsForEmailStatement = db.prepare(`
-    SELECT token, name, email, institution, country, role, edition, created_at, updated_at, email_status, beta_visits, last_beta_visit_at
+    SELECT token, name, email, institution, country, role, edition, created_at, updated_at, email_status, email_sent_by, beta_visits, last_beta_visit_at
     FROM signups
     ORDER BY updated_at DESC
     LIMIT ?
@@ -5076,7 +5609,7 @@ function createLegacySqliteStore() {
     LIMIT ?
   `);
   const exportStatement = db.prepare(`
-    SELECT name, email, institution, country, role, edition, created_at, email_status, beta_visits
+    SELECT name, email, institution, country, role, edition, created_at, email_status, email_sent_by, beta_visits
     FROM signups
     ORDER BY created_at DESC
     LIMIT ?
@@ -5145,7 +5678,8 @@ function createLegacySqliteStore() {
         signup.last_beta_visit_at || '',
         signup.email_status || 'pending',
         signup.email_error || '',
-        signup.email_sent_at || ''
+        signup.email_sent_at || '',
+        signup.email_sent_by || ''
       );
       return { data: statements.byToken.get(signup.token) || null, error: null };
     },
@@ -5190,8 +5724,8 @@ function createLegacySqliteStore() {
       return { data: feedbackExportStatement.all(limit), error: null };
     },
 
-    async markSignupEmailStatus(token, { error = '', sentAt = '', status } = {}) {
-      statements.markEmail.run(status || 'pending', error || '', sentAt || '', token);
+    async markSignupEmailStatus(token, { error = '', sentAt = '', sentBy = '', status } = {}) {
+      statements.markEmail.run(status || 'pending', error || '', sentAt || '', sentBy || '', token);
       const signup = statements.byToken.get(token);
       return {
         data: signup
@@ -5200,6 +5734,21 @@ function createLegacySqliteStore() {
               email_status: signup.email_status,
               email_error: signup.email_error,
               email_sent_at: signup.email_sent_at,
+              email_sent_by: signup.email_sent_by,
+            }
+          : null,
+        error: null,
+      };
+    },
+
+    async markSignupEmailSender(token, sentBy = '') {
+      updateEmailSenderStatement.run(sentBy || '', token);
+      const signup = statements.byToken.get(token);
+      return {
+        data: signup
+          ? {
+              token: signup.token,
+              email_sent_by: signup.email_sent_by,
             }
           : null,
         error: null,
@@ -5249,6 +5798,7 @@ function createLegacySqliteStore() {
         nextSignup.email_status || 'pending',
         nextSignup.email_error || '',
         nextSignup.email_sent_at || '',
+        nextSignup.email_sent_by || '',
         email
       );
 
@@ -6018,7 +6568,12 @@ function createApp(options = {}) {
       const templateKey = normalizeEmailTemplateKey(req.body?.template);
       const emailResult = normalizeEmailResult(await sendEmail(signup, templateKey));
       if (templateKey === 'beta-access') {
-        await readStoreResult(store.markSignupEmailStatus(signup.token, emailResult));
+        await readStoreResult(store.markSignupEmailStatus(signup.token, {
+          ...emailResult,
+          sentBy: emailResult.status === 'sent' ? hostedAdminSessionUsername(req) || currentConfig.adminUsername : '',
+        }));
+      } else if (emailResult.status === 'sent' && typeof store.markSignupEmailSender === 'function') {
+        await readStoreResult(store.markSignupEmailSender(signup.token, hostedAdminSessionUsername(req) || currentConfig.adminUsername));
       }
       const notice = emailResult.status === 'sent'
         ? `${templateKey === 'support-update' ? 'Support update' : 'Email'} sent`
@@ -6042,6 +6597,7 @@ function createApp(options = {}) {
       }
 
       const templateKey = normalizeEmailTemplateKey(req.body?.template);
+      const sentBy = hostedAdminSessionUsername(req) || currentConfig.adminUsername;
       let sentCount = 0;
       let failedCount = 0;
 
@@ -6053,7 +6609,12 @@ function createApp(options = {}) {
 
         const emailResult = normalizeEmailResult(await sendEmail(signup, templateKey));
         if (templateKey === 'beta-access') {
-          await readStoreResult(store.markSignupEmailStatus(signup.token, emailResult));
+          await readStoreResult(store.markSignupEmailStatus(signup.token, {
+            ...emailResult,
+            sentBy: emailResult.status === 'sent' ? sentBy : '',
+          }));
+        } else if (emailResult.status === 'sent' && typeof store.markSignupEmailSender === 'function') {
+          await readStoreResult(store.markSignupEmailSender(signup.token, sentBy));
         }
 
         if (emailResult.status === 'sent') {
@@ -6081,11 +6642,21 @@ function createApp(options = {}) {
       }
 
       const signups = await listSignupsForEmailFromStore(store);
+      const sentBy = hostedAdminSessionUsername(req) || currentConfig.adminUsername;
       const result = await sendSignupEmailBatch(
         signups,
         templateKey,
         sendEmail,
-        (signup, emailResult) => readStoreResult(store.markSignupEmailStatus(signup.token, emailResult))
+        (signup, emailResult) => readStoreResult(store.markSignupEmailStatus(signup.token, {
+          ...emailResult,
+          sentBy: emailResult.status === 'sent' ? sentBy : '',
+        })),
+        (signup, emailResult) => {
+          if (emailResult.status === 'sent' && typeof store.markSignupEmailSender === 'function') {
+            return readStoreResult(store.markSignupEmailSender(signup.token, sentBy));
+          }
+          return null;
+        }
       );
 
       return res.redirect(`/admin?notice=${encodeURIComponent(batchNotice(result, templateKey))}`);
