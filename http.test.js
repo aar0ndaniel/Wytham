@@ -1,8 +1,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const EventEmitter = require('node:events');
 const { once } = require('node:events');
 
-const { createApp, startServer } = require('./server.js');
+const { createApp, installGracefulShutdownHandlers, startServer } = require('./server.js');
 
 function createMemoryStore(initial = {}) {
   const state = {
@@ -541,6 +542,27 @@ test('GET /health with token reports non-secret runtime diagnostics', async (t) 
     supabaseSchema: 'public',
     totalSignups: 1,
   });
+});
+
+test('graceful shutdown exits cleanly when the platform sends SIGTERM', async () => {
+  let closed = false;
+  let exitCode;
+  const processLike = new EventEmitter();
+  processLike.exit = (code) => {
+    exitCode = code;
+  };
+  const server = {
+    close(callback) {
+      closed = true;
+      callback();
+    },
+  };
+
+  installGracefulShutdownHandlers(server, { processLike });
+  processLike.emit('SIGTERM');
+
+  assert.equal(closed, true);
+  assert.equal(exitCode, 0);
 });
 
 test('GET /download/:token redirects to the selected file URL and records access', async (t) => {

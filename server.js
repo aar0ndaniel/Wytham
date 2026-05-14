@@ -6788,12 +6788,42 @@ function startServer(options = {}) {
       console.warn('[warn] ADMIN_PASSWORD is still the default — change it before exposing the admin login.');
     }
   });
+  installGracefulShutdownHandlers(server, { processLike: options.processLike || process });
 
   return server;
 }
 
+function installGracefulShutdownHandlers(server, options = {}) {
+  const processLike = options.processLike || process;
+  const signals = options.signals || ['SIGTERM', 'SIGINT'];
+  let shuttingDown = false;
+
+  const shutdown = (signal) => {
+    if (shuttingDown) {
+      return;
+    }
+    shuttingDown = true;
+    if (typeof console !== 'undefined') {
+      console.log(`[shutdown] ${signal} received, closing server.`);
+    }
+    server.close((error) => {
+      if (error) {
+        console.error('[shutdown] Server close failed.', error);
+        processLike.exit(1);
+        return;
+      }
+      processLike.exit(0);
+    });
+  };
+
+  signals.forEach((signal) => {
+    processLike.once(signal, () => shutdown(signal));
+  });
+}
+
 module.exports = {
   createApp,
+  installGracefulShutdownHandlers,
   renderAdminLoginPage,
   renderAdminPage,
   renderAdminAccountPanel,
