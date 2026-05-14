@@ -363,6 +363,89 @@ test('createStore exposes CSV export queries for each admin panel', () => {
   ]);
 });
 
+test('createStore falls back when deployed Supabase is missing email_sent_by migration', async () => {
+  const queries = [];
+  const missingColumn = {
+    code: '42703',
+    message: 'column signups.email_sent_by does not exist',
+  };
+  const results = [
+    { data: null, error: missingColumn },
+    {
+      data: [
+        {
+          token: 'signup-token',
+          name: 'Ada Lovelace',
+          email: 'ada@example.com',
+          email_status: 'sent',
+        },
+      ],
+      error: null,
+    },
+  ];
+  class PromiseQuery extends QueryRecorder {
+    then(resolve, reject) {
+      return Promise.resolve(results.shift()).then(resolve, reject);
+    }
+  }
+  const client = {
+    from(table) {
+      const query = new PromiseQuery(table);
+      queries.push(query);
+      return query;
+    },
+  };
+  const store = createStore(client);
+
+  const result = await store.listRecentSignups(25);
+
+  assert.equal(result.error, null);
+  assert.deepEqual(result.data, [
+    {
+      token: 'signup-token',
+      name: 'Ada Lovelace',
+      email: 'ada@example.com',
+      email_status: 'sent',
+      email_sent_by: '',
+    },
+  ]);
+  assert.deepEqual(queries.map((query) => query.steps[0]), [
+    {
+      method: 'select',
+      args: ['token,name,email,institution,country,role,edition,created_at,updated_at,email_status,email_sent_by,beta_visits,last_beta_visit_at'],
+    },
+    {
+      method: 'select',
+      args: ['token,name,email,institution,country,role,edition,created_at,updated_at,email_status,beta_visits,last_beta_visit_at'],
+    },
+  ]);
+});
+
+test('createStore ignores email_sent_by update when migration is not applied yet', async () => {
+  const missingColumn = {
+    code: '42703',
+    message: 'column signups.email_sent_by does not exist',
+  };
+  class PromiseQuery extends QueryRecorder {
+    then(resolve, reject) {
+      return Promise.resolve({ data: null, error: missingColumn }).then(resolve, reject);
+    }
+  }
+  const client = {
+    from(table) {
+      return new PromiseQuery(table);
+    },
+  };
+  const store = createStore(client);
+
+  const result = await store.markSignupEmailSender('signup-token', 'ops');
+
+  assert.deepEqual(result, {
+    data: { token: 'signup-token', email_sent_by: '' },
+    error: null,
+  });
+});
+
 test('summary helpers preserve the current admin dashboard metrics', () => {
   const signupSummary = summarizeSignups([
     { edition: 'lite', beta_visits: 2 },
