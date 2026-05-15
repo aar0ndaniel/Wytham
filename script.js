@@ -15,7 +15,7 @@ const FALLBACK_NAVBAR_HTML = `
     </button>
     <div class="nav-links">
       <a href="docs.html">docs</a>
-      <a href="team.html">team</a>
+      <a href="about.html">about</a>
       <a href="updates.html">updates</a>
       <a href="wall.html">wall</a>
       <a href="contact.html">contact</a>
