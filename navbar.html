@@ -12,17 +12,29 @@
     </button>
     <div class="nav-links">
       <a href="docs.html">docs</a>
+      <a href="roadmap.html">roadmap</a>
+      <a href="updates.html">updates <span class="nav-new-label">new</span></a>
+      <div class="nav-dropdown">
+        <button class="nav-dropdown-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="supportMenu" data-action="toggle-support-menu">
+          support <i class="ph ph-caret-down" aria-hidden="true"></i>
+        </button>
+        <div class="nav-dropdown-menu" id="supportMenu">
+          <a href="https://github.com/aar0ndaniel/metis-app/issues/new?labels=bug" target="_blank" rel="noopener">report a bug</a>
+          <a href="submit-feedback.html">share feedback</a>
+          <a href="known-issues.html">known issues</a>
+          <a href="how-to-cite.html">how to cite</a>
+          <a href="contact.html">contact support</a>
+        </div>
+      </div>
       <a href="about.html">about</a>
-      <a href="updates.html">updates</a>
       <a href="wall.html">wall</a>
-      <a href="contact.html">contact</a>
     </div>
     <div class="nav-actions">
       <button class="btn-theme-toggle" type="button" data-action="toggle-theme" id="themeToggle" aria-label="Toggle theme">
         <i class="ph ph-sun theme-icon icon-candidate" id="themeIcon" data-ph-fallback-dark="☀" data-ph-fallback-light="☾" aria-hidden="true"></i>
       </button>
-      <a href="#" class="btn-donate" data-action="open-donate"><i class="ph-fill ph-heart btn-donate-icon icon-candidate" data-ph-fallback="💙" aria-hidden="true"></i><span class="btn-donate-label"> donate</span></a>
-      <button class="btn-download nav-cta" type="button" data-action="open-download">Join the waitlist <i class="ph ph-arrow-right" aria-hidden="true"></i></button>
+      <a href="https://github.com/sponsors/aar0ndaniel" class="btn-donate" target="_blank" rel="noopener"><i class="ph-fill ph-heart btn-donate-icon icon-candidate" data-ph-fallback="♥" aria-hidden="true"></i><span class="btn-donate-label"> donate</span></a>
+      <a class="btn-download nav-cta" href="download.html">Download metis app <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
     </div>
   </div>
 </nav>

@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/metis-logo-light-nav.png" />
+  <title>Share Feedback | metis</title>
+  <meta name="description" content="Share your metis experience, suggestions, feature ideas, and permission to quote your feedback publicly." />
+  <link rel="canonical" href="https://metis.emend.it.com/submit-feedback.html" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="metis" />
+  <meta property="og:title" content="Share Feedback | metis" />
+  <meta property="og:description" content="Share your metis experience, suggestions, feature ideas, and permission to quote your feedback publicly." />
+  <meta property="og:url" content="https://metis.emend.it.com/submit-feedback.html" />
+  <meta property="og:image" content="https://metis.emend.it.com/metis-og-preview.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Share Feedback | metis" />
+  <meta name="twitter:description" content="Share your metis experience, suggestions, feature ideas, and permission to quote your feedback publicly." />
+  <meta name="twitter:image" content="https://metis.emend.it.com/metis-og-preview.png" />
+  <link rel="stylesheet" href="style.css?v=20260503p" />
+  <link rel="stylesheet" href="vendor/phosphor/regular/style.css" />
+  <link rel="stylesheet" href="vendor/phosphor/fill/style.css" />
+  <script src="site-config.js?v=20260502a"></script>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
+  <script src="script.js?v=20260502b" defer></script>
+  <script src="vercel-analytics.js?v=20260503a" defer></script>
+  <script src="/_vercel/insights/script.js" defer></script>
+</head>
+<body>
+  <nav class="nav"></nav>
+
+  <main class="submit-feedback-main">
+    <section class="submit-feedback-hero">
+      <div class="submit-feedback-shell">
+        <div class="submit-feedback-kicker">General feedback</div>
+        <h1>Share feedback</h1>
+        <p>Tell us what worked, what felt unclear, and what would make metis more useful for your work.</p>
+      </div>
+    </section>
+
+    <section class="submit-feedback-shell submit-feedback-panel" aria-label="Share feedback form">
+      <form class="submit-feedback-form" id="generalFeedbackForm" novalidate>
+        <div class="hp-field" aria-hidden="true">
+          <label for="gf_hp">Leave this blank</label>
+          <input type="text" id="gf_hp" name="hp_field" tabindex="-1" autocomplete="off" />
+        </div>
+
+        <div class="submit-feedback-grid submit-feedback-grid-2">
+          <div class="form-row">
+            <label class="form-label" for="gf_name">Name <span class="req">*</span></label>
+            <input class="form-input" type="text" id="gf_name" name="name" required maxlength="100" autocomplete="name" />
+          </div>
+          <div class="form-row">
+            <label class="form-label" for="gf_email">Email <span class="req">*</span></label>
+            <input class="form-input" type="email" id="gf_email" name="email" required maxlength="254" autocomplete="email" />
+          </div>
+        </div>
+
+        <div class="submit-feedback-grid submit-feedback-grid-3">
+          <div class="form-row">
+            <label class="form-label" for="gf_role">Role <span class="req">*</span></label>
+            <select class="form-input form-select" id="gf_role" name="role" required>
+              <option value="">Select role</option>
+              <option>Student</option>
+              <option>Researcher</option>
+              <option>Lecturer / Professor</option>
+              <option>Consultant</option>
+              <option>Industry analyst</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label class="form-label" for="gf_country">Country <span class="req">*</span></label>
+            <input class="form-input" type="text" id="gf_country" name="country" required maxlength="100" autocomplete="country-name" />
+          </div>
+          <div class="form-row">
+            <label class="form-label" for="gf_institution">Institution</label>
+            <input class="form-input" type="text" id="gf_institution" name="institution" maxlength="200" autocomplete="organization" />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label class="form-label" for="gf_used_for">What did you use metis for? <span class="req">*</span></label>
+          <textarea class="form-input form-textarea" id="gf_used_for" name="used_for" required maxlength="800" rows="3"></textarea>
+        </div>
+
+        <div class="submit-feedback-grid submit-feedback-grid-2">
+          <div class="form-row">
+            <label class="form-label" for="gf_easy">What was easy? <span class="req">*</span></label>
+            <textarea class="form-input form-textarea" id="gf_easy" name="easy" required maxlength="900" rows="4"></textarea>
+          </div>
+          <div class="form-row">
+            <label class="form-label" for="gf_confusing">What was confusing? <span class="req">*</span></label>
+            <textarea class="form-input form-textarea" id="gf_confusing" name="confusing" required maxlength="900" rows="4"></textarea>
+          </div>
+        </div>
+
+        <div class="submit-feedback-grid submit-feedback-grid-2">
+          <div class="form-row">
+            <label class="form-label" for="gf_improve">What should we improve? <span class="req">*</span></label>
+            <textarea class="form-input form-textarea" id="gf_improve" name="improve" required maxlength="900" rows="4"></textarea>
+          </div>
+          <div class="form-row">
+            <label class="form-label" for="gf_feature_next">What feature should we add next? <span class="req">*</span></label>
+            <textarea class="form-input form-textarea" id="gf_feature_next" name="feature_next" required maxlength="900" rows="4"></textarea>
+          </div>
+        </div>
+
+        <fieldset class="submit-feedback-fieldset">
+          <legend>Overall experience rating <span class="req">*</span></legend>
+          <div class="submit-feedback-rating" role="radiogroup" aria-label="Overall experience rating">
+            <label><input type="radio" name="overall_rating" value="1" required /><span>1</span></label>
+            <label><input type="radio" name="overall_rating" value="2" /><span>2</span></label>
+            <label><input type="radio" name="overall_rating" value="3" /><span>3</span></label>
+            <label><input type="radio" name="overall_rating" value="4" /><span>4</span></label>
+            <label><input type="radio" name="overall_rating" value="5" /><span>5</span></label>
+          </div>
+        </fieldset>
+
+        <div class="submit-feedback-grid submit-feedback-grid-2">
+          <fieldset class="submit-feedback-fieldset">
+            <legend>Can we quote your feedback publicly? <span class="req">*</span></legend>
+            <div class="submit-feedback-choice">
+              <label><input type="radio" name="quote_permission" value="yes" required /> Yes</label>
+              <label><input type="radio" name="quote_permission" value="no" /> No</label>
+            </div>
+          </fieldset>
+          <fieldset class="submit-feedback-fieldset">
+            <legend>Can we contact you? <span class="req">*</span></legend>
+            <div class="submit-feedback-choice">
+              <label><input type="radio" name="contact_permission" value="yes" required /> Yes</label>
+              <label><input type="radio" name="contact_permission" value="no" /> No</label>
+            </div>
+          </fieldset>
+        </div>
+
+        <label class="form-check-row" for="gf_privacy">
+          <input class="form-check-input" type="checkbox" id="gf_privacy" name="privacyAccepted" value="yes" required />
+          <span class="form-check-copy">I agree that metis may process my feedback according to the <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</span>
+        </label>
+
+        <div class="turnstile-slot" id="generalFeedbackTurnstile"></div>
+        <div class="form-msg" id="generalFeedbackMsg" aria-live="polite"></div>
+
+        <button class="btn-primary form-submit submit-feedback-submit" type="submit" id="generalFeedbackBtn">
+          <span class="btn-label">Submit feedback</span>
+          <span class="btn-spinner" aria-hidden="true"></span>
+        </button>
+      </form>
+
+      <div class="submit-feedback-success" id="generalFeedbackSuccess" hidden>
+        <i class="ph ph-check-circle" aria-hidden="true"></i>
+        <h2>Feedback submitted</h2>
+        <p>Thank you. Your note has been saved as general feedback for review.</p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const API_BASE = String(window.METIS_SITE_CONFIG?.apiBase || '').replace(/\/$/, '');
+      const SITE_KEY = String(window.METIS_SITE_CONFIG?.turnstileSiteKey || '');
+      let turnstileToken = '';
+      let turnstileWidgetId = '';
+
+      const form = document.getElementById('generalFeedbackForm');
+      const msg = document.getElementById('generalFeedbackMsg');
+      const btn = document.getElementById('generalFeedbackBtn');
+      const success = document.getElementById('generalFeedbackSuccess');
+
+      const value = (id) => (document.getElementById(id)?.value || '').trim();
+      const checked = (name) => document.querySelector(`input[name="${name}"]:checked`)?.value || '';
+
+      function showMessage(text, isError = false) {
+        msg.textContent = text;
+        msg.classList.toggle('is-error', isError);
+      }
+
+      function renderTurnstile() {
+        const slot = document.getElementById('generalFeedbackTurnstile');
+        if (!slot || slot.dataset.rendered === 'true' || !window.turnstile || !SITE_KEY) return;
+        slot.dataset.rendered = 'true';
+        turnstileWidgetId = window.turnstile.render(slot, {
+          sitekey: SITE_KEY,
+          theme: document.body.classList.contains('light') ? 'light' : 'dark',
+          callback: (token) => { turnstileToken = token; },
+          'expired-callback': () => { turnstileToken = ''; },
+          'error-callback': () => { turnstileToken = ''; },
+        });
+      }
+
+      window.addEventListener('load', renderTurnstile);
+      const turnstileTimer = window.setInterval(() => {
+        renderTurnstile();
+        if (document.getElementById('generalFeedbackTurnstile')?.dataset.rendered === 'true') {
+          window.clearInterval(turnstileTimer);
+        }
+      }, 400);
+
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        showMessage('');
+
+        if (!form.reportValidity()) return;
+        if (!turnstileToken) {
+          showMessage('Please complete the security check before submitting.', true);
+          return;
+        }
+
+        const rating = checked('overall_rating');
+        const quotePermission = checked('quote_permission');
+        const contactPermission = checked('contact_permission');
+        const generalDetails = {
+          feedback_type: 'general',
+          role: value('gf_role'),
+          country: value('gf_country'),
+          institution: value('gf_institution'),
+          used_for: value('gf_used_for'),
+          easy: value('gf_easy'),
+          confusing: value('gf_confusing'),
+          improve: value('gf_improve'),
+          feature_next: value('gf_feature_next'),
+          overall_rating: rating,
+          quote_permission: quotePermission,
+          contact_permission: contactPermission,
+        };
+
+        const payload = {
+          name: value('gf_name'),
+          email: value('gf_email'),
+          windows_version: generalDetails.role || 'General feedback',
+          ram: generalDetails.country || 'General feedback',
+          app_version: '0.0.1',
+          dataset_type: generalDetails.used_for || 'General feedback',
+          sample_size: 'General feedback',
+          num_constructs: 'General feedback',
+          num_indicators: 'General feedback',
+          features_tested: ['General feedback'],
+          draw_mode: JSON.stringify({ open1: generalDetails.easy }),
+          navigation: JSON.stringify({ open1: generalDetails.confusing }),
+          analysis: JSON.stringify({
+            best_feature: generalDetails.easy,
+            confusing_feature: generalDetails.confusing,
+            bugs: generalDetails.improve,
+          }),
+          tam: JSON.stringify({ general_feedback: true }),
+          overall: JSON.stringify({
+            adoption_likelihood: Number(rating),
+            needs_improvement: generalDetails.improve,
+            most_valuable_feature: generalDetails.feature_next,
+            final_note_name: value('gf_name'),
+            final_note: generalDetails.quote_permission === 'yes' ? generalDetails.easy : '',
+            ...generalDetails,
+          }),
+          screenshot_url: '',
+          hp_field: value('gf_hp'),
+          sourcePage: window.location.pathname,
+          sourceTitle: 'General feedback',
+          privacyAccepted: 'yes',
+          privacyPolicyVersion: '1.0',
+          'cf-turnstile-response': turnstileToken,
+        };
+
+        btn.disabled = true;
+        btn.classList.add('is-loading');
+
+        try {
+          const response = await fetch(`${API_BASE}/api/feedback`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            cache: 'no-store',
+            body: JSON.stringify(payload),
+          });
+          const data = await response.json();
+          if (!response.ok || !data.success) {
+            throw new Error(data.error || 'Feedback submission failed. Please try again.');
+          }
+          form.hidden = true;
+          success.hidden = false;
+        } catch (error) {
+          showMessage(error.message || 'Network error. Please try again.', true);
+          btn.disabled = false;
+          btn.classList.remove('is-loading');
+          if (window.turnstile && turnstileWidgetId) {
+            window.turnstile.reset(turnstileWidgetId);
+          }
+          turnstileToken = '';
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

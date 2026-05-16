@@ -1,4 +1,6 @@
 const ASSET_VERSION = '20260408i';
+const METIS_DOWNLOAD_PAGE_URL = 'download.html';
+const METIS_SPONSOR_URL = 'https://github.com/sponsors/aar0ndaniel';
 
 const FALLBACK_NAVBAR_HTML = `
 <nav class="nav">
@@ -15,17 +17,29 @@ const FALLBACK_NAVBAR_HTML = `
     </button>
     <div class="nav-links">
       <a href="docs.html">docs</a>
+      <a href="roadmap.html">roadmap</a>
+      <a href="updates.html">updates <span class="nav-new-label">new</span></a>
+      <div class="nav-dropdown">
+        <button class="nav-dropdown-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="supportMenu" data-action="toggle-support-menu">
+          support <i class="ph ph-caret-down" aria-hidden="true"></i>
+        </button>
+        <div class="nav-dropdown-menu" id="supportMenu">
+          <a href="https://github.com/aar0ndaniel/metis-app/issues/new?labels=bug" target="_blank" rel="noopener">report a bug</a>
+          <a href="submit-feedback.html">share feedback</a>
+          <a href="known-issues.html">known issues</a>
+          <a href="how-to-cite.html">how to cite</a>
+          <a href="contact.html">contact support</a>
+        </div>
+      </div>
       <a href="about.html">about</a>
-      <a href="updates.html">updates</a>
       <a href="wall.html">wall</a>
-      <a href="contact.html">contact</a>
     </div>
     <div class="nav-actions">
       <button class="btn-theme-toggle" type="button" data-action="toggle-theme" id="themeToggle" aria-label="Toggle theme">
         <i class="ph ph-sun theme-icon icon-candidate" id="themeIcon" data-ph-fallback-dark="☀" data-ph-fallback-light="☾" aria-hidden="true"></i>
       </button>
-      <a href="#" class="btn-donate" data-action="open-donate"><i class="ph-fill ph-heart btn-donate-icon icon-candidate" data-ph-fallback="💙" aria-hidden="true"></i><span class="btn-donate-label"> donate</span></a>
-      <button class="btn-download nav-cta" type="button" data-action="open-download">Join the waitlist <i class="ph ph-arrow-right" aria-hidden="true"></i></button>
+      <a href="https://github.com/sponsors/aar0ndaniel" class="btn-donate" target="_blank" rel="noopener"><i class="ph-fill ph-heart btn-donate-icon icon-candidate" data-ph-fallback="♥" aria-hidden="true"></i><span class="btn-donate-label"> donate</span></a>
+      <a class="btn-download nav-cta" href="download.html">Download metis app <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
     </div>
   </div>
 </nav>`;
@@ -85,6 +99,7 @@ document.addEventListener('DOMContentLoaded', function() {
   function highlightActiveLink() {
     const path = window.location.pathname;
     const page = path.split("/").pop() || 'index.html';
+    const supportPages = new Set(['submit-feedback.html', 'known-issues.html', 'how-to-cite.html', 'contact.html']);
     
     // Select all links in the injected navbar
     const links = document.querySelectorAll('.nav-links a');
@@ -98,6 +113,10 @@ document.addEventListener('DOMContentLoaded', function() {
         link.classList.add('active');
       }
     });
+    const supportToggle = document.querySelector('.nav-dropdown-toggle');
+    if (supportToggle) {
+      supportToggle.classList.toggle('active', supportPages.has(page));
+    }
   }
 });
 
@@ -187,9 +206,28 @@ function toggleMobileNav(btn) {
   const button = btn || document.querySelector('.nav-menu-btn');
   if (!button) return;
   const isOpen = links.classList.toggle('mobile-open');
+  if (!isOpen) closeSupportDropdown();
   button.classList.toggle('is-open', isOpen);
   button.setAttribute('aria-label', isOpen ? 'Close menu' : 'Open menu');
   button.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+}
+
+function closeSupportDropdown() {
+  document.querySelectorAll('.nav-dropdown.is-open').forEach((dropdown) => {
+    dropdown.classList.remove('is-open');
+    const toggle = dropdown.querySelector('.nav-dropdown-toggle');
+    if (toggle) toggle.setAttribute('aria-expanded', 'false');
+  });
+}
+
+function toggleSupportDropdown(btn) {
+  const dropdown = btn?.closest('.nav-dropdown');
+  if (!dropdown) return;
+  const willOpen = !dropdown.classList.contains('is-open');
+  closeSupportDropdown();
+  dropdown.classList.toggle('is-open', willOpen);
+  btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+  if (!willOpen) btn.blur();
 }
 
 document.addEventListener('click', function(e) {
@@ -197,6 +235,7 @@ document.addEventListener('click', function(e) {
     const links = document.querySelector('.nav-links');
     const btn = document.querySelector('.nav-menu-btn');
     if (links) links.classList.remove('mobile-open');
+    closeSupportDropdown();
     if (btn) { 
       btn.classList.remove('is-open'); 
       btn.setAttribute('aria-label', 'Open menu'); 
@@ -290,11 +329,7 @@ function closeModal(id) {
 }
 
 function openDownloadModal(version) {
-  openModal('downloadModal');
-  if (version) {
-    const sel = document.getElementById('su_version');
-    if (sel) sel.value = version;
-  }
+  window.location.href = METIS_DOWNLOAD_PAGE_URL;
 }
 
 function closeDownloadModal() {
@@ -303,7 +338,7 @@ function closeDownloadModal() {
 }
 
 function openDonateModal() {
-  openModal('donateModal');
+  window.open(METIS_SPONSOR_URL, '_blank', 'noopener,noreferrer');
 }
 
 function closeDonateModal() {
@@ -320,6 +355,9 @@ function runAction(node) {
     case 'toggle-mobile-nav':
       toggleMobileNav(node);
       return true;
+    case 'toggle-support-menu':
+      toggleSupportDropdown(node);
+      return true;
     case 'toggle-theme':
       toggleTheme();
       return true;
@@ -334,9 +372,6 @@ function runAction(node) {
       return true;
     case 'close-modal':
       closeModal(node.getAttribute('data-modal') || '');
-      return true;
-    case 'team-scroll':
-      teamScroll(Number(node.getAttribute('data-direction')) || 0);
       return true;
     case 'toggle-docs-sidebar': {
       const sidebar = document.getElementById('docsSidebar');
@@ -365,6 +400,7 @@ document.addEventListener('click', (e) => {
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
+    closeSupportDropdown();
     closeModal('downloadModal');
     closeModal('donateModal');
     closeModal('commentModal');
@@ -404,7 +440,7 @@ const TURNSTILE_STATE_LABELS = Object.freeze({
     retry: 'Verify to continue',
   },
   signupBtn: {
-    idle: 'Join the waitlist',
+    idle: 'Open GitHub',
     verifying: 'Verifying...',
     sending: 'Submitting...',
     sent: 'Request received',
@@ -1282,32 +1318,6 @@ document.addEventListener('click', (e) => {
   }
 });
 
-// Team section horizontal slider controls on index page.
-function updateTeamArrowState() {
-  const row = document.getElementById('teamRow');
-  const prev = document.getElementById('tPrev');
-  const next = document.getElementById('tNext');
-  if (!row || !prev || !next) return;
-
-  const maxLeft = Math.max(0, row.scrollWidth - row.clientWidth - 1);
-  prev.disabled = row.scrollLeft <= 1;
-  next.disabled = row.scrollLeft >= maxLeft;
-}
-
-function teamScroll(direction) {
-  const row = document.getElementById('teamRow');
-  if (!row) return;
-
-  const firstCard = row.querySelector('.team-card');
-  const step = firstCard
-    ? firstCard.getBoundingClientRect().width + 20
-    : Math.max(240, row.clientWidth * 0.8);
-
-  row.scrollBy({ left: direction * step, behavior: 'smooth' });
-  setTimeout(updateTeamArrowState, 140);
-  setTimeout(updateTeamArrowState, 460);
-}
-
 // Setup Initializers
 document.addEventListener('DOMContentLoaded', () => {
   initSearchableDropdowns();
@@ -1316,12 +1326,6 @@ document.addEventListener('DOMContentLoaded', () => {
   renderTurnstileWidgets();
   initCommentCharCounter();
   initWall();
-  const teamRow = document.getElementById('teamRow');
-  if (teamRow) {
-    teamRow.addEventListener('scroll', updateTeamArrowState, { passive: true });
-    window.addEventListener('resize', updateTeamArrowState);
-    updateTeamArrowState();
-  }
 });
 
 // ── Wall (comments) ─────────────────────────────────────────────────────

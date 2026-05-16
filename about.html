@@ -208,14 +208,15 @@
           <p class="tp-role">Marketing Lead</p>
         </div>
 
-        <div class="tp-member tp-join-card ab-join-card" data-action="open-download" data-key-activate="true"
-          role="button" tabindex="0" aria-label="Join the team">
+        <div class="tp-member tp-join-card ab-join-card" onclick="window.location.href='contact.html'"
+          onkeydown="if(event.key === 'Enter' || event.key === ' '){ event.preventDefault(); window.location.href='contact.html'; }"
+          role="button" tabindex="0" aria-label="Contact the team">
           <div class="tp-photo-wrap tp-join-wrap">
             <i class="ph ph-plus tp-join-plus" aria-hidden="true"></i>
           </div>
           <div class="tp-join-copy">
-            <h3 class="tp-name">Want to see your<br>picture here?</h3>
-            <p class="tp-role tp-join-cta">Join the team <i class="ph ph-arrow-right" aria-hidden="true"></i></p>
+            <h3 class="tp-name">Want to work<br>with metis?</h3>
+            <p class="tp-role tp-join-cta">Contact the team <i class="ph ph-arrow-right" aria-hidden="true"></i></p>
           </div>
         </div>
 
@@ -228,7 +229,7 @@
     <div class="container">
       <div class="footer-bottom" style="padding: 0;">
         <span class="footer-copyright">© 2026 Metis. All rights reserved.</span>
-        <span class="footer-legal-links"><a href="privacy.html">Privacy Policy</a><span aria-hidden="true">·</span><a href="terms.html">Beta Terms</a><span aria-hidden="true">·</span><a href="contact.html">Contact</a></span>
+        <span class="footer-legal-links"><a href="privacy.html">Privacy Policy</a><span aria-hidden="true">·</span><a href="terms.html">Terms</a><span aria-hidden="true">·</span><a href="contact.html">Contact</a></span>
       </div>
     </div>
   </footer>
@@ -239,8 +240,8 @@
     <div class="modal">
       <button class="modal-close" type="button" data-action="close-modal" data-modal="downloadModal"
         aria-label="Close">×</button>
-      <h2 class="modal-title">Join the waitlist</h2>
-      <p class="modal-sub">Be among the first to try metis. We’ll notify you before launch.</p>
+      <h2 class="modal-title">Download metis</h2>
+      <p class="modal-sub">Metis is open source. Download the Windows release from the official project page.</p>
       <form class="secure-form" id="signupForm">
         <div class="hp-field" aria-hidden="true">
           <label for="hp_signup">Leave this blank</label>
@@ -298,7 +299,7 @@
         <div class="form-consent-stack">
           <label class="form-check-row" for="su_terms">
             <input class="form-check-input" type="checkbox" id="su_terms" name="termsAccepted" value="yes" required/>
-            <span class="form-check-copy">I agree to the <a href="terms.html" target="_blank" rel="noopener">Metis Beta Terms</a>.</span>
+            <span class="form-check-copy">I agree to the <a href="terms.html" target="_blank" rel="noopener">Metis Terms</a>.</span>
           </label>
           <label class="form-check-row" for="su_privacy">
             <input class="form-check-input" type="checkbox" id="su_privacy" name="privacyAccepted" value="yes" required/>
@@ -311,7 +312,7 @@
         </div>
         <div class="form-msg" id="signupMsg" aria-live="polite"></div>
         <button class="btn-primary form-submit" type="submit" id="signupBtn">
-            <span class="btn-label">Join the waitlist</span>
+            <span class="btn-label">Open Download</span>
             <span class="btn-spinner" aria-hidden="true"></span>
           </button>
       </form>
